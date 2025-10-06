@@ -1,4 +1,4 @@
-/obj/item/clothing/neck/aether_pennant
+/obj/item/clothing/neck/petcollar/aether_pennant
 	name = "Aether Pennant"
 	desc = "A mysterious pennant. Protects the user from harm."
 	icon = 'modular_zzveilbreak/icons/item_icons/pennants.dmi'
@@ -10,12 +10,12 @@
 	var/on_cooldown = FALSE
 	var/cooldown_time = 20 SECONDS
 
-/obj/item/clothing/neck/aether_pennant/Initialize()
+/obj/item/clothing/neck/petcollar/aether_pennant/Initialize()
 	. = ..()
 	var/datum/action/item_action/aether_activate/action = new(src)
 	action.Grant(src.loc)  // Grant to the mob holding it
 
-/obj/item/clothing/neck/aether_pennant/equipped(mob/user, slot)
+/obj/item/clothing/neck/petcollar/aether_pennant/equipped(mob/user, slot)
 	. = ..()
 	if(slot == ITEM_SLOT_NECK)
 		RegisterSignal(user, COMSIG_MOB_APPLY_DAMAGE, PROC_REF(on_damage))
@@ -23,7 +23,7 @@
 		if(action)
 			action.Grant(user)
 
-/obj/item/clothing/neck/aether_pennant/dropped(mob/user)
+/obj/item/clothing/neck/petcollar/aether_pennant/dropped(mob/user)
 	. = ..()
 	UnregisterSignal(user, COMSIG_MOB_APPLY_DAMAGE)
 	var/datum/action/item_action/aether_activate/action = locate() in actions
@@ -37,7 +37,7 @@
 	button_icon_state = "aether_pennant"
 
 /datum/action/item_action/aether_activate/Trigger()
-	var/obj/item/clothing/neck/aether_pennant/pennant = target
+	var/obj/item/clothing/neck/petcollar/aether_pennant/pennant = target
 	if(!pennant)
 		return
 	pennant.attack_self(owner)
@@ -76,7 +76,7 @@
 		if(ismob(loc))
 			to_chat(loc, span_warning("The Aether Pennant's activation fades."))
 
-/obj/item/clothing/neck/life_pennant
+/obj/item/clothing/neck/petcollar/life_pennant
 	name = "Life Pennant"
 	desc = "A vibrant pennant that pulses with life energy. Heals the user."
 	icon = 'modular_zzveilbreak/icons/item_icons/pennants.dmi'
@@ -87,12 +87,12 @@
 	var/on_cooldown = FALSE
 	var/cooldown_time = 35 SECONDS
 
-/obj/item/clothing/neck/life_pennant/Initialize()
+/obj/item/clothing/neck/petcollar/life_pennant/Initialize()
 	. = ..()
 	var/datum/action/item_action/life_heal/action = new(src)
 	action.Grant(src.loc)
 
-/obj/item/clothing/neck/life_pennant/equipped(mob/user, slot)
+/obj/item/clothing/neck/petcollar/life_pennant/equipped(mob/user, slot)
 	. = ..()
 	if(slot == ITEM_SLOT_NECK)
 		START_PROCESSING(SSobj, src)  // Start passive healing
@@ -100,7 +100,7 @@
 		if(action)
 			action.Grant(user)
 
-/obj/item/clothing/neck/life_pennant/dropped(mob/user)
+/obj/item/clothing/neck/petcollar/life_pennant/dropped(mob/user)
 	. = ..()
 	STOP_PROCESSING(SSobj, src)  // Stop passive healing
 	var/datum/action/item_action/life_heal/action = locate() in actions
@@ -114,7 +114,7 @@
 	button_icon_state = "life_pennant"
 
 /datum/action/item_action/life_heal/Trigger()
-	var/obj/item/clothing/neck/life_pennant/pennant = target
+	var/obj/item/clothing/neck/petcollar/life_pennant/pennant = target
 	if(!pennant)
 		return
 	pennant.attack_self(owner)
@@ -124,10 +124,10 @@
 		return
 	var/mob/living/user = loc
 	if(user.health < user.maxHealth)
-		user.adjustBruteLoss(-1 * seconds_per_tick)  // Heal 1 per second, scaled by tick
-		user.adjustFireLoss(-1 * seconds_per_tick)
-		user.adjustToxLoss(-1 * seconds_per_tick)
-		user.adjustOxyLoss(-1 * seconds_per_tick)
+		user.adjustBruteLoss(-0.5 * seconds_per_tick)  // Heal 1 per second, scaled by tick
+		user.adjustFireLoss(-0.5 * seconds_per_tick)
+		user.adjustToxLoss(-0.5 * seconds_per_tick)
+		user.adjustOxyLoss(-0.5 * seconds_per_tick)
 
 /obj/item/clothing/neck/life_pennant/attack_self(mob/user)
 	if(on_cooldown)
