@@ -19,8 +19,9 @@
 	. = ..()
 	if(slot == ITEM_SLOT_NECK)
 		RegisterSignal(user, COMSIG_MOB_APPLY_DAMAGE, PROC_REF(on_damage))
-		var/datum/action/item_action/aether_activate/action = new(src)
-		action.Grant(user)
+		if(!locate(/datum/action/item_action/aether_activate) in user.actions)
+			var/datum/action/item_action/aether_activate/action = new(src)
+			action.Grant(user)
 
 /obj/item/clothing/neck/petcollar/aether_pendant/dropped(mob/user)
 	. = ..()
@@ -95,8 +96,9 @@
 	. = ..()
 	if(slot == ITEM_SLOT_NECK)
 		START_PROCESSING(SSobj, src)  // Start passive healing
-		var/datum/action/item_action/life_heal/action = new(src)
-		action.Grant(user)
+		if(!locate(/datum/action/item_action/life_heal) in user.actions)
+			var/datum/action/item_action/life_heal/action = new(src)
+			action.Grant(user)
 
 /obj/item/clothing/neck/petcollar/life_pendant/dropped(mob/user)
 	. = ..()
