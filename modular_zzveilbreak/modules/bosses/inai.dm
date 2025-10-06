@@ -57,19 +57,20 @@
 	var/datum/action/cooldown/mob_cooldown/astral_step/astral_step
 	var/datum/action/cooldown/mob_cooldown/inai_wave/inai_wave
 	// Abilities
-	var/astral_step_cooldown = 20 SECONDS
-	var/inai_wave_cooldown = 35 SECONDS
+	var/astral_step_cooldown = 10 SECONDS
+	var/inai_wave_cooldown = 17 SECONDS
 
 	Initialize()
 		. = ..()
 		astral_step = new(src)
-		inai_wave = new(src)
+		resonant_wave = new(src)
 		astral_step.Grant(src)
-		inai_wave.Grant(src)
+		resonant_wave.Grant(src)
+		ai_controller = new /datum/ai_controller/inai(src)
 
 	Destroy()
 		QDEL_NULL(astral_step)
-		QDEL_NULL(inai_wave)
+		QDEL_NULL(resonant_wave)
 		return ..()
 
 	death(message)
