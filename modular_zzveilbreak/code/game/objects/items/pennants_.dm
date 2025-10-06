@@ -6,6 +6,9 @@
 	icon_state = "aether_pendant"
 	w_class = WEIGHT_CLASS_SMALL
 	slot_flags = ITEM_SLOT_NECK
+	worn_x_dimension = 8
+	worn_y_dimension = 8
+	pixel_y = -4  // Offset towards neck
 
 	var/active = FALSE  // For active ability
 	var/on_cooldown = FALSE
@@ -40,7 +43,17 @@
 	var/obj/item/clothing/neck/petcollar/aether_pendant/pendant = target
 	if(!pendant)
 		return
-	pendant.attack_self(owner)
+	if(pendant.on_cooldown)
+		to_chat(owner, span_warning("The pendant is on cooldown!"))
+		return
+	if(pendant.active)
+		to_chat(owner, span_warning("The pendant is already active!"))
+		return
+	pendant.active = TRUE
+	pendant.on_cooldown = TRUE
+	to_chat(owner, span_notice("You activate the Aether Pendant, nullifying damage for the next 1.5 seconds."))
+	addtimer(CALLBACK(pendant, "deactivate"), 1.5 SECONDS)
+	addtimer(CALLBACK(pendant, "end_cooldown"), pendant.cooldown_time)
 
 /obj/item/clothing/neck/petcollar/aether_pendant/proc/on_damage(datum/source, damage, damagetype, def_zone, blocked, forced)
 	SIGNAL_HANDLER
@@ -84,6 +97,9 @@
 	icon_state = "life_pendant"
 	w_class = WEIGHT_CLASS_SMALL
 	slot_flags = ITEM_SLOT_NECK
+	worn_x_dimension = 8
+	worn_y_dimension = 8
+	pixel_y = -4  // Offset towards neck
 
 	var/on_cooldown = FALSE
 	var/cooldown_time = 35 SECONDS
@@ -117,7 +133,22 @@
 	var/obj/item/clothing/neck/petcollar/life_pendant/pendant = target
 	if(!pendant)
 		return
-	pendant.attack_self(owner)
+	if(pendant.on_cooldown)
+		to_chat(owner, span_warning("The pendant is on cooldown!"))
+		return
+	pendant.on_cooldown = TRUE
+	var/healed_total = 0
+	for(var/mob/living/t in range(3, owner))
+		if(healed_total >= 100)
+			break
+		var/heal_amount = min(20, 100 - healed_total)
+		t.adjustBruteLoss(-heal_amount)
+		t.adjustFireLoss(-heal_amount)
+		t.adjustToxLoss(-heal_amount)
+		t.adjustOxyLoss(-heal_amount)
+		healed_total += heal_amount
+	to_chat(owner, span_notice("The Life Pendant heals nearby allies!."))
+	addtimer(CALLBACK(pendant, "end_cooldown"), pendant.cooldown_time)
 
 /obj/item/clothing/neck/petcollar/life_pendant/process(seconds_per_tick)
 	if(!ismob(loc))
