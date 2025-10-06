@@ -53,7 +53,7 @@
 	pendant.on_cooldown = TRUE
 	to_chat(owner, span_notice("You activate the Aether Pendant, nullifying damage for the next 1.5 seconds."))
 	addtimer(CALLBACK(pendant, "deactivate"), 1.5 SECONDS)
-	addtimer(CALLBACK(pendant, "endcooldown"), pendant.cooldown_time)
+	addtimer(CALLBACK(pendant, "end_cooldown"), pendant.cooldown_time)
 
 /obj/item/clothing/neck/aether_pendant/proc/on_damage(datum/source, damage, damagetype, def_zone, blocked, forced)
 	SIGNAL_HANDLER
