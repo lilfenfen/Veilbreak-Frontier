@@ -42,7 +42,7 @@
 		return
 	pennant.attack_self(owner)
 
-/obj/item/clothing/neck/aether_pennant/proc/on_damage(datum/source, damage, damagetype, def_zone, blocked, forced)
+/obj/item/clothing/neck/petcollar/aether_pennant/proc/on_damage(datum/source, damage, damagetype, def_zone, blocked, forced)
 	SIGNAL_HANDLER
 	if(prob(1) || active)  // 1% chance or active
 		damage = 0  // Nullify damage
@@ -52,7 +52,7 @@
 		else
 			to_chat(source, span_notice("The void passively blocks the damage!"))
 
-/obj/item/clothing/neck/aether_pennant/attack_self(mob/user)
+/obj/item/clothing/neck/petcollar/aether_pennant/attack_self(mob/user)
 	if(on_cooldown)
 		to_chat(user, span_warning("The pennant is on cooldown!"))
 		return
@@ -65,12 +65,12 @@
 	addtimer(CALLBACK(src, PROC_REF(deactivate)), 1.5 SECONDS)  // Active for 1.5 seconds
 	addtimer(CALLBACK(src, PROC_REF(end_cooldown)), cooldown_time)  // 20 second cooldown
 
-/obj/item/clothing/neck/aether_pennant/proc/end_cooldown()
+/obj/item/clothing/neck/petcollar/aether_pennant/proc/end_cooldown()
 	on_cooldown = FALSE
 	if(ismob(loc))
 		to_chat(loc, span_notice("The Aether Pennant is ready to use again."))
 
-/obj/item/clothing/neck/aether_pennant/proc/deactivate()
+/obj/item/clothing/neck/petcollar/aether_pennant/proc/deactivate()
 	if(active)
 		active = FALSE
 		if(ismob(loc))
@@ -119,7 +119,7 @@
 		return
 	pennant.attack_self(owner)
 
-/obj/item/clothing/neck/life_pennant/process(seconds_per_tick)
+/obj/item/clothing/neck/petcollar/life_pennant/process(seconds_per_tick)
 	if(!ismob(loc))
 		return
 	var/mob/living/user = loc
@@ -129,7 +129,7 @@
 		user.adjustToxLoss(-0.5 * seconds_per_tick)
 		user.adjustOxyLoss(-0.5 * seconds_per_tick)
 
-/obj/item/clothing/neck/life_pennant/attack_self(mob/user)
+/obj/item/clothing/neck/petcollar/life_pennant/attack_self(mob/user)
 	if(on_cooldown)
 		to_chat(user, span_warning("The pennant is on cooldown!"))
 		return
@@ -147,7 +147,7 @@
 	to_chat(user, span_notice("The Life Pennant heals nearby allies!."))
 	addtimer(CALLBACK(src, PROC_REF(end_cooldown)), cooldown_time)
 
-/obj/item/clothing/neck/life_pennant/proc/end_cooldown()
+/obj/item/clothing/neck/petcollar/life_pennant/proc/end_cooldown()
 	on_cooldown = FALSE
 	if(ismob(loc))
 		to_chat(loc, span_notice("The Life Pennant is ready to use again."))
