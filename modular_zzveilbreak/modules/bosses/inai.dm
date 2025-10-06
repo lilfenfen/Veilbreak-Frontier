@@ -55,10 +55,10 @@
 	)
 
 	var/datum/action/cooldown/mob_cooldown/astral_step/astral_step
-	var/datum/action/cooldown/mob_cooldown/inai_wave/inai_wave
+	var/datum/action/cooldown/mob_cooldown/inai_wave/resonant_wave
 	// Abilities
-	var/astral_step_cooldown = 10 SECONDS
-	var/inai_wave_cooldown = 17 SECONDS
+	var/ASTRAL_STEP_CD = 10 SECONDS
+	var/RESONANT_WAVE_CD = 17 SECONDS
 
 	Initialize()
 		. = ..()
@@ -86,9 +86,13 @@
 /datum/action/cooldown/mob_cooldown/astral_step
 	name = "Astral Step"
 	desc = "Teleport behind a target within 11 tiles and strike with extra damage."
-	cooldown_time = 20 SECONDS
 	button_icon = 'modular_zzveilbreak/icons/bosses/inai.dmi'
 	button_icon_state = "astral_step"
+
+/datum/action/cooldown/mob_cooldown/astral_step/New(Target)
+	. = ..()
+	var/mob/living/simple_animal/hostile/megafauna/inai/inai = owner
+	cooldown_time = inai.ASTRAL_STEP_CD
 
 /datum/action/cooldown/mob_cooldown/astral_step/Activate(atom/target)
 	var/mob/living/simple_animal/hostile/megafauna/inai/inai = owner
@@ -113,9 +117,13 @@
 /datum/action/cooldown/mob_cooldown/inai_wave
 	name = "Resonant Wave"
 	desc = "Channel a wave that releases random waves, damaging along paths."
-	cooldown_time = 35 SECONDS
 	button_icon = 'modular_zzveilbreak/icons/bosses/inai.dmi'
 	button_icon_state = "resonant_wave"
+
+/datum/action/cooldown/mob_cooldown/inai_wave/New(Target)
+	. = ..()
+	var/mob/living/simple_animal/hostile/megafauna/inai/inai = owner
+	cooldown_time = inai.RESONANT_WAVE_CD
 
 /datum/action/cooldown/mob_cooldown/inai_wave/Activate()
 	var/mob/living/simple_animal/hostile/megafauna/inai/inai = owner
@@ -132,7 +140,7 @@
 			inai.visible_message(span_warning("[inai]'s channeling is interrupted!"))
 			return
 		// Release 2-5 waves
-		var/num_waves = rand(2, 5)
+		var/num_waves = rand(4, 6)
 		for(var/w in 1 to num_waves)
 			var/dir = pick(GLOB.alldirs)
 			INVOKE_ASYNC(src, PROC_REF(fire_wave), inai, dir)
