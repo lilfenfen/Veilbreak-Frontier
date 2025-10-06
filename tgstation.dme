@@ -10456,7 +10456,7 @@
 #include "modular_zzplurt\code\modules\wiremod\core\integrated_circuit.dm"
 #include "modular_zzplurt\maps\offstation\seedvault.dm"
 #include "modular_zzveilbreak\code\game\objects\items\drop_list.dm"
-#include "modular_zzveilbreak\code\game\objects\items\pennants_.dm"
+#include "modular_zzveilbreak\code\game\objects\items\pendants.dm"
 #include "modular_zzveilbreak\code\game\objects\items\voidshard.dm"
 #include "modular_zzveilbreak\code\modules\cargo\exports\veilbreak.dm"
 #include "modular_zzveilbreak\modules\mobs.dm"
