@@ -15,7 +15,7 @@
 	speak_emote = list("says", "declares", "utters")
 	speak_chance = 50
 	faction = list("hostile")
-	speed = 0.8
+	speed = 1
 	del_on_death = TRUE
 	environment_smash = 2
 	armour_penetration = 20
@@ -23,7 +23,7 @@
 	robust_searching = TRUE
 	dodging = TRUE
 	dodge_prob = 40
-	move_to_delay = 1
+	move_to_delay = 0.8
 	loot = list(/obj/item/voidshard)  // Fixed drop for now; can use table later
 
 	// List of death messages
@@ -72,6 +72,12 @@
 		QDEL_NULL(astral_step)
 		QDEL_NULL(resonant_wave)
 		return ..()
+
+	// Life regeneration: 1 HP per tick when below max health and not dead
+	/mob/living/simple_animal/hostile/megafauna/inai/Life()
+		. = ..()
+		if(stat != DEAD && health < maxHealth)
+			adjustBruteLoss(-1)
 
 	death(message)
 		// Spawn loot before deletion

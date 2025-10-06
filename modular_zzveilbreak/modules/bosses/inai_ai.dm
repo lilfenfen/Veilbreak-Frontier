@@ -4,6 +4,10 @@
 	)
 	ai_movement = /datum/ai_movement/basic_avoidance
 	idle_behavior = /datum/idle_behavior/idle_random_walk
+	planning_subtrees = list(
+		/datum/ai_planning_subtree/simple_find_target,
+		/datum/ai_planning_subtree/basic_melee_attack,
+	)
 
 /datum/ai_controller/inai/process(seconds_per_tick)
 	. = ..()
@@ -12,7 +16,7 @@
 		return
 
 	// Get current target
-	var/mob/living/target = inai.target
+	var/mob/living/target = blackboard[BB_TARGET]
 
 	// Try to use Astral Step if ready and target is valid
 	if(inai.astral_step && inai.astral_step.IsAvailable() && target && get_dist(inai, target) <= 11)
