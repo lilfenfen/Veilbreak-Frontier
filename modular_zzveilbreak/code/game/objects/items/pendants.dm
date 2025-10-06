@@ -3,6 +3,7 @@
 	desc = "A mysterious pendant. Protects the user from harm."
 	icon = 'modular_zzveilbreak/icons/item_icons/pendants.dmi'
 	worn_icon = 'modular_zzveilbreak/icons/item_icons/pendants.dmi'
+	post_init_icon_state = "aether_pendant"
 	worn_icon_state = "aether_pendant"
 	icon_state = "aether_pendant"
 	w_class = WEIGHT_CLASS_SMALL
@@ -92,6 +93,7 @@
 	desc = "A vibrant pendant that pulses with life energy. Heals the user."
 	icon = 'modular_zzveilbreak/icons/item_icons/pendants.dmi'
 	worn_icon = 'modular_zzveilbreak/icons/item_icons/pendants.dmi'
+	post_init_icon_state = "life_pendant"
 	icon_state = "life_pendant"
 	worn_icon_state = "life_pendant"
 	w_class = WEIGHT_CLASS_SMALL
