@@ -3,9 +3,12 @@
 	desc = "A mysterious pendant. Protects the user from harm."
 	icon = 'modular_zzveilbreak/icons/item_icons/pendants.dmi'
 	worn_icon = 'modular_zzveilbreak/icons/item_icons/pendants.dmi'
+	worn_icon_state = "aether_pendant"
 	icon_state = "aether_pendant"
 	w_class = WEIGHT_CLASS_SMALL
 	slot_flags = ITEM_SLOT_NECK
+	worn_overlay_scale =0.5
+	worn_overlay_offset_y = -2
 
 	var/active = FALSE  // For active ability
 	var/on_cooldown = FALSE
@@ -92,9 +95,11 @@
 	icon = 'modular_zzveilbreak/icons/item_icons/pendants.dmi'
 	worn_icon = 'modular_zzveilbreak/icons/item_icons/pendants.dmi'
 	icon_state = "life_pendant"
+	worn_icon_state = "life_pendant"
 	w_class = WEIGHT_CLASS_SMALL
 	slot_flags = ITEM_SLOT_NECK
-
+	worn_overlay_scale =0.5
+	worn_overlay_offset_y = -2
 	var/on_cooldown = FALSE
 	var/cooldown_time = 35 SECONDS
 
@@ -177,71 +182,3 @@
 	if(ismob(loc))
 		to_chat(loc, span_notice("The Life Pendant is ready to use again."))
 
-/obj/item/clothing/neck/petcollar/aether_pendant
-    /**
-     * Custom worn overlay generator with scaling support.
-     * Works even if base petcollar doesn't define get_mob_overlay().
-     */
-    proc/get_mob_overlay(mob/living/carbon/human/H, slot)
-        // Build a basic image for the worn pendant
-        var/image/overlay = image(
-            icon = worn_icon,
-            icon_state = worn_icon_state || icon_state,
-            layer = H.layer + 0.01 // slightly above body layer
-        )
-
-        if(!overlay)
-            return null
-
-        // Base shrink factor (fits neck region)
-        var/base_scale = 0.6
-
-        // Apply dynamic mob scaling if present
-        var/scale_x = base_scale
-        var/scale_y = base_scale
-        if(istype(H.transform, /matrix))
-            if(H.transform.a)
-                scale_x *= H.transform.a
-            if(H.transform.d)
-                scale_y *= H.transform.d
-
-        var/matrix/M = matrix()
-        M.Scale(scale_x, scale_y)
-        overlay.transform = M
-
-        // Adjust positioning so it sits at the neck
-        overlay.pixel_y -= 4
-        overlay.appearance_flags = RESET_TRANSFORM | KEEP_TOGETHER
-
-        return overlay
-
-
-
-/obj/item/clothing/neck/petcollar/life_pendant
-    proc/get_mob_overlay(mob/living/carbon/human/H, slot)
-        var/image/overlay = image(
-            icon = worn_icon,
-            icon_state = worn_icon_state || icon_state,
-            layer = H.layer + 0.01
-        )
-
-        if(!overlay)
-            return null
-
-        var/base_scale = 0.6
-        var/scale_x = base_scale
-        var/scale_y = base_scale
-        if(istype(H.transform, /matrix))
-            if(H.transform.a)
-                scale_x *= H.transform.a
-            if(H.transform.d)
-                scale_y *= H.transform.d
-
-        var/matrix/M = matrix()
-        M.Scale(scale_x, scale_y)
-        overlay.transform = M
-
-        overlay.pixel_y -= 4
-        overlay.appearance_flags = RESET_TRANSFORM | KEEP_TOGETHER
-
-        return overlay
