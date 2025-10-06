@@ -7,8 +7,6 @@
 	icon_state = "aether_pendant"
 	w_class = WEIGHT_CLASS_SMALL
 	slot_flags = ITEM_SLOT_NECK
-	worn_overlay_scale =0.5
-	worn_overlay_offset_y = -2
 
 	var/active = FALSE  // For active ability
 	var/on_cooldown = FALSE
@@ -98,8 +96,6 @@
 	worn_icon_state = "life_pendant"
 	w_class = WEIGHT_CLASS_SMALL
 	slot_flags = ITEM_SLOT_NECK
-	worn_overlay_scale =0.5
-	worn_overlay_offset_y = -2
 	var/on_cooldown = FALSE
 	var/cooldown_time = 35 SECONDS
 
