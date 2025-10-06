@@ -10,14 +10,14 @@
     /obj/item/stack/sheet/mineral/silver = 10,
     /obj/item/stack/sheet/plasteel = 30,
     /obj/item/stack/sheet/glass = 30,
-    /obj/item/clothing/neck/petcollar/aether_pennant = 0.1,  // 0.1% chance
-    /obj/item/clothing/neck/petcollar/life_pennant = 0.1  // 0.1% chance
+    /obj/item/clothing/neck/petcollar/aether_pendant = 0.1,  // 0.1% chance
+    /obj/item/clothing/neck/petcollar/life_pendant = 0.1  // 0.1% chance
 )
 
 /var/list/inai_drops = list(
 	/obj/item/voidshard = 100,
-	/obj/item/clothing/neck/petcollar/aether_pennant = 33,  // 33% chance
-	/obj/item/clothing/neck/petcollar/life_pennant = 33  // 33% chance
+	/obj/item/clothing/neck/petcollar/aether_pendant = 33,  // 33% chance
+	/obj/item/clothing/neck/petcollar/life_pendant = 33  // 33% chance
 )
 
 // Function to pick loot from a table (call this in mob death proc if needed)
