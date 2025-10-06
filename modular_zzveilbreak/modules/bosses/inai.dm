@@ -15,7 +15,7 @@
 	speak_emote = list("says", "declares", "utters")
 	speak_chance = 50
 	faction = list("hostile")
-	speed = 1.2
+	speed = 0.8
 	del_on_death = TRUE
 	environment_smash = 2
 	armour_penetration = 20
@@ -23,7 +23,7 @@
 	robust_searching = TRUE
 	dodging = TRUE
 	dodge_prob = 40
-	move_to_delay = 3
+	move_to_delay = 1
 	loot = list(/obj/item/voidshard)  // Fixed drop for now; can use table later
 
 	// List of death messages
