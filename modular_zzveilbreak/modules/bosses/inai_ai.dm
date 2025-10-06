@@ -1,6 +1,6 @@
 /datum/ai_controller/inai
 	blackboard = list(
-		BB_TARGET = null,
+		"target" = null,
 	)
 	ai_movement = /datum/ai_movement/basic_avoidance
 	idle_behavior = /datum/idle_behavior/idle_random_walk
@@ -12,7 +12,7 @@
 		return
 
 	// Get current target
-	var/mob/living/target = blackboard[BB_TARGET]
+	var/mob/living/target = blackboard["target"]
 
 	// Try to use Astral Step if ready and target is valid
 	if(inai.astral_step && inai.astral_step.IsAvailable() && target && get_dist(inai, target) <= 11)

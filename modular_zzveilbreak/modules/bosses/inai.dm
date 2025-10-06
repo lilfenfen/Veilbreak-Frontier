@@ -66,7 +66,6 @@
 		resonant_wave = new(src)
 		astral_step.Grant(src)
 		resonant_wave.Grant(src)
-		ai_controller = new /datum/ai_controller/inai(src)
 
 	Destroy()
 		QDEL_NULL(astral_step)
@@ -78,6 +77,13 @@
 		. = ..()
 		if(stat != DEAD && health < maxHealth)
 			adjustBruteLoss(-1)
+		// Spell casting logic
+		if(stat != DEAD)
+			var/mob/living/target = src.target
+			if(target && astral_step && astral_step.IsAvailable() && get_dist(src, target) <= 11)
+				astral_step.Activate(target)
+			else if(resonant_wave && resonant_wave.IsAvailable())
+				resonant_wave.Activate()
 
 	death(message)
 		// Spawn loot before deletion
