@@ -15,15 +15,17 @@
 	speak_emote = list("says", "declares", "utters")
 	speak_chance = 100
 	faction = list("hostile")
-	speed = 1
+	speed = 0.8
+	rapid_melee = 10
+	melee_queue_distance = 12
 	del_on_death = TRUE
 	environment_smash = 2
-	armour_penetration = 100
+	armour_penetration = 40
 	stat_attack = HARD_CRIT
 	robust_searching = TRUE
 	dodging = TRUE
 	dodge_prob = 40
-	move_to_delay = 0.8
+	move_to_delay = 1
 	loot = list(/obj/item/voidshard)  // Fixed drop for now; can use table later
 
 	// List of death messages
@@ -67,12 +69,20 @@
 		resonant_wave = new(src)
 		astral_step.Grant(src)
 		resonant_wave.Grant(src)
-		ai_controller = new /datum/ai_controller/inai(src)
 
 	Destroy()
 		QDEL_NULL(astral_step)
 		QDEL_NULL(resonant_wave)
 		return ..()
+
+	/mob/living/simple_animal/hostile/megafauna/inai/OpenFire()
+		if(client)
+			return
+
+		if(target && get_dist(src, target) <= 11 && astral_step && astral_step.IsAvailable())
+			astral_step.Activate(target)
+		else if(resonant_wave && resonant_wave.IsAvailable() && !channeling)
+			resonant_wave.Activate()
 
 	// Life regeneration: 1 HP per tick when below max health and not dead
 	/mob/living/simple_animal/hostile/megafauna/inai/Life()
@@ -109,13 +119,30 @@
 	var/turf/target_turf = get_turf(target)
 	var/dir_to_inai = get_dir(target, inai)
 	var/turf/behind_turf = get_step(target_turf, dir_to_inai)
+	var/turf/start_turf
+	var/step_dir
 	if(behind_turf && !behind_turf.density)
+		start_turf = get_turf(inai)
+		// Create visual effects
+		step_dir = get_dir(start_turf, behind_turf)
+		var/obj/effect/temp_visual/astral_step/start/start_effect = new(start_turf)
+		start_effect.dir = step_dir
+		if(get_dist(start_turf, behind_turf) > 1)
+			var/turf/middle_turf = get_step(start_turf, step_dir)
+			var/obj/effect/temp_visual/astral_step/middle/middle_effect = new(middle_turf)
+			middle_effect.dir = step_dir
+		var/obj/effect/temp_visual/astral_step/end/end_effect = new(behind_turf)
+		end_effect.dir = step_dir
 		inai.forceMove(behind_turf)
-	// Attack with extra damage
-	var/mob/living/victim = target
-	var/extra_damage = 10
-	var/damage_type = pick(BRUTE, BURN, TOX, OXY)  // Random damage type
-	victim.apply_damage(extra_damage, damage_type)
+	// Mark effect on affected tiles
+	if(start_turf && behind_turf)
+		var/list/affected_turfs = list(start_turf, behind_turf)
+		if(get_dist(start_turf, behind_turf) > 1)
+			var/turf/middle_turf = get_step(start_turf, step_dir)
+			affected_turfs += middle_turf
+		for(var/turf/T in affected_turfs)
+			for(var/mob/living/L in T)
+				L.apply_status_effect(/datum/status_effect/astral_mark)
 	var/msg = pick(inai.astral_messages)
 	inai.visible_message("<span style='color:#8a2be2; font-style:italic;'>[msg]</span>")
 	StartCooldown()
@@ -136,7 +163,7 @@
 	var/mob/living/simple_animal/hostile/megafauna/inai/inai = owner
 	if(inai.stat)
 		return
-	inai.channeling = TRUE  // Set channeling flag
+	inai.channeling = TRUE
 	// Start channeling: stand still and don't attack for up to 6 seconds, releasing waves during
 	inai.visible_message(span_danger("[inai] begins to channel a resonant wave..."))
 	flick("inai_channeling", inai)
@@ -182,3 +209,51 @@
 	icon = 'modular_zzveilbreak/icons/bosses/inai.dmi'
 	icon_state = "resonant_wave"  // Single state
 	duration = 0.8 SECONDS
+
+/obj/effect/temp_visual/astral_step
+	icon = 'modular_zzveilbreak/icons/bosses/inai.dmi'
+	duration = 1 SECONDS
+
+/obj/effect/temp_visual/astral_step/start
+	icon_state = "astral_step_start"
+
+/obj/effect/temp_visual/astral_step/middle
+	icon_state = "astral_step_middle"
+
+/obj/effect/temp_visual/astral_step/end
+	icon_state = "astral_step_end"
+
+// Astral Mark status effect
+/datum/status_effect/astral_mark
+	id = "astral_mark"
+	status_type = STATUS_EFFECT_UNIQUE
+	alert_type = null
+	duration = 1 SECONDS
+
+/datum/status_effect/astral_mark/on_apply()
+	. = ..()
+	if(!isliving(owner))
+		return FALSE
+	var/mob/living/L = owner
+	L.add_movespeed_modifier(/datum/movespeed_modifier/astral_mark)
+	addtimer(CALLBACK(src, PROC_REF(explode)), 1 SECONDS)
+
+/datum/status_effect/astral_mark/proc/explode()
+	var/mob/living/L = owner
+	if(!L)
+		return
+	L.remove_movespeed_modifier(/datum/movespeed_modifier/astral_mark)
+	var/damage = 20
+	var/damage_type = pick(BRUTE, BURN, TOX, OXY)
+	L.apply_damage(damage, damage_type)
+	var/obj/effect/temp_visual/astral_explosion/explosion = new(get_turf(L))
+	explosion.dir = pick(GLOB.alldirs)
+	qdel(src)
+
+/datum/movespeed_modifier/astral_mark
+	multiplicative_slowdown = 0.5
+
+/obj/effect/temp_visual/astral_explosion
+	icon = 'modular_zzveilbreak/icons/bosses/inai.dmi'
+	icon_state = "astral_explosion"
+	duration = 0.5 SECONDS
