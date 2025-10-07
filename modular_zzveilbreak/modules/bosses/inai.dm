@@ -178,7 +178,7 @@
 	var/wave_interval = 1.5 SECONDS  // Release waves every 1.5 seconds
 	var/elapsed = 0
 	while(elapsed < channel_time)
-		if(!do_after(inai, wave_interval, target = inai, progress = TRUE))
+		if(!do_after(inai, wave_interval, progress = TRUE))
 			inai.visible_message(span_warning("[inai]'s channeling is interrupted!"))
 			inai.channeling = FALSE  // Reset flag on interrupt
 			return
