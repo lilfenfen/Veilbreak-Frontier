@@ -89,6 +89,12 @@
 		. = ..()
 		if(stat != DEAD && health < maxHealth)
 			adjustBruteLoss(-1)
+		// Spell casting logic
+		if(stat != DEAD && target && prob(20))  // 20% chance per tick to attempt casting
+			if(prob(50) && get_dist(src, target) <= 11 && astral_step && astral_step.IsAvailable())
+				astral_step.Activate(target)
+			else if(resonant_wave && resonant_wave.IsAvailable() && !channeling)
+				resonant_wave.Activate()
 
 	death(message)
 		// Spawn loot before deletion
@@ -252,9 +258,9 @@
 	qdel(src)
 
 /datum/movespeed_modifier/astral_mark
-	multiplicative_slowdown = 0.5
+	multiplicative_slowdown = 2  // Slow down by factor of 2 (speed halved)
 
 /obj/effect/temp_visual/astral_explosion
 	icon = 'modular_zzveilbreak/icons/bosses/inai.dmi'
 	icon_state = "astral_explosion"
-	duration = 0.5 SECONDS
+	duration = 1 SECONDS

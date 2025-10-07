@@ -37,18 +37,6 @@ verb/prime_bomb()
                 explosion(get_turf(src), 2, 4, 6, 0)
                 qdel(src)
 
-// Explode if hit by a projectile (laser, bullet, etc.)
-/obj/item/voidshard/bullet_act(obj/projectile/P)
-    if(!bomb_primed)
-        bomb_primed = TRUE
-        for(var/mob/M in view(5, src))
-            to_chat(M, "<span class='warning'>The voidshard vibrates violently as it's struck by a projectile!")
-        spawn(100)
-            if(src && bomb_primed)
-                bomb_primed = FALSE
-                explosion(get_turf(src), 2, 4, 6, 0)
-                qdel(src)
-
 // Activate in-hand with use item action
 /obj/item/voidshard/attack_self(mob/living/user)
     if(bomb_primed)
