@@ -70,6 +70,21 @@
 	)
 	departmental_flags = DEPARTMENT_BITFLAG_SERVICE
 
+//VENUS ADDITION - Placeable tape
+// Departmental tape rolls (service)
+/datum/design/bureau_tape
+	name = "Red Tape Roll"
+	id = "bureau_tape"
+	build_type = PROTOLATHE
+	materials = list(/datum/material/plastic = SHEET_MATERIAL_AMOUNT)
+	build_path = /obj/item/taperoll/bureaucracy
+	category = list(
+		RND_CATEGORY_INITIAL,
+		RND_CATEGORY_EQUIPMENT + RND_SUBCATEGORY_EQUIPMENT_SERVICE,
+	)
+	departmental_flags = DEPARTMENT_BITFLAG_SERVICE
+//VENUS ADDITION END
+
 /datum/design/kitchen_knife
 	name = "Kitchen Knife"
 	id = "kitchen_knife"

@@ -1,6 +1,7 @@
 /// Maximum damage taken when splashed with salt
 #define SALT_SENSITIVE_SPLASH_SALT_DAMAGE_CAP 20
-
+//VENUS EDIT START - Fix and rework sodium sensitivity quirk
+/* ORIGINAL:
 /datum/quirk/sodium_sensetivity
 	name = "Sodium Sensitivity"
 	desc = "Your body is sensitive to sodium, and is burnt upon contact. Ingestion or contact with it is not advised."
@@ -11,7 +12,20 @@
 	mob_trait = TRAIT_SALT_SENSITIVE
 	hardcore_value = 1
 	icon = FA_ICON_BOX_TISSUE
-
+*/
+/datum/quirk/sodium_sensetivity
+	name = "Sodium Hypersensitivity"
+	desc = "Your body is highly sensitive to sodium, and is burnt upon contact. Ingestion or contact with it is not advised." //VENUS EDIT - added 'highly sensitive', not just 'sensitive'
+	value = -2
+	gain_text = span_danger("You remember that advice about reducing your sodium intake.")
+	lose_text = span_notice("You remember how good salt makes things taste!")
+	medical_record_text = "Patient is highly sensitive to sodium, and should not come into contact with it under any circumstances." //VENUS EDIT - Removed extra 'to', changed 'allergic' to 'sensitive'
+	mob_trait = TRAIT_SALT_SENSITIVE
+	hardcore_value = 1
+	icon = FA_ICON_FIRE_FLAME_CURVED
+//VENUS EDIT END
+//VENUS REMOVAL START - Remove broken sodium sensitivity code
+/*
 /datum/quirk/sodium_sensetivity/add(client/client_source)
 	// Register reagent interactions
 	RegisterSignal(quirk_holder, COMSIG_REAGENT_PROCESS_SALT, PROC_REF(process_salt))
@@ -48,4 +62,6 @@
 	// Cause burn damage based on amount
 	quirk_holder.adjustFireLoss(damage)
 
+*/
+//VENUS REMOVAL END
 #undef SALT_SENSITIVE_SPLASH_SALT_DAMAGE_CAP
