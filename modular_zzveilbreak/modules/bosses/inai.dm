@@ -16,7 +16,7 @@
 	speak_chance = 100
 	faction = list("hostile")
 	speed = 0.8
-	rapid_melee = 10
+	rapid_melee = 1
 	melee_queue_distance = 12
 	del_on_death = TRUE
 	environment_smash = 2
@@ -117,32 +117,33 @@
 		return
 	// Teleport behind target
 	var/turf/target_turf = get_turf(target)
-	var/dir_to_inai = get_dir(target, inai)
-	var/turf/behind_turf = get_step(target_turf, dir_to_inai)
+	var/dir_from_inai = get_dir(inai, target)
+	var/turf/behind_turf = get_step(target_turf, dir_from_inai)
 	var/turf/start_turf
 	var/step_dir
 	if(behind_turf && !behind_turf.density)
 		start_turf = get_turf(inai)
 		// Create visual effects
 		step_dir = get_dir(start_turf, behind_turf)
-		var/obj/effect/temp_visual/astral_step/start/start_effect = new(start_turf)
-		start_effect.dir = step_dir
-		if(get_dist(start_turf, behind_turf) > 1)
-			var/turf/middle_turf = get_step(start_turf, step_dir)
-			var/obj/effect/temp_visual/astral_step/middle/middle_effect = new(middle_turf)
-			middle_effect.dir = step_dir
-		var/obj/effect/temp_visual/astral_step/end/end_effect = new(behind_turf)
-		end_effect.dir = step_dir
+		var/list/path = get_line(start_turf, behind_turf)
+		for(var/i in 1 to length(path))
+			var/turf/T = path[i]
+			var/obj/effect/temp_visual/astral_step/effect
+			if(i == 1)
+				effect = new /obj/effect/temp_visual/astral_step/start(T)
+			else if(i == length(path))
+				effect = new /obj/effect/temp_visual/astral_step/end(T)
+			else
+				effect = new /obj/effect/temp_visual/astral_step/middle(T)
+			effect.dir = step_dir
 		inai.forceMove(behind_turf)
 	// Mark effect on affected tiles
 	if(start_turf && behind_turf)
-		var/list/affected_turfs = list(start_turf, behind_turf)
-		if(get_dist(start_turf, behind_turf) > 1)
-			var/turf/middle_turf = get_step(start_turf, step_dir)
-			affected_turfs += middle_turf
+		var/list/affected_turfs = get_line(start_turf, behind_turf)
 		for(var/turf/T in affected_turfs)
 			for(var/mob/living/L in T)
-				L.apply_status_effect(/datum/status_effect/astral_mark)
+				if(L != inai)  // Exclude Inai from the mark
+					L.apply_status_effect(/datum/status_effect/astral_mark)
 	var/msg = pick(inai.astral_messages)
 	inai.visible_message("<span style='color:#8a2be2; font-style:italic;'>[msg]</span>")
 	StartCooldown()
