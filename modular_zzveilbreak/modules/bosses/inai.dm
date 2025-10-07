@@ -59,6 +59,7 @@
 	// Abilities
 	var/ASTRAL_STEP_CD = 10 SECONDS
 	var/RESONANT_WAVE_CD = 17 SECONDS
+	var/channeling = FALSE  // Flag to prevent actions during channeling
 
 	Initialize()
 		. = ..()
@@ -66,6 +67,7 @@
 		resonant_wave = new(src)
 		astral_step.Grant(src)
 		resonant_wave.Grant(src)
+		ai_controller = new /datum/ai_controller/inai(src)
 
 	Destroy()
 		QDEL_NULL(astral_step)
@@ -77,13 +79,6 @@
 		. = ..()
 		if(stat != DEAD && health < maxHealth)
 			adjustBruteLoss(-1)
-		// Spell casting logic
-		if(stat != DEAD)
-			var/mob/living/target = src.target
-			if(target && astral_step && astral_step.IsAvailable() && get_dist(src, target) <= 11)
-				astral_step.Activate(target)
-			else if(resonant_wave && resonant_wave.IsAvailable())
-				resonant_wave.Activate()
 
 	death(message)
 		// Spawn loot before deletion
@@ -141,6 +136,7 @@
 	var/mob/living/simple_animal/hostile/megafauna/inai/inai = owner
 	if(inai.stat)
 		return
+	inai.channeling = TRUE  // Set channeling flag
 	// Start channeling: stand still and don't attack for up to 6 seconds, releasing waves during
 	inai.visible_message(span_danger("[inai] begins to channel a resonant wave..."))
 	flick("inai_channeling", inai)
@@ -150,6 +146,7 @@
 	while(elapsed < channel_time)
 		if(!do_after(inai, wave_interval, target = inai, progress = TRUE))
 			inai.visible_message(span_warning("[inai]'s channeling is interrupted!"))
+			inai.channeling = FALSE  // Reset flag on interrupt
 			return
 		// Release 2-5 waves
 		var/num_waves = rand(4, 6)
@@ -161,6 +158,7 @@
 	inai.visible_message(span_danger("[inai] finishes channeling the resonant wave!"))
 	var/msg = pick(inai.pulse_messages)
 	inai.visible_message("<span style='color:#8a2be2; font-style:italic;'>[msg]</span>")
+	inai.channeling = FALSE  // Reset flag
 	StartCooldown()
 
 /datum/action/cooldown/mob_cooldown/inai_wave/proc/fire_wave(mob/living/simple_animal/hostile/megafauna/inai/inai, dir)
