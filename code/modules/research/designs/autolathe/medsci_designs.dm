@@ -59,6 +59,33 @@
 	)
 	departmental_flags = DEPARTMENT_BITFLAG_MEDICAL
 
+//VENUS ADDITION START - Placeable tape
+// Departmental tape rolls (med/science)
+/datum/design/med_tape
+	name = "Medical Tape Roll"
+	id = "med_tape"
+	build_type = PROTOLATHE
+	materials = list(/datum/material/plastic = SHEET_MATERIAL_AMOUNT)
+	build_path = /obj/item/taperoll/medical
+	category = list(
+		RND_CATEGORY_INITIAL,
+		RND_CATEGORY_EQUIPMENT + RND_SUBCATEGORY_EQUIPMENT_MEDICAL,
+	)
+	departmental_flags = DEPARTMENT_BITFLAG_MEDICAL
+
+/datum/design/sci_tape
+	name = "Research Tape Roll"
+	id = "sci_tape"
+	build_type = PROTOLATHE
+	materials = list(/datum/material/plastic = SHEET_MATERIAL_AMOUNT)
+	build_path = /obj/item/taperoll/research
+	category = list(
+		RND_CATEGORY_INITIAL,
+		RND_CATEGORY_EQUIPMENT + RND_SUBCATEGORY_EQUIPMENT_SCIENCE,
+	)
+	departmental_flags = DEPARTMENT_BITFLAG_SCIENCE
+//VENUS ADDITION END
+
 // Science Designs
 /datum/design/slime_scanner
 	name = "Slime Scanner"

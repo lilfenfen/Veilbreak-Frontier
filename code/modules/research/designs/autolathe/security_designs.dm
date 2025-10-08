@@ -27,7 +27,7 @@
 	id = "c38"
 	build_type = AUTOLATHE
 	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT*3)
-	build_path = /obj/item/ammo_box/c38
+	build_path = /obj/item/ammo_box/speedloader/c38
 	category = list(
 		RND_CATEGORY_INITIAL,
 		RND_CATEGORY_WEAPONS + RND_SUBCATEGORY_WEAPONS_AMMO,
@@ -93,6 +93,21 @@
 		RND_CATEGORY_EQUIPMENT + RND_SUBCATEGORY_EQUIPMENT_SECURITY,
 	)
 	departmental_flags = DEPARTMENT_BITFLAG_SECURITY
+
+//VENUS ADDITION START - Placeable tape
+// Departmental tape rolls (security)
+/datum/design/sec_tape
+	name = "Police Tape Roll"
+	id = "sec_tape"
+	build_type = PROTOLATHE
+	materials = list(/datum/material/plastic = SHEET_MATERIAL_AMOUNT)
+	build_path = /obj/item/taperoll/police
+	category = list(
+		RND_CATEGORY_INITIAL,
+		RND_CATEGORY_EQUIPMENT + RND_SUBCATEGORY_EQUIPMENT_SECURITY,
+	)
+	departmental_flags = DEPARTMENT_BITFLAG_SECURITY
+//VENUS ADDITION END
 
 /datum/design/handcuffs
 	name = "Handcuffs"

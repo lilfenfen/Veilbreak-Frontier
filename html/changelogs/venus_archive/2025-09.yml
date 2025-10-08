@@ -13,3 +13,5 @@
 2025-09-28:
   Goku:
   - balance: Increased the body damage coefficient of limbs to 0.2, limbs now contribute to the mob's health again.
+  - rscadd: Added placeable departmental (and Crime Scene Investigation) tape rolls. They can be printed at protolathes, can be lifted, placed in lines, broken and placed on airlocks. Useful for detective roleplay!
+  - rscadd: Added placeable crime scene markers. Can only be found in the Detective's locker!

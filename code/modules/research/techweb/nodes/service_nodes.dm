@@ -12,6 +12,14 @@
 		"desttagger",
 		"packagewrap",
 		"sticky_tape",
+		//VENUS ADDITION START - Placeable tape
+		"sec_tape",
+		"eng_tape",
+		"med_tape",
+		"sci_tape",
+		"atmos_tape",
+		"bureau_tape",
+		//VENUS ADDITION END
 		"toner_large",
 		"toner",
 		"boxcutter",
