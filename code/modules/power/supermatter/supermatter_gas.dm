@@ -237,8 +237,16 @@ GLOBAL_LIST_INIT(sm_gas_behavior, init_sm_gas())
 
 /datum/sm_gas/delirium
 	gas_path = /datum/gas/delirium
-	heat_modifier = 7
+	heat_modifier = 4
 	power_transmission = 0.6
 	heat_power_generation = 11
-	powerloss_inhibition = 1.4
-	desc = "Best fuel void there is. Needs slightly higher temperatures to be effective, but also needs extra cooling to keep it manageable."
+	powerloss_inhibition = 1
+	desc = "Strong fuel with unknown properties. Be extremely careful while testing."
+
+/datum/sm_gas/delirium/extra_effects(obj/machinery/power/supermatter_crystal/sm)
+	if(sm.gas_percentage[/datum/gas/delirium] > 0.5)
+		var/range = min(sm.gas_percentage[/datum/gas/delirium] * 200)  // Cap at 20 tiles for balance
+		for(var/mob/living/victim in range(range, sm))
+			var/hallucination_type = pick(GLOB.delirious_table)
+			victim.apply_status_effect(hallucination_type, "delirium supermatter")
+

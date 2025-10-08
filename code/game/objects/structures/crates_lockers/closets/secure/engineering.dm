@@ -87,6 +87,7 @@
 	new /obj/item/construction/plumbing/engineering(src)
 	new /obj/item/construction/rcd(src)
 	// BUBBER EDIT END
+	new /obj/item/taperoll/engineering(src) //VENUS ADDITION - Placeable tape
 
 
 /obj/structure/closet/secure_closet/atmospherics
@@ -108,6 +109,7 @@
 	new /obj/item/clothing/head/utility/hardhat/welding/atmos(src)
 	new /obj/item/clothing/glasses/meson/engine/tray(src)
 	new /obj/item/extinguisher/advanced(src)
+	new /obj/item/taperoll/atmos(src) //VENUS ADDITION - Placeable tape
 
 /obj/structure/closet/secure_closet/atmospherics/populate_contents_immediate()
 	. = ..()

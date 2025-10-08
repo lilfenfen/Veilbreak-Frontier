@@ -1239,18 +1239,21 @@
             total_burned += burned
 
     SET_REACTION_RESULTS(total_burned)
-    var/energy_released = FIRE_DELIRIUM_ENERGY_RELEASED * total_burned * 0.2
+    var/energy_consumed = FIRE_DELIRIUM_ENERGY_RELEASED * total_burned * 0.9  // Endothermic
     var/new_heat_capacity = air.heat_capacity()
     if(new_heat_capacity > MINIMUM_HEAT_CAPACITY)
-        air.temperature = (temperature * old_heat_capacity + energy_released) / new_heat_capacity
-        air.temperature = TCMB
-    // Fire visuals
+        air.temperature = max((temperature * old_heat_capacity - energy_consumed) / new_heat_capacity, TCMB)
+
+    // Fire visuals and hallucinations
     var/turf/open/location = holder
     if(istype(location))
         temperature = air.temperature
         if(temperature > FIRE_DELIRIUM_MINTEMP)
             location.hotspot_expose(temperature, CELL_VOLUME)
-            visible_hallucination_pulse(location, 9, 30 SECONDS, null, GLOB.delirious_table)
+            // Apply hallucinations directly
+            for(var/mob/living/victim in range(10, location))
+                var/hallucination_type = pick(GLOB.delirious_table)
+                victim.apply_status_effect(hallucination_type, "delirium_fire")
 
     if(total_burned)
         return REACTING

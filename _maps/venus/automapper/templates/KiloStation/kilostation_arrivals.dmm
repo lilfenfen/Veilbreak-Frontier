@@ -8,7 +8,7 @@
 	dwidth = 3;
 	height = 14;
 	name = "arrivals";
-	roundstart_template = /datum/map_template/shuttle/arrival/kilo;
+	roundstart_template = /datum/map_template/shuttle/arrival/venus_kilo;
 	shuttle_id = "arrival_stationary";
 	width = 7
 	},

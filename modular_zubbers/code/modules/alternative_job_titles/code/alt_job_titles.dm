@@ -39,3 +39,8 @@
 		"Apprentice Explorer",
 	)
 //VENUS ADDITION END - IRIS PORT (Explorer Job)
+/datum/job/paramedic/New()
+	alt_titles |= list(
+		"Body Retrieval Specialist",
+	)
+	. = ..()

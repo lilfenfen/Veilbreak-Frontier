@@ -5,14 +5,32 @@
 // Reagent process: Salt
 /datum/reagent/consumable/salt/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, times_fired)
 	. = ..()
-
-	SEND_SIGNAL(affected_mob, COMSIG_REAGENT_PROCESS_SALT, src, seconds_per_tick, times_fired)
+	// SEND_SIGNAL(affected_mob, COMSIG_REAGENT_PROCESS_SALT, src, seconds_per_tick, times_fired) VENUS REMOVAL - Fix for sodium sensitivity quirk
+	// VENUS ADDITION START - Direct trait check for sodium sensitivity
+	if(HAS_TRAIT(affected_mob, TRAIT_SALT_SENSITIVE))
+		playsound(affected_mob, SFX_SEAR, 30, TRUE)
+		affected_mob.adjustFireLoss(1 * REM * seconds_per_tick)
+		if(SPT_PROB(10, seconds_per_tick))
+			to_chat(affected_mob, span_userdanger("The salt sears your insides!"))
+	//VENUS ADDITION END
 
 // Reagent expose: Salt
-/datum/reagent/consumable/salt/expose_mob(mob/living/affected_mob, methods, reac_volume)
+/datum/reagent/consumable/salt/expose_mob(mob/living/affected_mob, methods, reac_volume, show_message = TRUE, touch_protection = 0) //VENUS EDIT - Added show_message and touch_protection
 	. = ..()
-
-	SEND_SIGNAL(affected_mob, COMSIG_REAGENT_EXPOSE_SALT, src, methods, reac_volume)
+	// SEND_SIGNAL(affected_mob, COMSIG_REAGENT_EXPOSE_SALT, src, methods, reac_volume) VENUS REMOVAL - Fix for sodium sensitivity quirk
+	//VENUS ADDITION START - Direct trait check for sodium sensitivity
+	if(HAS_TRAIT(affected_mob, TRAIT_SALT_SENSITIVE))
+		playsound(affected_mob, SFX_SEAR, 30, TRUE)
+		var/amount = max(reac_volume, 0)
+		if(methods & INGEST)
+			to_chat(affected_mob, span_userdanger("The salt [pick("sears", "singes", "scorches")] your mouth!"))
+			return
+		if(methods & (TOUCH|VAPOR))
+			amount = round(amount * max(1 - touch_protection, 0), 0.1)
+		if(amount > 0)
+			affected_mob.adjustFireLoss(amount)
+			to_chat(affected_mob, span_userdanger("The salt [pick("sears", "singes", "scorches")] your body!"))
+	//VENUS ADDITION END
 
 /datum/reagent/consumable/alienhoney
 	name = "Honey (Safe)"

@@ -1,5 +1,4 @@
 GLOBAL_LIST_INIT(delirious_table, list(
-	"You feel delirious. Reality bends and whispers surround you.",
 	"Your vision blurs and shifts, making it hard to focus.",
 	"You hear faint, unsettling whispers that seem to come from nowhere.",
 	"The world around you seems to warp and twist in impossible ways.",
@@ -27,7 +26,7 @@ GLOBAL_LIST_INIT(delirious_table, list(
 	"The company does not care for your soul. All they want is whats MINE.",
 	"Do not trust the voices. They will lead you astray.",
 	"Existence as you perceive it is but a shade of the infinite realm.",
-	"I was always just watching, but now? Not so much.",
+	"I was always watching.",
 	"Everywhere you can go, I can be waiting.",
 	"Your final gasp will serve as bellows to the whirlwinds of destruction.",
 	"Why you? Why not you?",
@@ -35,5 +34,7 @@ GLOBAL_LIST_INIT(delirious_table, list(
 	"You could merely hope to amount even to nothing.",
 	"You cannot escape that which is all around you.",
 	"There is nothing for you here. There is nothing for you anywhere.",
-	"Was this part of my plan, you ask? All that occurs is well accounted for."))
+	"Was this part of my plan, you ask? All that occurs is well accounted for.",
+	"Time is a veil. You exist in the singular eternity",
+	"Sit down, relax. Why in such a hurry?"))
 

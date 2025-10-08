@@ -37,12 +37,11 @@
 	. = ..()
 	var/obj/item/organ/genital/breasts/breasts = user.get_organ_slot(ORGAN_SLOT_BREASTS)
 	if(breasts?.internal_fluid_datum)
-		// Calculate milk amount based on how full the breasts are (0.5 to 2 multiplier)
-		var/milk_multiplier = 0.5
-		if(breasts.internal_fluid_maximum > 0)
-			milk_multiplier = 0.5 + (1.5 * (breasts.reagents.total_volume / breasts.internal_fluid_maximum))
-
-		var/transfer_amount = rand(1, 3 * milk_multiplier)
+		var/min_pct = 0.05
+		var/max_pct = 0.15
+		var/min_amount = round(breasts.reagents.total_volume * min_pct)
+		var/max_amount = round(breasts.reagents.total_volume * max_pct)
+		var/transfer_amount = rand(min_amount, max_amount)
 		var/datum/reagents/R = new(breasts.internal_fluid_maximum)
 		breasts.reagents.trans_to(R, transfer_amount)
 		R.trans_to(target, R.total_volume, transferred_by = user)
@@ -133,12 +132,11 @@
 	if(liquid_container)
 		var/obj/item/organ/genital/breasts/breasts = target.get_organ_slot(ORGAN_SLOT_BREASTS)
 		if(breasts?.internal_fluid_datum)
-			// Calculate milk amount based on how full the breasts are (0.5 to 2 multiplier)
-			var/milk_multiplier = 0.5
-			if(breasts.internal_fluid_maximum > 0)
-				milk_multiplier = 0.5 + (1.5 * (breasts.reagents.total_volume / breasts.internal_fluid_maximum))
-
-			var/transfer_amount = rand(1, 3 * milk_multiplier)
+			var/min_pct = 0.05
+			var/max_pct = 0.15
+			var/min_amount = round(breasts.reagents.total_volume * min_pct)
+			var/max_amount = round(breasts.reagents.total_volume * max_pct)
+			var/transfer_amount = rand(min_amount, max_amount)
 			var/datum/reagents/R = new(breasts.internal_fluid_maximum)
 			breasts.reagents.trans_to(R, transfer_amount)
 			R.trans_to(liquid_container, R.total_volume, transferred_by = user)

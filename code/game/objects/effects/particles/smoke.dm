@@ -79,7 +79,7 @@
 	grow = 0.07
 	count = 2
 	spawning = 1
-	scale = 1.1
+	scale = 1
 	friction = 0.5
 	color = null
 //VENUS ADDITION END

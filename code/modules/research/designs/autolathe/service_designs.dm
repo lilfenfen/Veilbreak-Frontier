@@ -70,6 +70,21 @@
 	)
 	departmental_flags = DEPARTMENT_BITFLAG_SERVICE
 
+//VENUS ADDITION - Placeable tape
+// Departmental tape rolls (service)
+/datum/design/bureau_tape
+	name = "Red Tape Roll"
+	id = "bureau_tape"
+	build_type = PROTOLATHE
+	materials = list(/datum/material/plastic = SHEET_MATERIAL_AMOUNT)
+	build_path = /obj/item/taperoll/bureaucracy
+	category = list(
+		RND_CATEGORY_INITIAL,
+		RND_CATEGORY_EQUIPMENT + RND_SUBCATEGORY_EQUIPMENT_SERVICE,
+	)
+	departmental_flags = DEPARTMENT_BITFLAG_SERVICE
+//VENUS ADDITION END
+
 /datum/design/kitchen_knife
 	name = "Kitchen Knife"
 	id = "kitchen_knife"
@@ -638,6 +653,19 @@
 	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2)
 	build_path = /obj/item/barcodescanner
 	category = list(
+		RND_CATEGORY_TOOLS + RND_SUBCATEGORY_TOOLS_SERVICE,
+	)
+	departmental_flags = DEPARTMENT_BITFLAG_SERVICE
+
+// BUBBER EDIT: Adds Umbrellas
+/datum/design/umbrella
+	name = "Collapsable Umbrella"
+	id = "collapsable_umbrella"
+	build_type = PROTOLATHE | AUTOLATHE
+	materials = list(/datum/material/iron = SMALL_MATERIAL_AMOUNT * 0.75, /datum/material/plastic = SMALL_MATERIAL_AMOUNT * 0.25)
+	build_path = /obj/item/umbrella/collapsible
+	category = list(
+		RND_CATEGORY_INITIAL,
 		RND_CATEGORY_TOOLS + RND_SUBCATEGORY_TOOLS_SERVICE,
 	)
 	departmental_flags = DEPARTMENT_BITFLAG_SERVICE

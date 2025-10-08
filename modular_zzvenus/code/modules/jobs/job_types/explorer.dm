@@ -131,15 +131,37 @@
 
 /* Weapon variants with the /explorer firing pin; Can't use them on station's z-level */
 
+//VENUS REMOVAL START - Remove guns that bubber removed from cargo import
+/*
 /obj/item/gun/ballistic/shotgun/doublebarrel/explorer
 	accepted_magazine_type = /obj/item/ammo_box/magazine/internal/shot/dual/buckshot
 	pin = /obj/item/firing_pin/explorer
+
 /obj/item/gun/ballistic/automatic/pistol/sol/explorer
 	pin = /obj/item/firing_pin/explorer
+*/
+//VENUS REMOVAL END
 /obj/item/gun/energy/laser/carbine/explorer
 	pin = /obj/item/firing_pin/explorer
+
+//VENUS REMOVAL START - Remove guns that bubber removed from cargo import
+/*
 /obj/item/gun/ballistic/revolver/sol/explorer
+
 	pin = /obj/item/firing_pin/explorer
+*/
+//VENUS REMOVAL END
+
+//VENUS ADDITION START
+/obj/item/gun/ballistic/automatic/pistol/sec_glock/explorer
+	pin = /obj/item/firing_pin/explorer
+
+/obj/item/gun/ballistic/revolver/c38/explorer
+	pin = /obj/item/firing_pin/explorer
+
+/obj/item/gun/ballistic/shotgun/riot/sol/explorer
+	pin = /obj/item/firing_pin/explorer
+//VENUS ADDITION END
 
 /obj/item/choice_beacon/explorer
 	name = "weaponry beacon"
@@ -150,9 +172,9 @@
 /obj/item/choice_beacon/explorer/generate_display_names()
 	var/static/list/selectable_gun_types = list(
 		"Laser Carbine" = /obj/item/gun/energy/laser/carbine/explorer,
-		"Double Barrel Shotgun" = /obj/item/gun/ballistic/shotgun/doublebarrel/explorer,
-		"Guêpe Pistol" = /obj/item/gun/ballistic/automatic/pistol/sol/explorer,
-		"Renard Revolver" = /obj/item/gun/ballistic/revolver/sol/explorer
+		"Renoster Shotgun" = /obj/item/gun/ballistic/shotgun/riot/sol/explorer,
+		"'Murphy' Service Pistol" = /obj/item/gun/ballistic/automatic/pistol/sec_glock/explorer,
+		".38 Revolver" = /obj/item/gun/ballistic/revolver/c38/explorer
 	)
 
 	return selectable_gun_types
