@@ -244,7 +244,7 @@ GLOBAL_LIST_INIT(sm_gas_behavior, init_sm_gas())
 	desc = "Strong fuel with unknown properties. Be extremely careful while testing."
 
 /datum/sm_gas/delirium/extra_effects(obj/machinery/power/supermatter_crystal/sm)
-	while(sm.gas_percentage[/datum/gas/delirium] > 0.4)
+	if(sm.gas_percentage[/datum/gas/delirium] > 0.4)
 		var/Drange = 200
 		for(var/mob/living/victim in range(Drange, sm))
 			var/hallucination_type = pick(GLOB.delirious_table)
