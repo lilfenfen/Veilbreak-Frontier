@@ -237,7 +237,7 @@ GLOBAL_LIST_INIT(sm_gas_behavior, init_sm_gas())
 
 /datum/sm_gas/delirium
 	gas_path = /datum/gas/delirium
-	heat_modifier = 20
+	heat_modifier = 31
 	power_transmission = 0.6
 	heat_power_generation = 11
 	powerloss_inhibition = 1
@@ -245,7 +245,7 @@ GLOBAL_LIST_INIT(sm_gas_behavior, init_sm_gas())
 
 /datum/sm_gas/delirium/extra_effects(obj/machinery/power/supermatter_crystal/sm)
 	while(sm.gas_percentage[/datum/gas/delirium] > 0.4)
-		var/Drange = min(sm.gas_percentage[/datum/gas/delirium] * 200)
+		var/Drange = 200
 		for(var/mob/living/victim in range(Drange, sm))
-			visible_hallucination_pulse_delirium(sm, Drange, 50 SECONDS, GLOB.delirious_table)
-
+			var/hallucination_type = pick(GLOB.delirious_table)
+			victim.apply_status_effect(hallucination_type, /datum/status_effect/hallucination/delirious)
