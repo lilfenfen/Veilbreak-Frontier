@@ -237,17 +237,15 @@ GLOBAL_LIST_INIT(sm_gas_behavior, init_sm_gas())
 
 /datum/sm_gas/delirium
 	gas_path = /datum/gas/delirium
-	heat_modifier = 4
+	heat_modifier = 20
 	power_transmission = 0.6
 	heat_power_generation = 11
 	powerloss_inhibition = 1
 	desc = "Strong fuel with unknown properties. Be extremely careful while testing."
 
 /datum/sm_gas/delirium/extra_effects(obj/machinery/power/supermatter_crystal/sm)
-	if(sm.gas_percentage[/datum/gas/delirium] > 0.4)
-		var/range = min(sm.gas_percentage[/datum/gas/delirium] * 200)  // Cap at 20 tiles for balance
-		for(var/mob/living/victim in range(range, sm))
-			var/hallucination_type = pick(GLOB.delirious_table)
-			victim.mind.add_trauma(hallucination_type, TRAUMA_RESILIENCE_ABSOLUTE)
-			to_chat(victim, span_warning("The Void reaches forth!"))
+	while(sm.gas_percentage[/datum/gas/delirium] > 0.4)
+		var/Drange = min(sm.gas_percentage[/datum/gas/delirium] * 200)
+		for(var/mob/living/victim in range(Drange, sm))
+			visible_hallucination_pulse_delirium(sm, Drange, 50 SECONDS, GLOB.delirious_table)
 

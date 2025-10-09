@@ -1253,7 +1253,7 @@
             // Apply hallucinations directly
             for(var/mob/living/victim in range(10, location))
                 var/hallucination_type = pick(GLOB.delirious_table)
-                victim.apply_status_effect(hallucination_type, "delirium_fire")
+                victim.apply_status_effect(hallucination_type, "delirius")
 
     if(total_burned)
         return REACTING
