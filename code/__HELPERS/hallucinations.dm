@@ -105,7 +105,7 @@ var/Dmax = 50 SECONDS
 		var/dist = sqrt(1 / max(1, get_dist(nearby_living, center)))
 		nearby_living.adjust_hallucinations_up_to(hallucination_duration * dist, Dmax)
 		if(length(optional_messages))
-			to_chat(nearby_living, pick(optional_messages))
+			to_chat(nearby_living,"<span class='hallucination' style='color:#8a2be2; font-style:italic;'>[msg]</span>" pick(GLOB.delirious_table))
 
 /**
  * Emits a hallucinating pulse around the passed atom.
