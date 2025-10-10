@@ -245,4 +245,11 @@ GLOBAL_LIST_INIT(sm_gas_behavior, init_sm_gas())
 
 /datum/sm_gas/delirium/extra_effects(obj/machinery/power/supermatter_crystal/sm)
 	if(sm.gas_percentage[/datum/gas/delirium] > 0.01)
+		if(!sm.get_filter("delirium_glow"))
+			sm.add_filter("delirium_glow", 1, list("type" = "outline", "color" = "#8a2be2", "size" = 1))
+			var/filter = sm.get_filter("delirium_glow")
+			animate(filter, size = 3, time = 10, loop = -1)
+			animate(size = 1, time = 10)
 		visible_hallucination_pulse_delirium(sm, 150, 50 SECONDS)
+	else
+		sm.remove_filter("delirium_glow")
