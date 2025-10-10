@@ -100,12 +100,12 @@ GLOBAL_LIST_EMPTY(all_ongoing_hallucinations)
 var/Dradius = 150
 var/Ddura = 50 SECONDS
 var/Dmax = 50 SECONDS
-/proc/visible_hallucination_pulse_delirium(atom/center, radius = Dradius, hallucination_duration =Ddura, list/optional_messages)
-	for(var/mob/living/nearby_living in view (center, radius))
+/proc/visible_hallucination_pulse_delirium(atom/center, radius = Dradius, hallucination_duration = Ddura, list/optional_messages)
+	for(var/mob/living/nearby_living in view(center, radius))
 		var/dist = sqrt(1 / max(1, get_dist(nearby_living, center)))
 		nearby_living.adjust_hallucinations_up_to(hallucination_duration * dist, Dmax)
 		if(length(optional_messages))
-			to_chat(nearby_living,"<span class='hallucination' style='color:#8a2be2; font-style:italic;'>[msg]</span>" pick(GLOB.delirious_table))
+			to_chat(nearby_living, "<span class='hallucination' style='color:#8a2be2; font-style:italic;'>" + pick(GLOB.delirious_table) + "</span>")
 
 /**
  * Emits a hallucinating pulse around the passed atom.
