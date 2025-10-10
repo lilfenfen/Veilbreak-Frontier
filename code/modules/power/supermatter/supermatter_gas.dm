@@ -245,4 +245,4 @@ GLOBAL_LIST_INIT(sm_gas_behavior, init_sm_gas())
 
 /datum/sm_gas/delirium/extra_effects(obj/machinery/power/supermatter_crystal/sm)
 	if(sm.gas_percentage[/datum/gas/delirium] > 0.01)
-		/proc/visible_hallucination_pulse_delirium(sm, 150, 50 SECONDS)
+		visible_hallucination_pulse_delirium(sm, 150, 50 SECONDS)
