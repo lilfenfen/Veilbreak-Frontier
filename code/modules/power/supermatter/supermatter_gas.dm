@@ -237,12 +237,12 @@ GLOBAL_LIST_INIT(sm_gas_behavior, init_sm_gas())
 
 /datum/sm_gas/delirium
 	gas_path = /datum/gas/delirium
-	heat_modifier = 31
+	heat_modifier = 15
 	power_transmission = 6
-	heat_power_generation = 11
-	powerloss_inhibition = 10
+	heat_power_generation = 1
+	powerloss_inhibition = 2
 	desc = "Strong fuel with unknown properties. Be extremely careful while testing."
 
 /datum/sm_gas/delirium/extra_effects(obj/machinery/power/supermatter_crystal/sm)
-	if(sm.gas_percentage[/datum/gas/delirium] > 0.1)
-		/proc/visible_hallucination_pulse_delirium
+	if(sm.gas_percentage[/datum/gas/delirium] > 0.01)
+		/proc/visible_hallucination_pulse_delirium(sm, 150, 50 SECONDS)
