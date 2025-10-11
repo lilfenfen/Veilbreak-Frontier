@@ -42,8 +42,8 @@ ADMIN_VERB(map_template_upload, R_DEBUG, "Map Template - Upload", "Upload a map 
 	var/map = input(user, "Choose a Map Template to upload to template storage","Upload Map Template") as null|file
 	if(!map)
 		return
-	if(copytext("[map]", -4) != ".dmm")//4 == length(".dmm")
-		to_chat(user, span_warning("Filename must end in '.dmm': [map]"), confidential = TRUE)
+	if(!(copytext("[map]", -4) == ".dmm" || copytext("[map]", -4) == ".tgm"))
+		to_chat(user, span_warning("Filename must end in '.dmm' or '.tgm': [map]"), confidential = TRUE)
 		return
 	var/datum/map_template/M
 	switch(tgui_alert(user, "What kind of map is this?", "Map type", list("Normal", "Shuttle", "Cancel")))
