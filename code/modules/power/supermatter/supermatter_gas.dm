@@ -243,8 +243,39 @@ GLOBAL_LIST_INIT(sm_gas_behavior, init_sm_gas())
 	powerloss_inhibition = 2
 	desc = "Strong fuel with unknown properties. Be extremely careful while testing."
 
+GLOBAL_LIST_EMPTY(delirium_warnings)
+GLOBAL_LIST_EMPTY(delirium_summons)
+
+/datum/sm_gas/delirium/proc/start_summoning(obj/machinery/power/supermatter_crystal/sm)
+	if(sm in GLOB.delirium_summons)
+		return
+	GLOB.delirium_summons[sm] = addtimer(CALLBACK(src, PROC_REF(summon_mob), sm), 10 SECONDS, TIMER_LOOP | TIMER_STOPPABLE)
+
+/datum/sm_gas/delirium/proc/summon_mob(obj/machinery/power/supermatter_crystal/sm)
+	if(sm.gas_percentage[/datum/gas/delirium] <= 0.01)
+		stop_summoning(sm)
+		return
+	var/list/possible_turfs = list()
+	for(var/turf/T in range(10, sm))
+		if(get_dist(T, sm) > 3 && isopenturf(T) && !T.density)
+			possible_turfs += T
+	if(!length(possible_turfs))
+		return
+	var/turf/spawn_turf = pick(possible_turfs)
+	var/mob_type = pick(/mob/living/simple_animal/hostile/Voidling, /mob/living/simple_animal/hostile/Consumed_Pathfinder)
+	new mob_type(spawn_turf)
+
+/datum/sm_gas/delirium/proc/stop_summoning(obj/machinery/power/supermatter_crystal/sm)
+	if(GLOB.delirium_summons[sm])
+		deltimer(GLOB.delirium_summons[sm])
+		GLOB.delirium_summons -= sm
+
 /datum/sm_gas/delirium/extra_effects(obj/machinery/power/supermatter_crystal/sm)
 	if(sm.gas_percentage[/datum/gas/delirium] > 0.01)
+		if(!GLOB.delirium_warnings[sm])
+			sm.visible_message(span_warning("The Void starts to claim reality around the supermatter!"))
+			GLOB.delirium_warnings[sm] = world.time
+			addtimer(CALLBACK(src, PROC_REF(start_summoning), sm), 1 MINUTE)
 		if(!sm.get_filter("delirium_glow"))
 			sm.add_filter("delirium_glow", 1, list("type" = "outline", "color" = "#8a2be2", "size" = 1))
 			var/filter = sm.get_filter("delirium_glow")
@@ -258,4 +289,7 @@ GLOBAL_LIST_INIT(sm_gas_behavior, init_sm_gas())
 				GLOB.void_tile_cooldowns[floor] = world.time
 		visible_hallucination_pulse_delirium(sm, 150, 50 SECONDS)
 	else
+		if(GLOB.delirium_warnings[sm])
+			GLOB.delirium_warnings -= sm
+			stop_summoning(sm)
 		sm.remove_filter("delirium_glow")

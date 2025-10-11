@@ -1,6 +1,3 @@
-// Example loot drop lists for mobs, inspired by existing SS13 patterns (e.g., megafauna or hostile animals).
-// These can be used in mob definitions like loot = list(/obj/item/your_loot) or with probabilities.
-
 
 // Weighted loot table (e.g., for random drops with chances)
 /var/list/voidling_loot_table = list(

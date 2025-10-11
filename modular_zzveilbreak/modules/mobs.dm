@@ -29,13 +29,13 @@
 		var/loot = pick_loot_from_table(voidling_loot_table)
 		if(loot)
 			new loot(loc)
-		visible_message(span_danger("[src] And the void reclaims."))
+		visible_message(span_danger("And the void reclaims."))
 		..()
 
 	del_on_death = TRUE
 
 /mob/living/simple_animal/hostile/Consumed_Pathfinder
-	name = "Consumed Pathfinder"
+	name = "Consumed Frontier"
 	desc = "A Frontier just like you, consumed by the void."
 	icon = 'modular_zzveilbreak/icons/mob/mobs.dmi'
 	icon_state = "consumed"
@@ -82,6 +82,7 @@
 
 /obj/projectile/magic/voidbolt
 	name = "void bolt"
+	icon = 'modular_zzveilbreak/icons/item_icons/voidring.dmi'
 	icon_state = "voidbolt"
 	damage = 15
 	damage_type = BURN
