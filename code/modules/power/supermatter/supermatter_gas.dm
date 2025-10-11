@@ -285,7 +285,7 @@ GLOBAL_LIST_EMPTY(delirium_summons)
 		for(var/turf/open/floor/floor in range(5, sm))
 			if(get_dist(floor, sm) <= 2)
 				continue
-			if(!istype(floor, /turf/open/floor/void_tile) && world.time - (GLOB.void_tile_cooldowns[floor] || 0) > 30 SECONDS)
+			if(!istype(floor, /turf/open/floor/void_tile) && world.time - (GLOB.void_tile_cooldowns[floor] || 0) > 60 SECONDS)
 				floor.ChangeTurf(/turf/open/floor/void_tile, flags = CHANGETURF_INHERIT_AIR)
 				GLOB.void_tile_cooldowns[floor] = world.time
 		visible_hallucination_pulse_delirium(sm, 150, 50 SECONDS)

@@ -7,8 +7,8 @@
 	speak_chance = 0
 	turns_per_move = 5
 	speed = 1
-	maxHealth = 125
-	health = 125
+	maxHealth = 30
+	health = 30
 	harm_intent_damage = 10
 	melee_damage_lower = 5
 	melee_damage_upper = 15
@@ -29,10 +29,14 @@
 		var/loot = pick_loot_from_table(voidling_loot_table)
 		if(loot)
 			new loot(loc)
-		visible_message(span_danger("And the void reclaims."))
+		visible_message(span_danger("[src] And the void reclaims."))
 		..()
 
 	del_on_death = TRUE
+
+/mob/living/simple_animal/hostile/Voidling/New()
+	. = ..()
+	addtimer(CALLBACK(src, PROC_REF(qdel)), 30 SECONDS )
 
 /mob/living/simple_animal/hostile/Consumed_Pathfinder
 	name = "Consumed Frontier"
@@ -65,7 +69,7 @@
 
 	Life()
 		. = ..()
-		if(world.time > last_summon + 10 SECONDS)
+		if(target && world.time > last_summon + 10 SECONDS)
 			last_summon = world.time
 			var/mob/living/simple_animal/hostile/Voidling/new_voidling = new(loc)
 			new_voidling.faction = faction.Copy()
@@ -89,3 +93,5 @@
 	range = 50
 	speed = 0.2
 	light_color = "#8a2be2"
+	var/atom/target
+
