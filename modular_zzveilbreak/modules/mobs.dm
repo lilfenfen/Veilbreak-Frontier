@@ -29,7 +29,7 @@
 		var/loot = pick_loot_from_table(voidling_loot_table)
 		if(loot)
 			new loot(loc)
-		visible_message(span_danger("[src] And the void reclaims."))
+		visible_message(span_danger("And the void reclaims."))
 		..()
 
 	del_on_death = TRUE

@@ -34,5 +34,6 @@
 	var/mob/living/target = pick(targets)
 	var/obj/projectile/magic/voidbolt/bolt = new(get_turf(user))
 	bolt.firer = user
-	bolt.dir = get_dir(user, target)
+	bolt.target = target
+	bolt.angle = get_angle(user, target)
 	bolt.fire()
