@@ -250,6 +250,12 @@ GLOBAL_LIST_INIT(sm_gas_behavior, init_sm_gas())
 			var/filter = sm.get_filter("delirium_glow")
 			animate(filter, size = 3, time = 10, loop = -1)
 			animate(size = 1, time = 10)
+		for(var/turf/open/floor/floor in range(5, sm))
+			if(get_dist(floor, sm) <= 2)
+				continue
+			if(!istype(floor, /turf/open/floor/void_tile) && world.time - (GLOB.void_tile_cooldowns[floor] || 0) > 30 SECONDS)
+				floor.ChangeTurf(/turf/open/floor/void_tile, flags = CHANGETURF_INHERIT_AIR)
+				GLOB.void_tile_cooldowns[floor] = world.time
 		visible_hallucination_pulse_delirium(sm, 150, 50 SECONDS)
 	else
 		sm.remove_filter("delirium_glow")
