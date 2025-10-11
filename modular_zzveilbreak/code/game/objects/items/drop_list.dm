@@ -15,11 +15,18 @@
 )
 
 /var/list/inai_drops = list(
-	/obj/item/voidshard = 100,
+	/obj/item/voidshard = 33,
 	/obj/item/clothing/neck/aether_pendant = 33,  // 33% chance
 	/obj/item/clothing/neck/life_pendant = 33  // 33% chance
 )
 
+/var/list/consumed_pathfinder_drops = list(
+	/obj/item/voidshard = 10,
+	/obj/item/clothing/neck/aether_pendant = 10,
+	/obj/item/clothing/neck/life_pendant = 10,
+	/obj/item/clothing/gloves/ring/voidring = 10,
+	/obj/item/stack/sheet/bluespace_crystal = 60
+)
 // Function to pick loot from a table (call this in mob death proc if needed)
 /proc/pick_loot_from_table(list/loot_table)
     var/total_weight = 0
