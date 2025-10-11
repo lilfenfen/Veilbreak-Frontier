@@ -101,7 +101,6 @@ var/Dradius = 150
 var/Ddura = 50 SECONDS
 var/Dmax = 50 SECONDS
 GLOBAL_LIST_EMPTY(delirium_cooldowns)
-GLOBAL_LIST_EMPTY(void_tile_cooldowns)
 /proc/visible_hallucination_pulse_delirium(atom/center, radius = Dradius, hallucination_duration = Ddura)
 	for(var/mob/living/nearby_living in range(center, radius))
 		var/dist = sqrt(1 / max(1, get_dist(nearby_living, center)))

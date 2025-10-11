@@ -60,6 +60,7 @@
 /// Assoc of sm_gas_behavior[/datum/gas (path)] = datum/sm_gas (instance)
 GLOBAL_LIST_INIT(sm_gas_behavior, init_sm_gas())
 
+GLOBAL_LIST_EMPTY(void_tile_cooldowns)
 /// Contains effects of gases when absorbed by the sm.
 /// If the gas has no effects you do not need to add another sm_gas subtype,
 /// We already guard for nulls in [/obj/machinery/power/supermatter_crystal/proc/calculate_gases]
@@ -275,7 +276,7 @@ GLOBAL_LIST_EMPTY(delirium_summons)
 		if(!GLOB.delirium_warnings[sm])
 			sm.visible_message(span_warning("The Void starts to claim reality around the supermatter!"))
 			GLOB.delirium_warnings[sm] = world.time
-			addtimer(CALLBACK(src, PROC_REF(start_summoning), sm), 1 MINUTE)
+			addtimer(CALLBACK(src, PROC_REF(start_summoning), sm), 60 SECONDS)
 		if(!sm.get_filter("delirium_glow"))
 			sm.add_filter("delirium_glow", 1, list("type" = "outline", "color" = "#8a2be2", "size" = 1))
 			var/filter = sm.get_filter("delirium_glow")
