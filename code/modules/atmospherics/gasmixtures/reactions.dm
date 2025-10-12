@@ -1251,7 +1251,7 @@
         if(temperature > FIRE_DELIRIUM_MINTEMP)
             location.hotspot_expose(temperature, CELL_VOLUME)
             // Apply hallucinations directly
-                visible_hallucination_pulse_delirium(location, 15, 50 SECONDS)
+            visible_hallucination_pulse_delirium(location, 15, 50 SECONDS)
 
     if(total_burned)
         return REACTING
