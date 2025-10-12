@@ -10479,6 +10479,7 @@
 #include "modular_zzplurt\code\modules\vetted\vetted.dm"
 #include "modular_zzplurt\code\modules\wiremod\core\integrated_circuit.dm"
 #include "modular_zzplurt\maps\offstation\seedvault.dm"
+#include "modular_zzveilbreak\code\game\area\areas.dm"
 #include "modular_zzveilbreak\code\game\objects\items\drop_list.dm"
 #include "modular_zzveilbreak\code\game\objects\items\pendants.dm"
 #include "modular_zzveilbreak\code\game\objects\items\voidring.dm"
