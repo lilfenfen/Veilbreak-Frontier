@@ -1,4 +1,4 @@
-/turf/open/floor/void_tile
+/turf/open/floor/glass/void_tile
 	name = "Void Floor"
 	desc = "A tile made from the very fabric of void itself. How are you even standing on this..."
 	icon = 'modular_zzveilbreak/icons/tiles/void_tile.dmi'
@@ -18,6 +18,7 @@
 	rcd_proof = TRUE
 	rust_resistance = RUST_RESISTANCE_ABSOLUTE
 	resistance_flags = FIRE
+	scrape_below = TRUE
 
 /turf/open/floor/void_tile/break_tile()
 	return //unbreakable
