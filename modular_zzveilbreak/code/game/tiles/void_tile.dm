@@ -20,6 +20,7 @@
 	resistance_flags = FIRE
 	underfloor_accessibility = UNDERFLOOR_VISIBLE
 	alpha_to_leave = 200
+	alpha = 200
 
 /turf/open/floor/void_tile/break_tile()
 	return //unbreakable
