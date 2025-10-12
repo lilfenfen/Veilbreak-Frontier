@@ -97,6 +97,7 @@ GLOBAL_LIST_EMPTY(all_ongoing_hallucinations)
 		nearby_living.adjust_hallucinations_up_to(hallucination_duration * dist, hallucination_max_duration)
 		if(length(optional_messages))
 			to_chat(nearby_living, pick(optional_messages))
+// same proc remade for different purposes, forces the list automatically
 var/Dradius = 150
 var/Ddura = 50 SECONDS
 var/Dmax = 50 SECONDS
