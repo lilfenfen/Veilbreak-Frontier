@@ -18,7 +18,8 @@
 	rcd_proof = TRUE
 	rust_resistance = RUST_RESISTANCE_ABSOLUTE
 	resistance_flags = FIRE
-	scrape_below = TRUE
+	underfloor_accessibility = UNDERFLOOR_VISIBLE
+	alpha_to_leave = 200
 
 /turf/open/floor/void_tile/break_tile()
 	return //unbreakable
