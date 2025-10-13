@@ -19,7 +19,7 @@
 	var/list/glow_stuff
 	/// How much alpha to leave when cutting away emissive blockers
 	var/alpha_to_leave = 255
-	/// Color of starlight to use. Defaults to STARLIGHT_COLOR if not set
+	/// Color of starlight to use. Defaults to fSTARLIGHT_COLOR if not set
 	var/starlight_color
 
 /turf/open/floor/glass/broken_states()
