@@ -1,7 +1,7 @@
 // modular_zzveilbreak/modules/mapping/async_map_loader.dm
 // Adaptive async map loader for Veilbreak
 // Overrides /datum/map_template/load to provide non-blocking map loading
-// Author: Set Fox (refactored for BYOND 516 compatibility)
+// Author: Set Fox (refactored with enhanced error reporting)
 
 // Define constants at the top to avoid undefined errors
 #define ASYNC_THRESHOLD_TILES 500
@@ -52,7 +52,6 @@ GLOBAL_LIST_EMPTY(async_map_operations)
 /// Determine if this template should be loaded asynchronously
 /datum/map_template/proc/should_load_async()
 	// For now, always attempt async for templates that support it
-	// You can add specific conditions here based on your needs
 	return TRUE
 
 /// Main async loading logic
@@ -85,7 +84,22 @@ GLOBAL_LIST_EMPTY(async_map_operations)
 
 	// No async method available
 	world.log << "MAPLOADER: [src.name] - No async loading method available, falling back to sync."
+	log_template_variables() // Log template vars for debugging
 	return FALSE
+
+/// Log template variables for debugging purposes
+/datum/map_template/proc/log_template_variables()
+	world.log << "MAPLOADER: [src.name] - Template variables dump:"
+	for(var/var_name in vars)
+		var/val = vars[var_name]
+		if(islist(val))
+			world.log << "  [var_name]: list with [length(val)] elements"
+		else if(istext(val) || isnum(val))
+			world.log << "  [var_name]: [val]"
+		else if(ispath(val))
+			world.log << "  [var_name]: [val] (path)"
+		else
+			world.log << "  [var_name]: [val] (unknown type)"
 
 /// Detect and validate map file path from template variables
 /datum/map_template/proc/detect_map_file_path()
@@ -101,14 +115,20 @@ GLOBAL_LIST_EMPTY(async_map_operations)
 		if(vars[path_var] && istext(vars[path_var]))
 			var/path_candidate = vars[path_var]
 			if(validate_file_path(path_candidate))
+				world.log << "MAPLOADER: [src.name] - Found file path via [path_var]: [path_candidate]"
 				return path_candidate
 
 	// Fallback: scan all text variables for file-like patterns
+	var/found_candidates = 0
 	for(var/var_name in vars)
 		if(istext(vars[var_name]))
 			var/path_candidate = vars[var_name]
 			if(validate_file_path(path_candidate))
-				return path_candidate
+				found_candidates++
+				world.log << "MAPLOADER: [src.name] - Found candidate file path in [var_name]: [path_candidate]"
+
+	if(found_candidates > 1)
+		world.log << "MAPLOADER: [src.name] - Warning: Multiple file path candidates found, using first match"
 
 	return null
 
@@ -146,9 +166,12 @@ GLOBAL_LIST_EMPTY(async_map_operations)
 		// Use try-catch for BYOND 516 compatibility
 		var/success = FALSE
 		var/exception_message = null
+		var/detailed_error = null
 
 		try
 			// Use the global cached map loading system
+			world.log << "MAPLOADER: [src.name] - Calling load_map with params: x=[x_offset], y=[y_offset], z=[z_offset], crop=[crop_map]"
+
 			var/datum/parsed_map/async_loaded_map = load_map(
 				file_path,
 				x_offset, y_offset, z_offset,
@@ -165,16 +188,19 @@ GLOBAL_LIST_EMPTY(async_map_operations)
 				world.log << "MAPLOADER: [src.name] - Async file load completed in [load_time] seconds"
 				success = TRUE
 			else
-				world.log << "MAPLOADER: [src.name] - Async file load failed after [load_time] seconds"
+				world.log << "MAPLOADER: [src.name] - Async file load failed after [load_time] seconds - load_map returned null"
+				detailed_error = "load_map proc returned null - file may not exist or parsing failed"
 				success = FALSE
 
 		catch(var/exception/e)
-			exception_message = e
-			world.log << "MAPLOADER: [src.name] - Async file load exception: [e]"
+			exception_message = "[e] on [e.file]:[e.line]"
+			world.log << "MAPLOADER: [src.name] - Async file load exception: [exception_message]"
+			detailed_error = "Exception during load_map: [exception_message]"
 			success = FALSE
-		finally
-			GLOB.async_map_operations -= operation_id
-			on_async_load_complete(success, file_path, exception_message)
+
+		// Cleanup that runs regardless of success or failure
+		GLOB.async_map_operations -= operation_id
+		on_async_load_complete(success, file_path, detailed_error || exception_message)
 
 	return TRUE
 
@@ -191,14 +217,20 @@ GLOBAL_LIST_EMPTY(async_map_operations)
 		if(vars[grid_var] && islist(vars[grid_var]) && length(vars[grid_var]) > 0)
 			var/list/candidate = vars[grid_var]
 			if(validate_coordinate_grid(candidate))
+				world.log << "MAPLOADER: [src.name] - Found coordinate grid via [grid_var] with [length(candidate)] entries"
 				return candidate
 
 	// Scan all list variables for coordinate-like structures
+	var/found_candidates = 0
 	for(var/var_name in vars)
 		if(islist(vars[var_name]) && length(vars[var_name]) > 0)
 			var/list/candidate = vars[var_name]
 			if(validate_coordinate_grid(candidate))
-				return candidate
+				found_candidates++
+				world.log << "MAPLOADER: [src.name] - Found coordinate grid candidate in [var_name] with [length(candidate)] entries"
+
+	if(found_candidates > 1)
+		world.log << "MAPLOADER: [src.name] - Warning: Multiple coordinate grid candidates found, using first match"
 
 	return null
 
@@ -228,6 +260,9 @@ GLOBAL_LIST_EMPTY(async_map_operations)
 	var/operation_id = "coord_async_[world.time]_[world.tick_usage]"
 	GLOB.async_map_operations[operation_id] = TRUE
 
+	// Capture total_tiles here so it's available in the spawn closure
+	var/total_tiles = length(coordinate_grid)
+
 	spawn()
 		var/start_time = world.time
 		var/tiles_placed = process_coordinate_batch(
@@ -237,10 +272,12 @@ GLOBAL_LIST_EMPTY(async_map_operations)
 		)
 
 		var/duration = world.time - start_time
-		world.log << "MAPLOADER: [src.name] - Async coordinate load completed - [tiles_placed]/[length(coordinate_grid)] tiles in [duration] ticks"
+		var/success_rate = total_tiles > 0 ? (tiles_placed / total_tiles) * 100 : 0
+
+		world.log << "MAPLOADER: [src.name] - Async coordinate load completed - [tiles_placed]/[total_tiles] tiles ([success_rate]%) in [duration] ticks"
 
 		GLOB.async_map_operations -= operation_id
-		on_async_load_complete((tiles_placed > 0), "coordinate_grid")
+		on_async_load_complete((tiles_placed > 0), "coordinate_grid", "Placed [tiles_placed] of [total_tiles] tiles ([success_rate]% success rate)")
 
 	return TRUE
 
@@ -254,6 +291,15 @@ GLOBAL_LIST_EMPTY(async_map_operations)
 	var/tiles_placed = 0
 	var/batch_size = initial_batch_size(total_tiles)
 	var/failed_placements = 0
+	var/list/failure_stats = list(
+		"invalid_coords" = 0,
+		"invalid_path" = 0,
+		"invalid_location" = 0,
+		"placement_failed" = 0,
+		"invalid_entry" = 0
+	)
+
+	world.log << "MAPLOADER: [src.name] - Processing [total_tiles] tiles with initial batch size [batch_size]"
 
 	while(tiles_placed < total_tiles && failed_placements < MAX_PLACEMENT_FAILURES)
 		var/processed = 0
@@ -269,12 +315,22 @@ GLOBAL_LIST_EMPTY(async_map_operations)
 			var/list/entry = coordinate_grid[i]
 			if(!islist(entry))
 				failed++
+				failure_stats["invalid_entry"]++
+				if(failure_stats["invalid_entry"] <= 5) // Log first 5 invalid entries
+					world.log << "MAPLOADER: [src.name] - Entry [i] is not a list: [json_encode(entry)]"
 				continue
 
-			if(place_coordinate_entry(entry, x_offset, y_offset, z_offset, no_changeturf))
+			var/placement_result = place_coordinate_entry(entry, x_offset, y_offset, z_offset, no_changeturf)
+			if(placement_result["success"])
 				processed++
 			else
 				failed++
+				failure_stats[placement_result["error_type"]]++
+
+				// Log detailed error for first few failures of each type
+				if(failure_stats[placement_result["error_type"]] <= 3)
+					world.log << "MAPLOADER: [src.name] - Entry [i] failed: [placement_result["error"]]"
+					world.log << "MAPLOADER: [src.name] - Entry data: [json_encode(entry)]"
 
 			// Yield every 50 tiles to prevent blocking
 			if((i % 50) == 0)
@@ -288,9 +344,17 @@ GLOBAL_LIST_EMPTY(async_map_operations)
 
 		// Progress reporting
 		if((tiles_placed % 2000) == 0)
-			world.log << "MAPLOADER: [src.name] - Progress: [tiles_placed]/[total_tiles] ([round((tiles_placed/total_tiles)*100)]%)"
+			var/percent_complete = total_tiles > 0 ? round((tiles_placed/total_tiles)*100) : 0
+			world.log << "MAPLOADER: [src.name] - Progress: [tiles_placed]/[total_tiles] ([percent_complete]%) - Batch size: [batch_size]"
 
 		stoplag()
+
+	// Log failure statistics
+	if(failed_placements > 0)
+		world.log << "MAPLOADER: [src.name] - Placement failure summary:"
+		for(var/error_type in failure_stats)
+			if(failure_stats[error_type] > 0)
+				world.log << "MAPLOADER: [src.name] -   [error_type]: [failure_stats[error_type]] failures"
 
 	return tiles_placed
 
@@ -303,38 +367,7 @@ GLOBAL_LIST_EMPTY(async_map_operations)
 	else
 		return INITIAL_BATCH_SIZE
 
-/// Process a segment of the coordinate grid
-/datum/map_template/proc/process_coordinate_batch_segment(
-	list/coordinate_grid,
-	start_index,
-	end_index,
-	x_offset, y_offset, z_offset,
-	no_changeturf
-)
-	var/processed = 0
-	var/failed = 0
-
-	for(var/i = start_index to end_index)
-		if(i > length(coordinate_grid))
-			break
-
-		var/list/entry = coordinate_grid[i]
-		if(!islist(entry))
-			failed++
-			continue
-
-		if(place_coordinate_entry(entry, x_offset, y_offset, z_offset, no_changeturf))
-			processed++
-		else
-			failed++
-
-		// Yield every 50 tiles to prevent blocking
-		if((i % 50) == 0)
-			CHECK_TICK
-
-	return list("processed" = processed, "failed" = failed)
-
-/// Place a single coordinate entry in the world
+/// Place a single coordinate entry in the world and return detailed result
 /datum/map_template/proc/place_coordinate_entry(
 	list/entry,
 	x_offset, y_offset, z_offset,
@@ -345,29 +378,51 @@ GLOBAL_LIST_EMPTY(async_map_operations)
 	var/y = (entry["y"] || entry[2] || 1) + y_offset
 	var/z = entry["z"] || entry[3] || z_offset
 
-	// Validate coordinates
-	if(!isnum(x) || !isnum(y) || !isnum(z))
-		return FALSE
+	// Validate coordinates with detailed error reporting
+	if(!isnum(x))
+		return list("success" = FALSE, "error" = "X coordinate '[x]' is not a number", "error_type" = "invalid_coords")
+	if(!isnum(y))
+		return list("success" = FALSE, "error" = "Y coordinate '[y]' is not a number", "error_type" = "invalid_coords")
+	if(!isnum(z))
+		return list("success" = FALSE, "error" = "Z coordinate '[z]' is not a number", "error_type" = "invalid_coords")
+
+	// Validate coordinate ranges
+	if(x < 1 || x > world.maxx)
+		return list("success" = FALSE, "error" = "X coordinate [x] out of world bounds (1-[world.maxx])", "error_type" = "invalid_coords")
+	if(y < 1 || y > world.maxy)
+		return list("success" = FALSE, "error" = "Y coordinate [y] out of world bounds (1-[world.maxy])", "error_type" = "invalid_coords")
+	if(z < 1 || z > world.maxz)
+		return list("success" = FALSE, "error" = "Z coordinate [z] out of world bounds (1-[world.maxz])", "error_type" = "invalid_coords")
 
 	// Extract and validate turf path
 	var/turf_path = extract_turf_path(entry)
 	if(!turf_path)
-		return FALSE
+		return list("success" = FALSE, "error" = "No valid turf path found in entry", "error_type" = "invalid_path")
 
 	// Place the turf
 	var/turf/target = locate(x, y, z)
 	if(!target)
-		return FALSE
+		return list("success" = FALSE, "error" = "Could not locate turf at coordinates ([x], [y], [z])", "error_type" = "invalid_location")
 
-	if(no_changeturf)
-		new turf_path(target)
-	else
-		target.ChangeTurf(turf_path)
+	// Attempt to place the turf
+	try
+		if(no_changeturf)
+			var/atom/new_turf = new turf_path(target)
+			if(!new_turf || !isturf(new_turf))
+				return list("success" = FALSE, "error" = "Failed to create turf [turf_path] at ([x], [y], [z])", "error_type" = "placement_failed")
+		else
+			var/turf/new_turf = target.ChangeTurf(turf_path)
+			if(!new_turf || !isturf(new_turf))
+				return list("success" = FALSE, "error" = "ChangeTurf failed for [turf_path] at ([x], [y], [z])", "error_type" = "placement_failed")
+	catch(var/exception/e)
+		return list("success" = FALSE, "error" = "Exception during turf placement: [e] at [e.file]:[e.line]", "error_type" = "placement_failed")
 
 	// Place additional atoms if specified
-	place_additional_atoms(entry, target)
+	var/atom_result = place_additional_atoms(entry, target)
+	if(!atom_result["success"])
+		return atom_result
 
-	return TRUE
+	return list("success" = TRUE)
 
 /// Extract and validate turf path from coordinate entry
 /datum/map_template/proc/extract_turf_path(list/entry)
@@ -379,6 +434,8 @@ GLOBAL_LIST_EMPTY(async_map_operations)
 	// Handle text paths
 	if(istext(turf_path_candidate))
 		turf_path_candidate = text2path(turf_path_candidate)
+		if(!turf_path_candidate)
+			return null
 
 	// Validate it's a valid turf path
 	if(!ispath(turf_path_candidate, /turf))
@@ -391,15 +448,29 @@ GLOBAL_LIST_EMPTY(async_map_operations)
 	var/list/additional_atoms = entry["atoms"] || entry["contents"]
 
 	if(!islist(additional_atoms))
-		return
+		return list("success" = TRUE)
 
 	for(var/atom_path in additional_atoms)
 		if(ispath(atom_path))
-			new atom_path(target)
+			try
+				var/atom/new_atom = new atom_path(target)
+				if(!new_atom)
+					return list("success" = FALSE, "error" = "Failed to create atom [atom_path] at [target]", "error_type" = "placement_failed")
+			catch(var/exception/e)
+				return list("success" = FALSE, "error" = "Exception creating atom [atom_path]: [e] at [e.file]:[e.line]", "error_type" = "placement_failed")
 		else if(istext(atom_path))
 			var/resolved_path = text2path(atom_path)
 			if(ispath(resolved_path))
-				new resolved_path(target)
+				try
+					var/atom/new_atom = new resolved_path(target)
+					if(!new_atom)
+						return list("success" = FALSE, "error" = "Failed to create atom [resolved_path] (from [atom_path]) at [target]", "error_type" = "placement_failed")
+				catch(var/exception/e)
+					return list("success" = FALSE, "error" = "Exception creating atom [resolved_path] (from [atom_path]): [e] at [e.file]:[e.line]", "error_type" = "placement_failed")
+			else
+				return list("success" = FALSE, "error" = "Could not resolve text path [atom_path] to valid type", "error_type" = "invalid_path")
+
+	return list("success" = TRUE)
 
 /// Calculate next batch size based on current performance
 /datum/map_template/proc/calculate_next_batch_size(current_batch_size)
@@ -417,11 +488,10 @@ GLOBAL_LIST_EMPTY(async_map_operations)
 		return current_batch_size
 
 /// Callback for when async loading completes
-/datum/map_template/proc/on_async_load_complete(success, load_source, exception_message = null)
+/datum/map_template/proc/on_async_load_complete(success, load_source, detailed_error = null)
 	if(success)
 		world.log << "MAPLOADER: [src.name] - Async load successful from [load_source]"
-		// You can add custom post-load logic here
 	else
-		world.log << "MAPLOADER: [src.name] - Async load failed from [load_source]"
-		if(exception_message)
-			world.log << "MAPLOADER: Exception details: [exception_message]"
+		world.log << "MAPLOADER: [src.name] - Async load FAILED from [load_source]"
+		if(detailed_error)
+			world.log << "MAPLOADER: [src.name] - Detailed error: [detailed_error]"
