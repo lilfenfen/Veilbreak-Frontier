@@ -7,7 +7,8 @@
 		"emergency": "emergency_box",
 		"ferry": "ferry_fancy",
 		"cargo": "cargo_skyrat",
-		"whiteship": "whiteship_box"
+		"whiteship": "whiteship_box",
+		"arrivals" : "arrival_frontier.dmm"
 	},
 	"job_changes": {
 		"prisoner": {
