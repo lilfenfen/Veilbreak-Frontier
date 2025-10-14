@@ -155,7 +155,7 @@
 	icon_living = "void_healer"
 	speak_chance = 0
 	turns_per_move = 5
-	speed = 0.8 // Faster to run away
+	speed = 0.9 // Faster to run away
 	maxHealth = 50
 	health = 50
 	harm_intent_damage = 0
@@ -163,14 +163,14 @@
 	melee_damage_upper = 0
 	attack_verb_continuous = "touches"
 	attack_verb_simple = "touch"
-	faction = list("void")
+	faction = list("hostile")
 	environment_smash = ENVIRONMENT_SMASH_NONE
 	stat_attack = CONSCIOUS
 	robust_searching = TRUE
 	dodging = TRUE
 	dodge_prob = 70
 
-	/datum/ai_controller/basic_controller/alien
+	/datum/ai_controller/basic_controller/simple
 
 	Life()
 		. = ..()
