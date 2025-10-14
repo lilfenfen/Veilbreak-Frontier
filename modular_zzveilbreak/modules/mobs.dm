@@ -9,9 +9,9 @@
 	speed = 1
 	maxHealth = 30
 	health = 30
-	harm_intent_damage = 10
+	harm_intent_damage = 7
 	melee_damage_lower = 5
-	melee_damage_upper = 15
+	melee_damage_upper = 9
 	attack_verb_continuous = "slashes"
 	attack_verb_simple = "slash"
 	attack_sound = "modular_zzveilbreak/sound/weapons/voidling_attack.ogg"
@@ -37,6 +37,11 @@
 /mob/living/simple_animal/hostile/Voidling/New()
 	. = ..()
 	addtimer(CALLBACK(src, PROC_REF(qdel)), 30 SECONDS )
+
+/mob/living/simple_animal/hostile/Voidling/Move()
+	. = ..()
+	if(.)
+		flick("voidling_2", src)
 
 /mob/living/simple_animal/hostile/Consumed_Pathfinder
 	name = "Consumed Frontier"
@@ -88,10 +93,115 @@
 	name = "void bolt"
 	icon = 'modular_zzveilbreak/icons/item_icons/voidring.dmi'
 	icon_state = "voidbolt"
-	damage = 15
+	damage = 20
 	damage_type = BURN
 	range = 50
 	speed = 0.2
-	light_color = "#8a2be2"
 	var/atom/target
+
+/mob/living/simple_animal/hostile/Voidbug
+	name = "Voidbug"
+	desc = "A resilient bug-like creature from the void, tough but weak in offense."
+	icon = 'modular_zzveilbreak/icons/mob/mobs.dmi'
+	icon_state = "void_bug"
+	icon_living = "void_bug"
+	speak_chance = 0
+	turns_per_move = 5
+	speed = 1.1
+	maxHealth = 150
+	health = 150
+	harm_intent_damage = 5
+	melee_damage_lower = 2
+	melee_damage_upper = 5
+	attack_verb_continuous = "bites"
+	attack_verb_simple = "bite"
+	attack_sound = "modular_zzveilbreak/sound/weapons/voidling_attack.ogg"
+	faction = list("hostile")
+	environment_smash = ENVIRONMENT_SMASH_STRUCTURES
+	stat_attack = HARD_CRIT
+	robust_searching = TRUE
+	dodging = FALSE
+	var/block_chance = 30
+
+	/datum/ai_controller/basic_controller/alien
+
+	take_damage(damage, damagetype, def_zone, blocked, forced, spread_damage, wound_bonus, bare_wound_bonus, sharpness, attack_direction, attacking_item)
+		if(prob(block_chance))
+			visible_message(span_warning("[src] blocks the attack!"))
+			return
+		. = ..()
+
+	bullet_act(obj/projectile/P, def_zone, piercing_hit)
+		if(prob(block_chance))
+			visible_message(span_warning("[src] blocks the projectile!"))
+			return BULLET_ACT_BLOCK
+		. = ..()
+
+	death(message)
+		// Spawn loot before deletion
+		var/loot = pick_loot_from_table(voidbug_loot_table)
+		if(loot)
+			new loot(loc)
+		visible_message(span_danger("[src] crumbles into void dust."))
+		..()
+
+	del_on_death = TRUE
+
+/mob/living/simple_animal/hostile/Void_Healer
+	name = "Void Healer"
+	desc = "A benevolent void entity that heals its allies and flees from threats."
+	icon = 'modular_zzveilbreak/icons/mob/mobs.dmi'
+	icon_state = "void_healer"
+	icon_living = "void_healer"
+	speak_chance = 0
+	turns_per_move = 5
+	speed = 0.8 // Faster to run away
+	maxHealth = 50
+	health = 50
+	harm_intent_damage = 0
+	melee_damage_lower = 0
+	melee_damage_upper = 0
+	attack_verb_continuous = "touches"
+	attack_verb_simple = "touch"
+	faction = list("void")
+	environment_smash = ENVIRONMENT_SMASH_NONE
+	stat_attack = CONSCIOUS
+	robust_searching = TRUE
+	dodging = TRUE
+	dodge_prob = 70
+
+	/datum/ai_controller/basic_controller/alien
+
+	Life()
+		. = ..()
+		// Heal nearby allies
+		for(var/mob/living/L in range(3, src))
+			if(L.faction == faction && L.health < L.maxHealth)
+				L.adjustBruteLoss(-5)
+				visible_message(span_notice("[src] heals [L] with void energy."))
+				break // Heal one per tick
+
+		// Run away from enemies
+		var/closest_enemy = null
+		var/closest_dist = 10
+		for(var/mob/living/hostile in view(7, src))
+			if(hostile.faction != faction && !hostile.stat)
+				var/dist = get_dist(src, hostile)
+				if(dist < closest_dist)
+					closest_dist = dist
+					closest_enemy = hostile
+		if(closest_enemy)
+			var/dir_away = get_dir(closest_enemy, src)
+			step(src, dir_away)
+
+	death(message)
+		var/loot = pick_loot_from_table(void_healer_table)
+		if(loot)
+			new loot(loc)
+		visible_message(span_danger("[src] fades into nothingness."))
+		..()
+
+	del_on_death = TRUE
+
+
 
