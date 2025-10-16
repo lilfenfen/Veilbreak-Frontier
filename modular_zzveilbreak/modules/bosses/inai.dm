@@ -14,7 +14,7 @@
 	attack_sound = 'modular_zzveilbreak/sound/weapons/inai_attack.ogg'
 	speak_emote = list("says", "declares", "utters")
 	speak_chance = 100
-	faction = list("hostile")
+	faction = list("Void")
 	speed = 1.1
 	rapid_melee = 1
 	melee_queue_distance = 12
@@ -102,7 +102,7 @@
 		if(loot)
 			new loot(loc)
 		var/msg = pick(death_messages)
-		visible_message("<span style='color:#8a2be2; font-style:italic; font-size: 1.2em; text-shadow: 0 0 5px #8a2be2;'>[msg]</span>")
+		visible_message("<span style='color:#8a2be2; font-style:italic; font-size: 1.2em; '>[msg]</span>")
 		..()
 
 // Astral Step ability
@@ -151,7 +151,7 @@
 				if(L != inai)  // Exclude Inai from the mark
 					L.apply_status_effect(/datum/status_effect/astral_mark)
 	var/msg = pick(inai.astral_messages)
-	inai.visible_message("<span style='color:#8a2be2; font-style:italic; font-size: 1.2em; text-shadow: 0 0 5px #8a2be2;'>[msg]</span>")
+	inai.visible_message("<span style='color:#8a2be2; font-style:italic; font-size: 1.2em; '>[msg]</span>")
 	StartCooldown()
 
 // Inai Wave ability
@@ -191,7 +191,7 @@
 	// After channeling
 	inai.visible_message(span_danger("[inai] finishes channeling the resonant wave!"))
 	var/msg = pick(inai.pulse_messages)
-	inai.visible_message("<span style='color:#8a2be2; font-style:italic; font-size: 1.2em; text-shadow: 0 0 5px #8a2be2;'>[msg]</span>")
+	inai.visible_message("<span style='color:#8a2be2; font-style:italic; font-size: 1.2em; '>[msg]</span>")
 	inai.channeling = FALSE  // Reset flag
 	StartCooldown()
 

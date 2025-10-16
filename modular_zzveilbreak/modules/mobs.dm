@@ -15,7 +15,7 @@
 	attack_verb_continuous = "slashes"
 	attack_verb_simple = "slash"
 	attack_sound = "modular_zzveilbreak/sound/weapons/voidling_attack.ogg"
-	faction = list("hostile")
+	faction = list("Void")
 	environment_smash = ENVIRONMENT_SMASH_STRUCTURES
 	stat_attack = HARD_CRIT
 	robust_searching = TRUE
@@ -60,7 +60,7 @@
 	attack_verb_continuous = "sends a bolt"
 	attack_verb_simple = "bolts"
 	attack_sound = "modular_zzveilbreak/sound/weapons/voidling_attack.ogg"
-	faction = list("hostile")
+	faction = list("Void")
 	environment_smash = ENVIRONMENT_SMASH_STRUCTURES
 	stat_attack = HARD_CRIT
 	robust_searching = TRUE
@@ -163,7 +163,7 @@
 	melee_damage_upper = 0
 	attack_verb_continuous = "touches"
 	attack_verb_simple = "touch"
-	faction = list("hostile")
+	faction = list("Void")
 	environment_smash = ENVIRONMENT_SMASH_NONE
 	stat_attack = CONSCIOUS
 	robust_searching = TRUE

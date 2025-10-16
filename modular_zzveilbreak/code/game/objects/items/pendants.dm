@@ -80,7 +80,7 @@
 	var/mutable_appearance/result = ..()
 	if(result && ishuman(loc))
 		var/mob/living/carbon/human/H = loc
-		var/scale = H.dna.features["body_size"] || 1
+		var/scale = (H.dna.features["body_size"] || 1) * 0.4  // Make pendants smaller
 		result.transform = result.transform.Scale(scale)
 	return result
 
@@ -164,7 +164,7 @@
 	var/mutable_appearance/result = ..()
 	if(result && ishuman(loc))
 		var/mob/living/carbon/human/H = loc
-		var/scale = H.dna.features["body_size"] || 1
+		var/scale = (H.dna.features["body_size"] || 1) * 0.4 // Make pendants smaller
 		result.transform = result.transform.Scale(scale)
 	return result
 

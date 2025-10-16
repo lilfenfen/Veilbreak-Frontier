@@ -7,16 +7,19 @@
 	worn_icon_state = "voidring"
 	var/active = FALSE
 	var/timer_id
+	var/list/item_faction = list()
 
 /obj/item/clothing/gloves/ring/voidring/equipped(mob/user, slot)
 	. = ..()
 	if(slot == ITEM_SLOT_GLOVES)
 		active = TRUE
+		item_faction = user.faction.Copy()
 		timer_id = addtimer(CALLBACK(src, PROC_REF(fire_bolt)), 10 SECONDS, TIMER_LOOP | TIMER_STOPPABLE)
 
 /obj/item/clothing/gloves/ring/voidring/dropped(mob/user)
 	. = ..()
 	active = FALSE
+	item_faction = list()
 	if(timer_id)
 		deltimer(timer_id)
 		timer_id = null
@@ -27,7 +30,7 @@
 	var/mob/user = loc
 	var/list/targets = list()
 	for(var/mob/living/L in view(7, user))
-		if(L.faction != user.faction && !L.stat)
+		if(!length(L.faction & item_faction) && !L.stat)
 			targets += L
 	if(!length(targets))
 		return
@@ -42,6 +45,6 @@
 	var/mutable_appearance/result = ..()
 	if(result && ishuman(loc))
 		var/mob/living/carbon/human/H = loc
-		var/scale = H.dna.features["body_size"] || 1
+		var/scale = (H.dna.features["body_size"] || 1) * 0.2  // Make rings smaller
 		result.transform = result.transform.Scale(scale)
 	return result
