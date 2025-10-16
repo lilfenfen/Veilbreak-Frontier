@@ -251,6 +251,7 @@ GLOBAL_LIST_EMPTY(delirium_summons)
 	if(sm in GLOB.delirium_summons)
 		return
 	GLOB.delirium_summons[sm] = addtimer(CALLBACK(src, PROC_REF(summon_mob), sm), 10 SECONDS, TIMER_LOOP | TIMER_STOPPABLE)
+	addtimer(CALLBACK(src, PROC_REF(stop_summoning), sm), 2 MINUTES)
 
 /datum/sm_gas/delirium/proc/summon_mob(obj/machinery/power/supermatter_crystal/sm)
 	if(sm.gas_percentage[/datum/gas/delirium] <= 0.01)
@@ -274,7 +275,8 @@ GLOBAL_LIST_EMPTY(delirium_summons)
 /datum/sm_gas/delirium/extra_effects(obj/machinery/power/supermatter_crystal/sm)
 	if(sm.gas_percentage[/datum/gas/delirium] > 0.01)
 		if(!GLOB.delirium_warnings[sm])
-			sm.visible_message(span_warning("The Void starts to claim reality around the supermatter!"))
+			for(var/mob/M in range(10, sm))
+				to_chat(M, span_warning("The Void starts to claim reality around the supermatter! Mobs will be summoned for the next two minutes."))
 			GLOB.delirium_warnings[sm] = world.time
 			addtimer(CALLBACK(src, PROC_REF(start_summoning), sm), 60 SECONDS)
 		if(!sm.get_filter("delirium_glow"))
