@@ -76,6 +76,14 @@
 		if(ismob(loc))
 			to_chat(loc, span_warning("The Aether Pendant's activation fades."))
 
+/obj/item/clothing/neck/aether_pendant/build_worn_icon(default_layer = 0, default_icon_file = null, isinhands = FALSE, femaleuniform = NO_FEMALE_UNIFORM, override_state = null, override_file = null)
+	var/mutable_appearance/result = ..()
+	if(result && ishuman(loc))
+		var/mob/living/carbon/human/H = loc
+		var/scale = H.dna.features["body_size"] || 1
+		result.transform = result.transform.Scale(scale)
+	return result
+
 /obj/item/clothing/neck/life_pendant
 	name = "Life Pendant"
 	desc = "A vibrant pendant that pulses with life energy. Heals the user."
@@ -151,4 +159,12 @@
 	on_cooldown = FALSE
 	if(ismob(loc))
 		to_chat(loc, span_notice("The Life Pendant is ready to use again."))
+
+/obj/item/clothing/neck/life_pendant/build_worn_icon(default_layer = 0, default_icon_file = null, isinhands = FALSE, femaleuniform = NO_FEMALE_UNIFORM, override_state = null, override_file = null)
+	var/mutable_appearance/result = ..()
+	if(result && ishuman(loc))
+		var/mob/living/carbon/human/H = loc
+		var/scale = H.dna.features["body_size"] || 1
+		result.transform = result.transform.Scale(scale)
+	return result
 

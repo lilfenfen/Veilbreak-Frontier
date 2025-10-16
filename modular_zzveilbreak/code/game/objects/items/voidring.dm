@@ -37,3 +37,11 @@
 	bolt.target = target
 	bolt.angle = get_angle(user, target)
 	bolt.fire()
+
+/obj/item/clothing/gloves/ring/voidring/build_worn_icon(default_layer = 0, default_icon_file = null, isinhands = FALSE, femaleuniform = NO_FEMALE_UNIFORM, override_state = null, override_file = null)
+	var/mutable_appearance/result = ..()
+	if(result && ishuman(loc))
+		var/mob/living/carbon/human/H = loc
+		var/scale = H.dna.features["body_size"] || 1
+		result.transform = result.transform.Scale(scale)
+	return result
