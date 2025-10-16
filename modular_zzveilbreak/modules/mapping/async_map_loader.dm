@@ -1,3 +1,11 @@
+// Map format constants - same as in reader.dm
+#define MAP_DMM "dmm"
+#define MAP_TGM "tgm"
+#define MAP_UNKNOWN "unknown"
+
+// Other constants from reader.dm
+#define SPACE_KEY "space"
+
 // Modular overrides for async map loading with tick management
 
 /// Override the main load proc to add tick management
@@ -290,19 +298,31 @@
 	var/async_place_on_top
 	var/async_new_z
 
-/// Override cache building to use our fixed TGM cache builder
+
+/// Override cache building to handle both TGM and DMM formats safely
 /datum/parsed_map/build_cache(no_changeturf, bad_paths)
-	world.log << "## ASYNC_MAP_LOAD: Building cache with overridden build_cache proc"
+	world.log << "## ASYNC_MAP_LOAD: Building cache for format: [map_format]"
 
 	if(modelCache && !bad_paths)
 		return modelCache
 
+	// Use the appropriate cache builder based on map format
+	if(map_format == MAP_TGM)
+		world.log << "## ASYNC_MAP_LOAD: Using TGM cache builder"
+		return tgm_build_cache(no_changeturf, bad_paths)
+	else
+		world.log << "## ASYNC_MAP_LOAD: Using DMM cache builder"
+		return dmm_build_cache(no_changeturf, bad_paths)
+
+/// Fixed TGM cache building with proper error handling
+/datum/parsed_map/tgm_build_cache(no_changeturf, bad_paths=null)
+	if(modelCache && !bad_paths)
+		return modelCache
 	. = modelCache = list()
 	var/list/grid_models = src.grid_models
 	var/set_space = FALSE
 	var/static/list/default_list = GLOB.map_model_default
 	var/static/list/wrapped_default_list = list(default_list)
-	var/static/regex/var_edits = var_edits_tgm
 
 	var/path_to_init = ""
 	var/list/current_attributes
@@ -330,12 +350,12 @@
 						world.log << "## TGM_CACHE_WARNING: Var edit without active editing block in [model_key]: [line]"
 						continue
 
-					var_edits.Find(line)
-					if(var_edits.group && length(var_edits.group) >= 3)
-						var/value = parse_constant(var_edits.group[2])
+					var_edits_tgm.Find(line)
+					if(var_edits_tgm.group && length(var_edits_tgm.group) >= 3)
+						var/value = parse_constant(var_edits_tgm.group[2])
 						if(istext(value))
 							value = apply_text_macros(value)
-						current_attributes[var_edits.group[1]] = value
+						current_attributes[var_edits_tgm.group[1]] = value
 					continue
 
 				if("{") // Start of edit block
@@ -358,12 +378,12 @@
 
 				else // Path or area
 					if(editing)
-						var_edits.Find(line)
-						if(var_edits.group && length(var_edits.group) >= 3)
-							var/value = parse_constant(var_edits.group[2])
+						var_edits_tgm.Find(line)
+						if(var_edits_tgm.group && length(var_edits_tgm.group) >= 3)
+							var/value = parse_constant(var_edits_tgm.group[2])
 							if(istext(value))
 								value = apply_text_macros(value)
-							current_attributes[var_edits.group[1]] = value
+							current_attributes[var_edits_tgm.group[1]] = value
 						continue
 					else
 						members_attributes += wrapped_default_list
@@ -415,6 +435,85 @@
 
 	world.log << "## TGM_CACHE: Completed building cache with [length(.)] entries"
 	return .
+
+/// Fixed DMM cache building with proper error handling
+/datum/parsed_map/dmm_build_cache(no_changeturf, bad_paths=null)
+	if(modelCache && !bad_paths)
+		return modelCache
+	. = modelCache = list()
+	var/list/grid_models = src.grid_models
+	var/set_space = FALSE
+	var/static/list/default_list = list(GLOB.map_model_default)
+
+	world.log << "## DMM_CACHE: Building cache for [length(grid_models)] models"
+
+	for(var/model_key in grid_models)
+		world.log << "## DMM_CACHE: Processing model key '[model_key]'"
+
+		var/list/members = list()
+		var/list/members_attributes = list()
+		var/model = grid_models[model_key]
+		var/model_index = 1
+
+		while(model_path.Find(model, model_index))
+			var/variables_start = 0
+			var/member_string = model_path.group[1]
+			model_index = model_path.next
+
+			// Check if this member has variables
+			if(member_string[length(member_string)] == "}")
+				variables_start = findtext(member_string, "{")
+
+			var/path_text = trim(copytext(member_string, 1, variables_start))
+			var/atom_def = text2path(path_text)
+
+			if(!ispath(atom_def, /atom))
+				world.log << "## DMM_CACHE_WARNING: Invalid path '[path_text]' in model [model_key]"
+				if(bad_paths)
+					LAZYOR(bad_paths[path_text], model_key)
+				continue
+
+			members += atom_def
+
+			// Handle variables if present
+			var/list/fields = default_list
+			if(variables_start)
+				member_string = copytext(member_string, variables_start + length(member_string[variables_start]), -length(copytext_char(member_string, -1)))
+				fields = list(readlist(member_string, ";"))
+				for(var/I in fields)
+					var/value = fields[I]
+					if(istext(value))
+						fields[I] = apply_text_macros(value)
+
+			members_attributes += fields
+
+			// Prevent infinite loops
+			if(model_index > length(model) * 2)
+				world.log << "## DMM_CACHE_WARNING: Breaking potential infinite loop in model [model_key]"
+				break
+
+		// Space key optimization
+		if(!set_space && no_changeturf && length(members) == 2 && length(members_attributes) == 2)
+			var/valid_space = TRUE
+			if(length(members_attributes[1]) != 0 || length(members_attributes[2]) != 0)
+				valid_space = FALSE
+			if(length(members) < 2 || members[2] != world.area || members[1] != world.turf)
+				valid_space = FALSE
+
+			if(valid_space)
+				set_space = TRUE
+				.[SPACE_KEY] = model_key
+				world.log << "## DMM_CACHE: Set space key to '[model_key]'"
+				continue
+
+		.[model_key] = list(members, members_attributes)
+		world.log << "## DMM_CACHE: Added model '[model_key]' with [length(members)] members"
+
+	world.log << "## DMM_CACHE: Completed building cache with [length(.)] entries"
+	return .
+
+
+
 
 //Storing the adminverbs here for a moment
 
