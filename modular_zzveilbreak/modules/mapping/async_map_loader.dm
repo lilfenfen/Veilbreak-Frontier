@@ -290,7 +290,131 @@
 	var/async_place_on_top
 	var/async_new_z
 
+/// Override cache building to use our fixed TGM cache builder
+/datum/parsed_map/build_cache(no_changeturf, bad_paths)
+	world.log << "## ASYNC_MAP_LOAD: Building cache with overridden build_cache proc"
 
+	if(modelCache && !bad_paths)
+		return modelCache
+
+	. = modelCache = list()
+	var/list/grid_models = src.grid_models
+	var/set_space = FALSE
+	var/static/list/default_list = GLOB.map_model_default
+	var/static/list/wrapped_default_list = list(default_list)
+	var/static/regex/var_edits = var_edits_tgm
+
+	var/path_to_init = ""
+	var/list/current_attributes
+	var/editing = FALSE
+
+	world.log << "## TGM_CACHE: Building cache for [length(grid_models)] models"
+
+	for(var/model_key in grid_models)
+		world.log << "## TGM_CACHE: Processing model key '[model_key]'"
+
+		var/list/lines = splittext(grid_models[model_key], "\n")
+		var/list/members = list()
+		var/list/members_attributes = list()
+
+		for(var/line in lines)
+			if(!line || length(line) == 0)
+				world.log << "## TGM_CACHE_WARNING: Empty line in model [model_key]"
+				continue
+
+			var/last_char = length(line) > 0 ? line[length(line)] : ""
+
+			switch(last_char)
+				if(";") // Var edit
+					if(!current_attributes)
+						world.log << "## TGM_CACHE_WARNING: Var edit without active editing block in [model_key]: [line]"
+						continue
+
+					var_edits.Find(line)
+					if(var_edits.group && length(var_edits.group) >= 3)
+						var/value = parse_constant(var_edits.group[2])
+						if(istext(value))
+							value = apply_text_macros(value)
+						current_attributes[var_edits.group[1]] = value
+					continue
+
+				if("{") // Start of edit block
+					editing = TRUE
+					current_attributes = list()
+					members_attributes += list(current_attributes)
+					path_to_init = copytext(line, 1, -1)
+
+				if(",") // End of path
+					if(editing)
+						editing = FALSE
+					else
+						members_attributes += wrapped_default_list
+						path_to_init = copytext(line, 1, -1)
+
+				if("}") // End of edit block
+					if(editing)
+						editing = FALSE
+					continue
+
+				else // Path or area
+					if(editing)
+						var_edits.Find(line)
+						if(var_edits.group && length(var_edits.group) >= 3)
+							var/value = parse_constant(var_edits.group[2])
+							if(istext(value))
+								value = apply_text_macros(value)
+							current_attributes[var_edits.group[1]] = value
+						continue
+					else
+						members_attributes += wrapped_default_list
+						path_to_init = line
+
+			// Process the path if we have one
+			if(path_to_init && path_to_init != "")
+				var/atom_def = text2path(path_to_init)
+
+				if(!ispath(atom_def, /atom))
+					world.log << "## TGM_CACHE_WARNING: Invalid path '[path_to_init]' in model [model_key]"
+					if(bad_paths)
+						LAZYOR(bad_paths[path_to_init], model_key)
+					// Remove the attributes we just added since the path is invalid
+					if(length(members_attributes) > length(members))
+						members_attributes.len = length(members)
+					path_to_init = ""
+					continue
+
+				members += atom_def
+				path_to_init = ""
+
+		// Safety check - ensure lists are the same length
+		if(length(members) != length(members_attributes))
+			world.log << "## TGM_CACHE_ERROR: Mismatched list lengths in model [model_key]: members=[length(members)], attributes=[length(members_attributes)]"
+			// Truncate the longer list to match the shorter one
+			var/min_length = min(length(members), length(members_attributes))
+			if(length(members) > min_length)
+				members.len = min_length
+			if(length(members_attributes) > min_length)
+				members_attributes.len = min_length
+
+		// Space key optimization
+		if(!set_space && no_changeturf && length(members) == 2 && length(members_attributes) == 2)
+			var/valid_space = TRUE
+			if(members_attributes[1] != default_list || members_attributes[2] != default_list)
+				valid_space = FALSE
+			if(length(members) < 2 || members[2] != world.area || members[1] != world.turf)
+				valid_space = FALSE
+
+			if(valid_space)
+				set_space = TRUE
+				.[SPACE_KEY] = model_key
+				world.log << "## TGM_CACHE: Set space key to '[model_key]'"
+				continue
+
+		.[model_key] = list(members, members_attributes)
+		world.log << "## TGM_CACHE: Added model '[model_key]' with [length(members)] members"
+
+	world.log << "## TGM_CACHE: Completed building cache with [length(.)] entries"
+	return .
 
 //Storing the adminverbs here for a moment
 
