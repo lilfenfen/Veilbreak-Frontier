@@ -1,497 +1,291 @@
-// modular_zzveilbreak/modules/mapping/async_map_loader.dm
-// Adaptive async map loader for Veilbreak
-// Overrides /datum/map_template/load to provide non-blocking map loading
-// Author: Set Fox (refactored with enhanced error reporting)
+// Modular overrides for async map loading with tick management
 
-// Define constants at the top to avoid undefined errors
-#define ASYNC_THRESHOLD_TILES 500
-#define MAX_PLACEMENT_FAILURES 50
-#define INITIAL_BATCH_SIZE 200
-#define MIN_BATCH_SIZE 25
-#define MAX_BATCH_SIZE 1000
+/// Override the main load proc to add tick management
+/datum/parsed_map/load(x_offset = 0, y_offset = 0, z_offset = 0, crop_map = FALSE, no_changeturf = FALSE, x_lower = -INFINITY, x_upper = INFINITY, y_lower = -INFINITY, y_upper = INFINITY, z_lower = -INFINITY, z_upper = INFINITY, place_on_top = FALSE, new_z = FALSE)
+	world.log << "## ASYNC_MAP_LOAD: Starting async map load from [original_path] at ([x_offset],[y_offset],[z_offset])"
+	world.log << "## ASYNC_MAP_LOAD: Parameters - crop_map: [crop_map], no_changeturf: [no_changeturf], place_on_top: [place_on_top], new_z: [new_z]"
 
-/// Global list to track async map loading operations
-GLOBAL_LIST_EMPTY(async_map_operations)
+	// Call parent implementation but spread across ticks
+	Master.StartLoadingMap()
 
-/datum/map_template/load(
-	x_offset = 0,
-	y_offset = 0,
-	z_offset = 0,
-	crop_map = FALSE,
-	no_changeturf = FALSE,
-	x_lower = -INFINITY,
-	x_upper = INFINITY,
-	y_lower = -INFINITY,
-	y_upper = INFINITY,
-	z_lower = -INFINITY,
-	z_upper = INFINITY,
-	place_on_top = FALSE,
-	new_z = FALSE
-)
-	// Call parent first to handle basic validation and setup
-	var/datum/parsed_map/loaded_map = ..()
-	if(!loaded_map)
-		world.log << "MAPLOADER: [src.name] - Base load() failed or returned null."
+	// Initialize async loading state
+	var/async_loading = initialize_async_loading(x_offset, y_offset, z_offset, crop_map, no_changeturf, x_lower, x_upper, y_lower, y_upper, z_lower, z_upper, place_on_top, new_z)
+
+	if(!async_loading)
+		// Fall back to original sync loading
+		world.log << "## ASYNC_MAP_LOAD_ERROR: Async loading initialization failed, falling back to sync loading"
+		. = ..()
+		Master.StopLoadingMap()
+		return .
+
+	world.log << "## ASYNC_MAP_LOAD: Async loading initialized successfully with [length(gridSets)] grid sets"
+
+	// Start the async loading process
+	var/result = execute_async_load()
+	Master.StopLoadingMap()
+
+	if(result)
+		world.log << "## ASYNC_MAP_LOAD: Completed async map load successfully, bounds: [json_encode(bounds)]"
+	else
+		world.log << "## ASYNC_MAP_LOAD_ERROR: Async map load failed or was interrupted"
+
+	return result
+
+/// Initialize state for async loading
+/datum/parsed_map/proc/initialize_async_loading(x_offset, y_offset, z_offset, crop_map, no_changeturf, x_lower, x_upper, y_lower, y_upper, z_lower, z_upper, place_on_top, new_z)
+	world.log << "## ASYNC_MAP_LOAD: Initializing async loading state..."
+
+	// Store loading parameters
+	src.async_x_offset = x_offset
+	src.async_y_offset = y_offset
+	src.async_z_offset = z_offset
+	src.async_crop_map = crop_map
+	src.async_no_changeturf = no_changeturf
+	src.async_place_on_top = place_on_top
+	src.async_new_z = new_z
+
+	// Initialize async state
+	src.async_grid_index = 1
+	src.async_line_index = 1
+	src.async_x_pos = 0
+	src.async_tiles_this_tick = 0
+	src.async_max_tiles_per_tick = initial_max_tiles_per_tick()
+
+	world.log << "## ASYNC_MAP_LOAD: Building model cache..."
+	src.async_model_cache = build_cache(no_changeturf)
+	if(!src.async_model_cache)
+		world.log << "## ASYNC_MAP_LOAD_ERROR: Failed to build model cache"
 		return FALSE
 
-	// Check if this template should be loaded asynchronously
-	if(!should_load_async())
-		return loaded_map
+	src.async_space_key = src.async_model_cache[SPACE_KEY]
+	src.async_loading = TRUE
 
-	// Attempt async loading for supported map types
-	var/async_result = attempt_async_load(
-		loaded_map,
-		x_offset, y_offset, z_offset,
-		crop_map, no_changeturf,
-		x_lower, x_upper, y_lower, y_upper, z_lower, z_upper,
-		place_on_top, new_z
-	)
+	// Set up bounds for the new load
+	src.bounds = list(1.#INF, 1.#INF, 1.#INF, -1.#INF, -1.#INF, -1.#INF)
 
-	return async_result ? loaded_map : FALSE
-
-/// Determine if this template should be loaded asynchronously
-/datum/map_template/proc/should_load_async()
-	// For now, always attempt async for templates that support it
-	return TRUE
-
-/// Main async loading logic
-/datum/map_template/proc/attempt_async_load(
-	datum/parsed_map/loaded_map,
-	x_offset, y_offset, z_offset,
-	crop_map, no_changeturf,
-	x_lower, x_upper, y_lower, y_upper, z_lower, z_upper,
-	place_on_top, new_z
-)
-	// Try file-based async loading first (most common case)
-	var/file_path = detect_map_file_path()
-	if(file_path)
-		return start_file_async_load(
-			file_path,
-			x_offset, y_offset, z_offset,
-			crop_map, no_changeturf,
-			x_lower, x_upper, y_lower, y_upper, z_lower, z_upper,
-			place_on_top, new_z
-		)
-
-	// Fall back to coordinate-based async loading
-	var/list/coordinate_grid = detect_coordinate_grid()
-	if(coordinate_grid)
-		return start_coordinate_async_load(
-			coordinate_grid,
-			x_offset, y_offset, z_offset,
-			no_changeturf
-		)
-
-	// No async method available
-	world.log << "MAPLOADER: [src.name] - No async loading method available, falling back to sync."
-	log_template_variables() // Log template vars for debugging
-	return FALSE
-
-/// Log template variables for debugging purposes
-/datum/map_template/proc/log_template_variables()
-	world.log << "MAPLOADER: [src.name] - Template variables dump:"
-	for(var/var_name in vars)
-		var/val = vars[var_name]
-		if(islist(val))
-			world.log << "  [var_name]: list with [length(val)] elements"
-		else if(istext(val) || isnum(val))
-			world.log << "  [var_name]: [val]"
-		else if(ispath(val))
-			world.log << "  [var_name]: [val] (path)"
-		else
-			world.log << "  [var_name]: [val] (unknown type)"
-
-/// Detect and validate map file path from template variables
-/datum/map_template/proc/detect_map_file_path()
-	var/static/list/file_path_indicators = list(
-		"original_path",
-		"map_path",
-		"source_file",
-		"file_path",
-		"dmm_file"
-	)
-
-	for(var/path_var in file_path_indicators)
-		if(vars[path_var] && istext(vars[path_var]))
-			var/path_candidate = vars[path_var]
-			if(validate_file_path(path_candidate))
-				world.log << "MAPLOADER: [src.name] - Found file path via [path_var]: [path_candidate]"
-				return path_candidate
-
-	// Fallback: scan all text variables for file-like patterns
-	var/found_candidates = 0
-	for(var/var_name in vars)
-		if(istext(vars[var_name]))
-			var/path_candidate = vars[var_name]
-			if(validate_file_path(path_candidate))
-				found_candidates++
-				world.log << "MAPLOADER: [src.name] - Found candidate file path in [var_name]: [path_candidate]"
-
-	if(found_candidates > 1)
-		world.log << "MAPLOADER: [src.name] - Warning: Multiple file path candidates found, using first match"
-
-	return null
-
-/// Validate that a string looks like a valid map file path
-/datum/map_template/proc/validate_file_path(path_string)
-	if(!istext(path_string))
-		return FALSE
-
-	// Check for file extensions
-	if(findtext(path_string, ".dmm") || findtext(path_string, ".tgm"))
-		return TRUE
-
-	// Check for common map directory patterns
-	if(copytext(path_string, 1, 7) == "_maps/")
-		return TRUE
-
-	return FALSE
-
-/// Start async file-based map loading
-/datum/map_template/proc/start_file_async_load(
-	file_path,
-	x_offset, y_offset, z_offset,
-	crop_map, no_changeturf,
-	x_lower, x_upper, y_lower, y_upper, z_lower, z_upper,
-	place_on_top, new_z
-)
-	world.log << "MAPLOADER: [src.name] - Starting async file load for '[file_path]'"
-
-	var/operation_id = "map_async_[world.time]_[world.tick_usage]"
-	GLOB.async_map_operations[operation_id] = TRUE
-
-	spawn()
-		var/start_time = world.timeofday
-
-		// Use try-catch for BYOND 516 compatibility
-		var/success = FALSE
-		var/exception_message = null
-		var/detailed_error = null
-
-		try
-			// Use the global cached map loading system
-			world.log << "MAPLOADER: [src.name] - Calling load_map with params: x=[x_offset], y=[y_offset], z=[z_offset], crop=[crop_map]"
-
-			var/datum/parsed_map/async_loaded_map = load_map(
-				file_path,
-				x_offset, y_offset, z_offset,
-				crop_map,
-				FALSE, // measure_only - always false for actual loading
-				no_changeturf,
-				x_lower, x_upper, y_lower, y_upper, z_lower, z_upper,
-				place_on_top, new_z
-			)
-
-			var/load_time = (world.timeofday - start_time) / 10
-
-			if(async_loaded_map)
-				world.log << "MAPLOADER: [src.name] - Async file load completed in [load_time] seconds"
-				success = TRUE
-			else
-				world.log << "MAPLOADER: [src.name] - Async file load failed after [load_time] seconds - load_map returned null"
-				detailed_error = "load_map proc returned null - file may not exist or parsing failed"
-				success = FALSE
-
-		catch(var/exception/e)
-			exception_message = "[e] on [e.file]:[e.line]"
-			world.log << "MAPLOADER: [src.name] - Async file load exception: [exception_message]"
-			detailed_error = "Exception during load_map: [exception_message]"
-			success = FALSE
-
-		// Cleanup that runs regardless of success or failure
-		GLOB.async_map_operations -= operation_id
-		on_async_load_complete(success, file_path, detailed_error || exception_message)
+	world.log << "## ASYNC_MAP_LOAD: Initialized with [length(async_model_cache)] model keys, space_key: [async_space_key]"
+	world.log << "## ASYNC_MAP_LOAD: Initial tile budget: [async_max_tiles_per_tick] per tick"
 
 	return TRUE
 
-/// Detect coordinate-based map grid in template variables
-/datum/map_template/proc/detect_coordinate_grid()
-	var/static/list/grid_indicators = list(
-		"grid_models",
-		"map_grid",
-		"coordinate_grid",
-		"tile_data"
-	)
+/// Get initial tile budget based on server performance
+/datum/parsed_map/proc/initial_max_tiles_per_tick()
+	// Start conservative, adjust based on server performance
+	return 50
 
-	for(var/grid_var in grid_indicators)
-		if(vars[grid_var] && islist(vars[grid_var]) && length(vars[grid_var]) > 0)
-			var/list/candidate = vars[grid_var]
-			if(validate_coordinate_grid(candidate))
-				world.log << "MAPLOADER: [src.name] - Found coordinate grid via [grid_var] with [length(candidate)] entries"
-				return candidate
+/// Main async loading execution
+/datum/parsed_map/proc/execute_async_load()
+	// Tell ss atoms that we're doing maploading
+	loading = TRUE
+	SSatoms.map_loader_begin(REF(src))
 
-	// Scan all list variables for coordinate-like structures
-	var/found_candidates = 0
-	for(var/var_name in vars)
-		if(islist(vars[var_name]) && length(vars[var_name]) > 0)
-			var/list/candidate = vars[var_name]
-			if(validate_coordinate_grid(candidate))
-				found_candidates++
-				world.log << "MAPLOADER: [src.name] - Found coordinate grid candidate in [var_name] with [length(candidate)] entries"
+	var/total_ticks = 0
+	var/total_tiles = 0
+	var/start_time = world.time
 
-	if(found_candidates > 1)
-		world.log << "MAPLOADER: [src.name] - Warning: Multiple coordinate grid candidates found, using first match"
+	world.log << "## ASYNC_MAP_LOAD: Beginning async load of [length(gridSets)] grid sets"
 
-	return null
+	// Process gridsets with tick management
+	while(async_grid_index <= length(gridSets))
+		total_ticks++
 
-/// Validate that a list appears to be a coordinate grid
-/datum/map_template/proc/validate_coordinate_grid(list/grid_candidate)
-	if(!islist(grid_candidate) || !length(grid_candidate))
-		return FALSE
+		// Log progress every 10 ticks
+		if(total_ticks % 10 == 0)
+			world.log << "## ASYNC_MAP_LOAD: Progress - grid [async_grid_index]/[length(gridSets)], tick [total_ticks], tiles this run: [total_tiles]"
+			world.log << "## ASYNC_MAP_LOAD: Current tick usage: [world.tick_usage]%, budget: [async_max_tiles_per_tick] tiles/tick"
 
-	var/first_entry = grid_candidate[1]
-	if(!islist(first_entry))
-		return FALSE
+		var/continue_loading = process_current_gridset_async()
 
-	// Check for common coordinate field names
-	var/has_coords = ("x" in first_entry) || ("y" in first_entry)
-	var/has_turf_data = ("turf" in first_entry) || ("turf_path" in first_entry) || ("typepath" in first_entry)
+		if(!continue_loading)
+			// We hit our tick limit, yield and continue next tick
+			SSatoms.map_loader_stop(REF(src))
+			stoplag()
+			SSatoms.map_loader_begin(REF(src))
+			async_tiles_this_tick = 0
+			continue
 
-	return has_coords || has_turf_data
+	var/load_time = world.time - start_time
+	world.log << "## ASYNC_MAP_LOAD: Grid processing completed in [load_time] ticks and [total_ticks] iterations"
 
-/// Start async coordinate-based map loading
-/datum/map_template/proc/start_coordinate_async_load(
-	list/coordinate_grid,
-	x_offset, y_offset, z_offset,
-	no_changeturf
-)
-	world.log << "MAPLOADER: [src.name] - Starting async coordinate load ([length(coordinate_grid)] tiles)"
+	// Complete the loading process
+	complete_async_loading()
 
-	var/operation_id = "coord_async_[world.time]_[world.tick_usage]"
-	GLOB.async_map_operations[operation_id] = TRUE
-
-	// Capture total_tiles here so it's available in the spawn closure
-	var/total_tiles = length(coordinate_grid)
-
-	spawn()
-		var/start_time = world.time
-		var/tiles_placed = process_coordinate_batch(
-			coordinate_grid,
-			x_offset, y_offset, z_offset,
-			no_changeturf
-		)
-
-		var/duration = world.time - start_time
-		var/success_rate = total_tiles > 0 ? (tiles_placed / total_tiles) * 100 : 0
-
-		world.log << "MAPLOADER: [src.name] - Async coordinate load completed - [tiles_placed]/[total_tiles] tiles ([success_rate]%) in [duration] ticks"
-
-		GLOB.async_map_operations -= operation_id
-		on_async_load_complete((tiles_placed > 0), "coordinate_grid", "Placed [tiles_placed] of [total_tiles] tiles ([success_rate]% success rate)")
+	SSatoms.map_loader_stop(REF(src))
+	loading = FALSE
+	src.async_loading = FALSE
 
 	return TRUE
 
-/// Process coordinate grid in batches with adaptive performance management
-/datum/map_template/proc/process_coordinate_batch(
-	list/coordinate_grid,
-	x_offset, y_offset, z_offset,
-	no_changeturf
-)
-	var/total_tiles = length(coordinate_grid)
-	var/tiles_placed = 0
-	var/batch_size = initial_batch_size(total_tiles)
-	var/failed_placements = 0
-	var/list/failure_stats = list(
-		"invalid_coords" = 0,
-		"invalid_path" = 0,
-		"invalid_location" = 0,
-		"placement_failed" = 0,
-		"invalid_entry" = 0
-	)
+/// Process current gridset with tick management
+/datum/parsed_map/proc/process_current_gridset_async()
+	var/datum/grid_set/gset = gridSets[async_grid_index]
 
-	world.log << "MAPLOADER: [src.name] - Processing [total_tiles] tiles with initial batch size [batch_size]"
+	if(!gset)
+		world.log << "## ASYNC_MAP_LOAD_ERROR: Grid set [async_grid_index] is null!"
+		return FALSE
 
-	while(tiles_placed < total_tiles && failed_placements < MAX_PLACEMENT_FAILURES)
-		var/processed = 0
-		var/failed = 0
+	var/list/gridLines = gset.gridLines
+	var/line_len = src.line_len
+	var/key_len = src.key_len
 
-		var/start_index = tiles_placed + 1
-		var/end_index = min(tiles_placed + batch_size, total_tiles)
+	if(!gridLines)
+		world.log << "## ASYNC_MAP_LOAD_ERROR: Grid set [async_grid_index] has no gridLines!"
+		return FALSE
 
-		for(var/i = start_index to end_index)
-			if(i > length(coordinate_grid))
-				break
+	world.log << "## ASYNC_MAP_LOAD: Processing grid set [async_grid_index] at ([gset.xcrd],[gset.ycrd],[gset.zcrd]) with [length(gridLines)] lines"
 
-			var/list/entry = coordinate_grid[i]
-			if(!islist(entry))
-				failed++
-				failure_stats["invalid_entry"]++
-				if(failure_stats["invalid_entry"] <= 5) // Log first 5 invalid entries
-					world.log << "MAPLOADER: [src.name] - Entry [i] is not a list: [json_encode(entry)]"
+	// Calculate actual coordinates
+	var/true_xcrd = gset.xcrd + (async_x_offset - 1)
+	var/ycrd = gset.ycrd + (async_y_offset - 1) - (async_line_index - 1)
+	var/zcrd = gset.zcrd + (async_z_offset - 1)
+
+	// Process remaining lines in this grid set
+	for(var/i in async_line_index to length(gridLines))
+		var/line = gridLines[i]
+
+		if(!line)
+			world.log << "## ASYNC_MAP_LOAD_WARNING: Line [i] in grid set [async_grid_index] is null, skipping"
+			continue
+
+		// Process characters in this line starting from where we left off
+		for(var/tpos in (1 + async_x_pos) to line_len step key_len)
+			// Check if we've processed enough tiles this tick
+			if(async_tiles_this_tick >= async_max_tiles_per_tick)
+				// Save our position for next tick
+				async_line_index = i
+				async_x_pos = tpos - 1
+				world.log << "## ASYNC_MAP_LOAD: Tile budget reached at grid [async_grid_index], line [i], position [tpos]. Processed [async_tiles_this_tick] tiles this tick."
+				return FALSE
+
+			// Check current tick usage - yield if we're using too much
+			if(world.tick_usage > 85)
+				async_line_index = i
+				async_x_pos = tpos - 1
+				world.log << "## ASYNC_MAP_LOAD: High tick usage ([world.tick_usage]%) at grid [async_grid_index], line [i], position [tpos]. Yielding."
+				return FALSE
+
+			var/model_key = copytext(line, tpos, tpos + key_len)
+
+			// Skip space keys to save processing
+			if(model_key == async_space_key)
+				async_tiles_this_tick++
 				continue
 
-			var/placement_result = place_coordinate_entry(entry, x_offset, y_offset, z_offset, no_changeturf)
-			if(placement_result["success"])
-				processed++
+			var/list/cache = async_model_cache[model_key]
+			if(!cache)
+				world.log << "## ASYNC_MAP_LOAD_ERROR: Undefined model key '[model_key]' at grid [async_grid_index], line [i], position [tpos]"
+				CRASH("Undefined model key in DMM: [model_key]")
+
+			// Calculate actual coordinate
+			var/x_position = true_xcrd + ((tpos - 1) / key_len)
+			var/turf/crds = locate(x_position, ycrd, zcrd)
+
+			if(crds)
+				// Build the coordinate using parent implementation
+				build_coordinate(cache, crds, async_no_changeturf, async_place_on_top, async_new_z)
+
+				// Update bounds
+				update_bounds_async(x_position, ycrd, zcrd)
 			else
-				failed++
-				failure_stats[placement_result["error_type"]]++
+				world.log << "## ASYNC_MAP_LOAD_WARNING: Could not locate turf at ([x_position], [ycrd], [zcrd])"
 
-				// Log detailed error for first few failures of each type
-				if(failure_stats[placement_result["error_type"]] <= 3)
-					world.log << "MAPLOADER: [src.name] - Entry [i] failed: [placement_result["error"]]"
-					world.log << "MAPLOADER: [src.name] - Entry data: [json_encode(entry)]"
+			async_tiles_this_tick++
 
-			// Yield every 50 tiles to prevent blocking
-			if((i % 50) == 0)
-				CHECK_TICK
+		// Reset x position and move to next line
+		async_x_pos = 0
+		ycrd--
 
-		tiles_placed += processed
-		failed_placements += failed
+	world.log << "## ASYNC_MAP_LOAD: Completed grid set [async_grid_index]"
 
-		// Adaptive batch sizing based on tick usage
-		batch_size = calculate_next_batch_size(batch_size)
+	// Move to next grid set
+	async_grid_index++
+	async_line_index = 1
+	async_x_pos = 0
 
-		// Progress reporting
-		if((tiles_placed % 2000) == 0)
-			var/percent_complete = total_tiles > 0 ? round((tiles_placed/total_tiles)*100) : 0
-			world.log << "MAPLOADER: [src.name] - Progress: [tiles_placed]/[total_tiles] ([percent_complete]%) - Batch size: [batch_size]"
+	// Adjust tile budget based on performance
+	adjust_tile_budget_async()
 
-		stoplag()
+	return TRUE
 
-	// Log failure statistics
-	if(failed_placements > 0)
-		world.log << "MAPLOADER: [src.name] - Placement failure summary:"
-		for(var/error_type in failure_stats)
-			if(failure_stats[error_type] > 0)
-				world.log << "MAPLOADER: [src.name] -   [error_type]: [failure_stats[error_type]] failures"
+/// Update bounds during async loading
+/datum/parsed_map/proc/update_bounds_async(x, y, z)
+	var/list/bounds = src.bounds
+	if(!bounds)
+		world.log << "## ASYNC_MAP_LOAD_ERROR: Bounds list is null during update!"
+		return
 
-	return tiles_placed
+	bounds[MAP_MINX] = min(bounds[MAP_MINX], x)
+	bounds[MAP_MINY] = min(bounds[MAP_MINY], y)
+	bounds[MAP_MINZ] = min(bounds[MAP_MINZ], z)
+	bounds[MAP_MAXX] = max(bounds[MAP_MAXX], x)
+	bounds[MAP_MAXY] = max(bounds[MAP_MAXY], y)
+	bounds[MAP_MAXZ] = max(bounds[MAP_MAXZ], z)
 
-/// Calculate initial batch size based on map size
-/datum/map_template/proc/initial_batch_size(total_tiles)
-	if(total_tiles <= 1000)
-		return 100
-	else if(total_tiles <= 5000)
-		return 200
-	else
-		return INITIAL_BATCH_SIZE
-
-/// Place a single coordinate entry in the world and return detailed result
-/datum/map_template/proc/place_coordinate_entry(
-	list/entry,
-	x_offset, y_offset, z_offset,
-	no_changeturf
-)
-	// Extract coordinates with offset application
-	var/x = (entry["x"] || entry[1] || 1) + x_offset
-	var/y = (entry["y"] || entry[2] || 1) + y_offset
-	var/z = entry["z"] || entry[3] || z_offset
-
-	// Validate coordinates with detailed error reporting
-	if(!isnum(x))
-		return list("success" = FALSE, "error" = "X coordinate '[x]' is not a number", "error_type" = "invalid_coords")
-	if(!isnum(y))
-		return list("success" = FALSE, "error" = "Y coordinate '[y]' is not a number", "error_type" = "invalid_coords")
-	if(!isnum(z))
-		return list("success" = FALSE, "error" = "Z coordinate '[z]' is not a number", "error_type" = "invalid_coords")
-
-	// Validate coordinate ranges
-	if(x < 1 || x > world.maxx)
-		return list("success" = FALSE, "error" = "X coordinate [x] out of world bounds (1-[world.maxx])", "error_type" = "invalid_coords")
-	if(y < 1 || y > world.maxy)
-		return list("success" = FALSE, "error" = "Y coordinate [y] out of world bounds (1-[world.maxy])", "error_type" = "invalid_coords")
-	if(z < 1 || z > world.maxz)
-		return list("success" = FALSE, "error" = "Z coordinate [z] out of world bounds (1-[world.maxz])", "error_type" = "invalid_coords")
-
-	// Extract and validate turf path
-	var/turf_path = extract_turf_path(entry)
-	if(!turf_path)
-		return list("success" = FALSE, "error" = "No valid turf path found in entry", "error_type" = "invalid_path")
-
-	// Place the turf
-	var/turf/target = locate(x, y, z)
-	if(!target)
-		return list("success" = FALSE, "error" = "Could not locate turf at coordinates ([x], [y], [z])", "error_type" = "invalid_location")
-
-	// Attempt to place the turf
-	try
-		if(no_changeturf)
-			var/atom/new_turf = new turf_path(target)
-			if(!new_turf || !isturf(new_turf))
-				return list("success" = FALSE, "error" = "Failed to create turf [turf_path] at ([x], [y], [z])", "error_type" = "placement_failed")
-		else
-			var/turf/new_turf = target.ChangeTurf(turf_path)
-			if(!new_turf || !isturf(new_turf))
-				return list("success" = FALSE, "error" = "ChangeTurf failed for [turf_path] at ([x], [y], [z])", "error_type" = "placement_failed")
-	catch(var/exception/e)
-		return list("success" = FALSE, "error" = "Exception during turf placement: [e] at [e.file]:[e.line]", "error_type" = "placement_failed")
-
-	// Place additional atoms if specified
-	var/atom_result = place_additional_atoms(entry, target)
-	if(!atom_result["success"])
-		return atom_result
-
-	return list("success" = TRUE)
-
-/// Extract and validate turf path from coordinate entry
-/datum/map_template/proc/extract_turf_path(list/entry)
-	var/turf_path_candidate = entry["turf_path"] || entry["turf"] || entry["typepath"]
-
-	if(!turf_path_candidate)
-		return null
-
-	// Handle text paths
-	if(istext(turf_path_candidate))
-		turf_path_candidate = text2path(turf_path_candidate)
-		if(!turf_path_candidate)
-			return null
-
-	// Validate it's a valid turf path
-	if(!ispath(turf_path_candidate, /turf))
-		return null
-
-	return turf_path_candidate
-
-/// Place additional atoms specified in the coordinate entry
-/datum/map_template/proc/place_additional_atoms(list/entry, turf/target)
-	var/list/additional_atoms = entry["atoms"] || entry["contents"]
-
-	if(!islist(additional_atoms))
-		return list("success" = TRUE)
-
-	for(var/atom_path in additional_atoms)
-		if(ispath(atom_path))
-			try
-				var/atom/new_atom = new atom_path(target)
-				if(!new_atom)
-					return list("success" = FALSE, "error" = "Failed to create atom [atom_path] at [target]", "error_type" = "placement_failed")
-			catch(var/exception/e)
-				return list("success" = FALSE, "error" = "Exception creating atom [atom_path]: [e] at [e.file]:[e.line]", "error_type" = "placement_failed")
-		else if(istext(atom_path))
-			var/resolved_path = text2path(atom_path)
-			if(ispath(resolved_path))
-				try
-					var/atom/new_atom = new resolved_path(target)
-					if(!new_atom)
-						return list("success" = FALSE, "error" = "Failed to create atom [resolved_path] (from [atom_path]) at [target]", "error_type" = "placement_failed")
-				catch(var/exception/e)
-					return list("success" = FALSE, "error" = "Exception creating atom [resolved_path] (from [atom_path]): [e] at [e.file]:[e.line]", "error_type" = "placement_failed")
-			else
-				return list("success" = FALSE, "error" = "Could not resolve text path [atom_path] to valid type", "error_type" = "invalid_path")
-
-	return list("success" = TRUE)
-
-/// Calculate next batch size based on current performance
-/datum/map_template/proc/calculate_next_batch_size(current_batch_size)
+/// Adjust tile budget based on current performance
+/datum/parsed_map/proc/adjust_tile_budget_async()
 	var/current_tick_usage = world.tick_usage
+	var/old_budget = async_max_tiles_per_tick
 
-	if(current_tick_usage > 85)
-		return max(round(current_batch_size * 0.6), MIN_BATCH_SIZE)
-	else if(current_tick_usage > 70)
-		return max(round(current_batch_size * 0.8), MIN_BATCH_SIZE)
-	else if(current_tick_usage < 50)
-		return min(round(current_batch_size * 1.2), MAX_BATCH_SIZE)
-	else if(current_tick_usage < 30)
-		return min(round(current_batch_size * 1.4), MAX_BATCH_SIZE)
+	if(current_tick_usage < 60)
+		// We have headroom, increase budget
+		async_max_tiles_per_tick = min(async_max_tiles_per_tick * 1.2, 200)
+		world.log << "## ASYNC_MAP_LOAD: Increased tile budget from [old_budget] to [async_max_tiles_per_tick] (low usage: [current_tick_usage]%)"
+	else if(current_tick_usage > 80)
+		// We're using too much, decrease budget
+		async_max_tiles_per_tick = max(async_max_tiles_per_tick * 0.8, 10)
+		world.log << "## ASYNC_MAP_LOAD: Decreased tile budget from [old_budget] to [async_max_tiles_per_tick] (high usage: [current_tick_usage]%)"
 	else
-		return current_batch_size
+		world.log << "## ASYNC_MAP_LOAD: Maintaining tile budget at [async_max_tiles_per_tick] (usage: [current_tick_usage]%)"
 
-/// Callback for when async loading completes
-/datum/map_template/proc/on_async_load_complete(success, load_source, detailed_error = null)
-	if(success)
-		world.log << "MAPLOADER: [src.name] - Async load successful from [load_source]"
-	else
-		world.log << "MAPLOADER: [src.name] - Async load FAILED from [load_source]"
-		if(detailed_error)
-			world.log << "MAPLOADER: [src.name] - Detailed error: [detailed_error]"
+/// Complete the async loading process
+/datum/parsed_map/proc/complete_async_loading()
+	world.log << "## ASYNC_MAP_LOAD: Starting post-load processing"
+
+	// Handle post-load processing similar to original _load_impl
+
+	if(async_new_z)
+		world.log << "## ASYNC_MAP_LOAD: Building area turfs for new z-levels"
+		for(var/z_index in bounds[MAP_MINZ] to bounds[MAP_MAXZ])
+			SSmapping.build_area_turfs(z_index)
+
+	if(!async_no_changeturf)
+		world.log << "## ASYNC_MAP_LOAD: Calling AfterChange on loaded turfs"
+		var/list/turfs = block(
+			bounds[MAP_MINX], bounds[MAP_MINY], bounds[MAP_MINZ],
+			bounds[MAP_MAXX], bounds[MAP_MAXY], bounds[MAP_MAXZ]
+		)
+		world.log << "## ASYNC_MAP_LOAD: Processing [length(turfs)] turfs for AfterChange"
+		for(var/turf/T as anything in turfs)
+			T.AfterChange(CHANGETURF_IGNORE_AIR)
+
+	if(expanded_x || expanded_y)
+		world.log << "## ASYNC_MAP_LOAD: Sending expanded bounds signal"
+		SEND_GLOBAL_SIGNAL(COMSIG_GLOB_EXPANDED_WORLD_BOUNDS, expanded_x, expanded_y)
+
+	#ifdef TESTING
+	if(turfsSkipped)
+		testing("Skipped loading [turfsSkipped] default turfs")
+	#endif
+
+	world.log << "## ASYNC_MAP_LOAD: Post-load processing completed"
+
+// Add async loading variables to the parsed_map datum
+/datum/parsed_map
+	// Async loading state
+	var/async_loading = FALSE
+	var/async_grid_index = 1
+	var/async_line_index = 1
+	var/async_x_pos = 0
+	var/async_tiles_this_tick = 0
+	var/async_max_tiles_per_tick = 50
+	var/list/async_model_cache
+	var/async_space_key
+
+	// Async loading parameters
+	var/async_x_offset
+	var/async_y_offset
+	var/async_z_offset
+	var/async_crop_map
+	var/async_no_changeturf
+	var/async_place_on_top
+	var/async_new_z
