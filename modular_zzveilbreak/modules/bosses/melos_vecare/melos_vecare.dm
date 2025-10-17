@@ -1,7 +1,7 @@
 /mob/living/simple_animal/hostile/megafauna/melos_vecare
 	name = "Melos Vecare"
 	desc = "A siren corrupted by the void, her song now weaves destruction and chaos."
-	icon = 'modular_zzveilbreak/icons/mob/mobs.dmi'
+	icon = 'modular_zzveilbreak/icons/bosses/melos_vecare.dmi'
 	icon_state = "melos_vecare"
 	icon_living = "melos_vecare"
 	pixel_x = -16
@@ -30,6 +30,7 @@
 	loot = list(/obj/item/voidshard)
 
 	anchored = TRUE
+	transform = transform.Scale(2)
 
 /mob/living/simple_animal/hostile/megafauna/melos_vecare/Life()
 	. = ..()
@@ -37,6 +38,8 @@
 		ability_cooldown = world.time + 3 SECONDS
 		var/ability = pick("push", "pull")
 		for(var/mob/living/L in range(spell_range, src))
+			if(L == src)
+				continue
 			if(ability == "push")
 				var/dir = get_dir(src, L)
 				L.throw_at(get_edge_target_turf(L, dir), 5, 1)
@@ -46,7 +49,7 @@
 				new /obj/effect/temp_visual/voidin(get_turf(L))
 
 	if(world.time > mark_cooldown)
-		mark_cooldown = world.time + 20 SECONDS
+		mark_cooldown = world.time + 6 SECONDS
 		melos_vecare_mark_tiles()
 
 /mob/living/simple_animal/hostile/megafauna/melos_vecare/proc/melos_vecare_mark_tiles()
@@ -72,12 +75,12 @@
 
 /obj/effect/temp_visual/water_effect
 	icon = 'modular_zzveilbreak/icons/bosses/melos_vecare.dmi'
-	icon_state = "water"
+	icon_state = "mark"
 	duration = 1 SECONDS
 
 /obj/effect/temp_visual/void_effect
 	icon = 'modular_zzveilbreak/icons/bosses/melos_vecare.dmi'
-	icon_state = "void"
+	icon_state = "mark"
 	duration = 1 SECONDS
 
 /obj/effect/melos_damage

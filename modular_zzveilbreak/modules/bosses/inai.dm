@@ -32,6 +32,8 @@
 	move_to_delay = 1.1
 	loot = list(/obj/item/voidshard)  // Fixed drop for now; can use table later
 
+	transform = matrix().Scale(2)
+
 	// List of death messages
 	var/list/death_messages = list(
 		"This will open a dark path.",
