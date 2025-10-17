@@ -8,7 +8,6 @@
 	icon_state = "aether_pendant"
 	w_class = WEIGHT_CLASS_SMALL
 	slot_flags = ITEM_SLOT_NECK
-	pixel_x = 4  // Offset towards neck (up)
 
 	var/active = FALSE  // For active ability
 	var/on_cooldown = FALSE
@@ -80,7 +79,8 @@
 	var/mutable_appearance/result = ..()
 	if(result && ishuman(loc))
 		var/mob/living/carbon/human/H = loc
-		var/scale = (H.dna.features["body_size"] || 1) * 0.4  // Make pendants smaller
+		var/scale = (H.dna.features["body_size"] || 1) * 0.2  // Make pendants smaller
+		pixel_x = 4
 		result.transform = result.transform.Scale(scale)
 	return result
 
@@ -94,7 +94,7 @@
 	worn_icon_state = "life_pendant"
 	w_class = WEIGHT_CLASS_SMALL
 	slot_flags = ITEM_SLOT_NECK
-	pixel_x = 4  // Offset towards neck (up)
+
 
 	var/on_cooldown = FALSE
 	var/cooldown_time = 35 SECONDS
@@ -164,7 +164,8 @@
 	var/mutable_appearance/result = ..()
 	if(result && ishuman(loc))
 		var/mob/living/carbon/human/H = loc
-		var/scale = (H.dna.features["body_size"] || 1) * 0.4 // Make pendants smaller
+		var/scale = (H.dna.features["body_size"] || 1) * 0.2 // Make pendants smaller
+		pixel_x = 4
 		result.transform = result.transform.Scale(scale)
 	return result
 

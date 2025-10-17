@@ -43,7 +43,6 @@
 		"Behind you.",
 		"You're already too late.",
 		"I'm everywhere and nowhere.",
-		"A merry chase you lead."
 
 	)
 
