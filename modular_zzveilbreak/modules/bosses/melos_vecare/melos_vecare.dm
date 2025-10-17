@@ -17,6 +17,7 @@
 	melee_damage_lower = 0
 	melee_damage_upper = 0
 	attack_verb_continuous = "sings"
+	loot = /obj/item/voidshard
 	attack_verb_simple = "sing"
 	attack_sound = 'modular_zzveilbreak/sound/weapons/voidling_attack.ogg'
 	faction = list("Void")
@@ -27,10 +28,8 @@
 	var/ability_cooldown = 0
 	var/mark_cooldown = 0
 	var/spell_range = 20
-	loot = list(/obj/item/voidshard)
 
 	anchored = TRUE
-	transform = transform.Scale(2)
 
 /mob/living/simple_animal/hostile/megafauna/melos_vecare/Life()
 	. = ..()

@@ -30,9 +30,7 @@
 	dodging = TRUE
 	dodge_prob = 40
 	move_to_delay = 1.1
-	loot = list(/obj/item/voidshard)  // Fixed drop for now; can use table later
-
-	transform = matrix().Scale(2)
+	loot = /obj/item/voidshard
 
 	// List of death messages
 	var/list/death_messages = list(
