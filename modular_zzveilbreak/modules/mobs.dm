@@ -116,7 +116,7 @@
 	attack_verb_continuous = "bites"
 	attack_verb_simple = "bite"
 	attack_sound = "modular_zzveilbreak/sound/weapons/voidling_attack.ogg"
-	faction = list("hostile")
+	faction = list("Void")
 	environment_smash = ENVIRONMENT_SMASH_STRUCTURES
 	stat_attack = HARD_CRIT
 	robust_searching = TRUE
