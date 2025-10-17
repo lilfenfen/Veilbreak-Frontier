@@ -18,6 +18,7 @@
 	rcd_proof = TRUE
 	rust_resistance = RUST_RESISTANCE_ABSOLUTE
 	resistance_flags = FIRE
+	layer = GLASS_FLOOR_LAYER
 	alpha = 190
 
 /turf/open/floor/void_tile/break_tile()
