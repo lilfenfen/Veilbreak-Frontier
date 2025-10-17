@@ -19,14 +19,6 @@
 	rust_resistance = RUST_RESISTANCE_ABSOLUTE
 	resistance_flags = FIRE
 	layer = GLASS_FLOOR_LAYER
-	underfloor_accessibility = UNDERFLOOR_VISIBLE
-	smoothing_flags = SMOOTH_BITMASK
-	smoothing_groups = SMOOTH_GROUP_TURF_OPEN + SMOOTH_GROUP_FLOOR_TRANSPARENT_GLASS
-	canSmoothWith = SMOOTH_GROUP_FLOOR_TRANSPARENT_GLASS
-	footstep = FOOTSTEP_PLATING
-	barefootstep = FOOTSTEP_HARD_BAREFOOT
-	clawfootstep = FOOTSTEP_HARD_CLAW
-	heavyfootstep = FOOTSTEP_GENERIC_HEAVY
 	alpha = 190
 
 /turf/open/floor/void_tile/break_tile()
