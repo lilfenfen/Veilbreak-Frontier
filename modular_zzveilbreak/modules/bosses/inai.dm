@@ -3,6 +3,10 @@
 	desc = "Spirit of the Void, enduring the mortal indignities of the coil."
 	icon = 'modular_zzveilbreak/icons/bosses/inai.dmi'
 	icon_state = "inai"
+	pixel_x = -16
+	pixel_y = -16
+	bound_width = 64
+	bound_height = 64
 	maxHealth = 3000
 	health = 3000
 	attack_verb_continuous = "slashes"

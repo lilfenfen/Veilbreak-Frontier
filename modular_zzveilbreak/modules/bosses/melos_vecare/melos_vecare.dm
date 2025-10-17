@@ -4,6 +4,10 @@
 	icon = 'modular_zzveilbreak/icons/mob/mobs.dmi'
 	icon_state = "melos_vecare"
 	icon_living = "melos_vecare"
+	pixel_x = -16
+	pixel_y = -16
+	bound_width = 64
+	bound_height = 64
 	speak_chance = 0
 	turns_per_move = 0
 	speed = 0
@@ -23,6 +27,7 @@
 	var/ability_cooldown = 0
 	var/mark_cooldown = 0
 	var/spell_range = 20
+	loot = list(/obj/item/voidshard)
 
 	anchored = TRUE
 
