@@ -2,7 +2,7 @@
 	name = "Void Floor"
 	desc = "A tile made from the very fabric of void itself. How are you even standing on this..."
 	icon = 'modular_zzveilbreak/icons/tiles/void_tile.dmi'
-	icon_state = "void_tile-0" // Use -0 for smoothing
+	icon_state = "void_tile" // Use -0 for smoothing
 	base_icon_state = "void_tile" // Required for smoothing
 	initial_gas_mix = VOID_ATMOS
 	planetary_atmos = TRUE
@@ -24,13 +24,8 @@
 	layer = GLASS_FLOOR_LAYER // (12 + TOPDOWN_LAYER)
 	underfloor_accessibility = UNDERFLOOR_VISIBLE // 1
 
-	// Smoothing setup (if you want connected textures)
-	smoothing_flags = SMOOTH_BITMASK
-	smoothing_groups = list(SMOOTH_GROUP_TURF_OPEN, SMOOTH_GROUP_FLOOR_TRANSPARENT_GLASS)
-	canSmoothWith = list(SMOOTH_GROUP_FLOOR_TRANSPARENT_GLASS)
-
 	// Optional: if you want the emissive glow like glass floors
-	var/alpha_to_leave = 240 // Match your current alpha
+	var/alpha_to_leave = 190 // Match your current alpha
 	var/list/glow_stuff
 
 /turf/open/floor/void_tile/Initialize(mapload)
