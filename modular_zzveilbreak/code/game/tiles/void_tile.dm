@@ -2,7 +2,7 @@
 	name = "Void Floor"
 	desc = "A tile made from the very fabric of void itself. How are you even standing on this..."
 	icon = 'modular_zzveilbreak/icons/tiles/void_tile.dmi'
-	icon_state = "void_tile" // Fixed: Use exact state name matching your DMI
+	icon_state = "void_tile" // Exact state name from your DMI
 	initial_gas_mix = VOID_ATMOS
 	planetary_atmos = TRUE
 	light_range = 2.0
@@ -23,7 +23,7 @@
 	layer = GLASS_FLOOR_LAYER
 	underfloor_accessibility = UNDERFLOOR_VISIBLE
 
-	// Control opacity - using alpha directly on turf
+	// Simple transparency control
 	alpha = 190
 
 /turf/open/floor/void_tile/break_tile()
