@@ -36,7 +36,3 @@
 	if(force)
 		return ..()
 	return //unplateable
-
-/turf/open/floor/void_tile/Destroy()
-	. = ..()
-	QDEL_LIST(glow_stuff)
