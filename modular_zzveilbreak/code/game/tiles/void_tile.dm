@@ -30,7 +30,7 @@
 	canSmoothWith = list(SMOOTH_GROUP_FLOOR_TRANSPARENT_GLASS)
 
 	// Optional: if you want the emissive glow like glass floors
-	var/alpha_to_leave = 190 // Match your current alpha
+	var/alpha_to_leave = 240 // Match your current alpha
 	var/list/glow_stuff
 
 /turf/open/floor/void_tile/Initialize(mapload)
