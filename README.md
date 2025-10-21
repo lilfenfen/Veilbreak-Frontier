@@ -1,21 +1,21 @@
-## VENUS Station (Bubberstation Downstream)
+## Veilbreak Frontier (Bubberstation Downstream)
 
-[![CI Suite](https://github.com/VENUS-Station/V.E.N.U.S-tg/actions/workflows/ci_suite.yml/badge.svg)](https://github.com/VENUS-Station/V.E.N.U.S-tg/actions/workflows/ci_suite.yml)
+[![CI Suite](https://github.com/lilfenfen/Veilbreak-Frontier/actions/workflows/ci_suite.yml/badge.svg)](https://github.com/lilfenfen/Veilbreak-Frontier/actions/workflows/ci_suite.yml)
 
 [![resentment](.github/images/badges/built-with-resentment.svg)](.github/images/comics/131-bug-free.png) [![technical debt](.github/images/badges/contains-technical-debt.svg)](.github/images/comics/106-tech-debt-modified.png) [![forinfinityandbyond](.github/images/badges/made-in-byond.gif)](https://www.reddit.com/r/SS13/comments/5oplxp/what_is_the_main_problem_with_byond_as_an_engine/dclbu1a)
 
-| Website                   | Link                                                                                                                                   |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Git / GitHub cheatsheet   | [https://www.notion.so/Git-GitHub-61bc81766b2e4c7d9a346db3078ce833](https://www.notion.so/Git-GitHub-61bc81766b2e4c7d9a346db3078ce833) |
-| Guide to Modularization   | [./modular_zzplurt/readme.md](./modular_zzplurt/readme.md)                                                                             |
-| Website                   | [https://wiki.bubberstation.org/index.php?title=Main_Page](https://wiki.bubberstation.org/index.php?title=Main_Page)                   |
-| Code                      | [https://github.com/VENUS-Station/V.E.N.U.S-tg](https://github.com/VENUS-Station/V.E.N.U.S-tg)                                         |
-| Wiki                      | [https://tgstation13.org/wiki/Main_Page](https://tgstation13.org/wiki/Main_Page)                                                       |
-| Codedocs                  | [https://skyrat-ss13.github.io/Skyrat-tg/](https://skyrat-ss13.github.io/Skyrat-tg/)                                                   |
-| V.E.N.U.S Station Discord | [https://discord.gg/kCuWJRdzb7](https://discord.gg/kCuWJRdzb7)                                                                         |
-| Coderbus Discord          | [https://discord.gg/Vh8TJp9](https://discord.gg/Vh8TJp9)                                                                               |
+| Website                    | Link                                                                                                                                   |
+| -------------------------  | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Git / GitHub cheatsheet    | [https://www.notion.so/Git-GitHub-61bc81766b2e4c7d9a346db3078ce833](https://www.notion.so/Git-GitHub-61bc81766b2e4c7d9a346db3078ce833) |
+| Guide to Modularization    | [./modular_zzplurt/readme.md](./modular_zzplurt/readme.md)                                                                             |
+| Website                    | [https://wiki.bubberstation.org/index.php?title=Main_Page](https://wiki.bubberstation.org/index.php?title=Main_Page)                   |
+| Code                       | [https://github.com/lilfenfen/Veilbreak-Frontier](https://github.com/lilfenfen/Veilbreak-Frontier)                                     |
+| Wiki                       | [https://tgstation13.org/wiki/Main_Page](https://tgstation13.org/wiki/Main_Page)                                                       |
+| Codedocs                   | [https://skyrat-ss13.github.io/Skyrat-tg/](https://skyrat-ss13.github.io/Skyrat-tg/)                                                   |
+| Veilbreak-Frontier Discord | [https://discord.gg/ychmq3tZQY](https://discord.gg/ychmq3tZQY)                                                                         |
+| Coderbus Discord           | [https://discord.gg/Vh8TJp9](https://discord.gg/Vh8TJp9)                                                                               |
 
-This is V.E.N.U.S Station's downstream fork of bubberstation, which is in turn a fork of TG (formerly skyrat).
+This is Veilbreak Frontier's downstream fork of bubberstation, which is in turn a fork of TG (formerly skyrat).
 
 **Please note that this repository contains sexually explicit content and is not suitable for those under the age of 18.**
 
@@ -28,8 +28,8 @@ As of our recent split from Skyrat, a lot of codedocs/modularization guides need
 **1. Do Not Be A Dick**
 <<<<<<< HEAD
 
-- The V.E.N.U.S. main repository is run by and contributed by volunteers and hobbiests. Please be considerate with the people who help maintain our codebase. We reserve the right to permanently remove anyone who does not show both our contributors and maintainers common decency.
-- # V.E.N.U.S. does not operate a strict "goodboy" points system or have defined goals, and anyone is welcome to contribute to this project. That being said, the maintainers of this project are free to curate comments as seen fit to uphold a respectful environment.
+- The Veilbreak main repository is run by and contributed by volunteers and hobbiests. Please be considerate with the people who help maintain our codebase. We reserve the right to permanently remove anyone who does not show both our contributors and maintainers common decency.
+- # Veilbreak does not operate a strict "goodboy" points system or have defined goals, and anyone is welcome to contribute to this project. That being said, the maintainers of this project are free to curate comments as seen fit to uphold a respectful environment.
 
 - The S.P.L.U.R.T. main repository is run by and contributed by volunteers and hobbiests. Please be considerate with the people who help maintain our codebase. We reserve the right to permanently remove anyone who does not show both our contributors and maintainers common decency.
 - S.P.L.U.R.T. does not operate a strict "goodboy" points system or have defined goals, and anyone is welcome to contribute to this project. That being said, the maintainers of this project are free to curate comments as seen fit to uphold a respectful environment.
