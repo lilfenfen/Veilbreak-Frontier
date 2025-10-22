@@ -3215,6 +3215,7 @@
 #include "code\modules\actionspeed\modifiers\status_effects.dm"
 #include "code\modules\actionspeed\modifiers\wound.dm"
 #include "code\modules\admin\admin.dm"
+#include "code\modules\admin\logging.dm"
 #include "code\modules\admin\admin_fax_panel.dm"
 #include "code\modules\admin\admin_investigate.dm"
 #include "code\modules\admin\admin_pda_message.dm"

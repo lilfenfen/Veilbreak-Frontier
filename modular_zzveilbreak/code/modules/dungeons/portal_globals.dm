@@ -223,6 +223,8 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	generated = FALSE
 	generation_progress = 0
 
+	log_world_and_message_admins("Dungeon generation failed: [reason]")
+
 	if(connected_portal)
 		connected_portal.say("Dungeon generation failed: [reason]")
 		connected_portal.generated_dungeon_data = null
