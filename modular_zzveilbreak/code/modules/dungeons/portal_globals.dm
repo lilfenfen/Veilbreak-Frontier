@@ -253,6 +253,10 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	if(!dmm_content)
 		return generation_failed("No map data received")
 
+	// DEBUG: Log the received DMM content to a file for manual inspection.
+	log_admin("Dungeon Generator: Received DMM content. See data/logs/dungeon_content.log for details.")
+	text2file(dmm_content, "data/logs/dungeon_content.log")
+
 	// Dynamically add a new z-level to the world and prepare it for use.
 	// This is more reliable than trying to find a pre-existing empty one.
 	world.maxz++
