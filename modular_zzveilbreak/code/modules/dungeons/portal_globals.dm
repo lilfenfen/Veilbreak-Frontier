@@ -257,7 +257,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		log_game("Dungeon Generator: Failed to reserve a new Z-level.", LOG_CATEGORY_DEBUG_MAPPING)
 		return generation_failed("Failed to reserve a new Z-level.")
 
-	dungeon_z_level = reservation.z
+	dungeon_z_level = reservation.z_levels[1]
 	log_game("Dungeon Generator: Creating new dungeon at Z-level [dungeon_z_level].", LOG_CATEGORY_DEBUG_MAPPING)
 
 	var/datum/map_template/dungeon_map = new()
