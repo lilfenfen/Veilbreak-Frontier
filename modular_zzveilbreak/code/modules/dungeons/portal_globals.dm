@@ -1,16 +1,21 @@
 // modular_zzveilbreak/code/modules/dungeons/portal_globals.dm
 
 // Forward declarations to satisfy the compiler for types and procs defined elsewhere.
+/datum/space_reservation
 /datum/map_loader
 /datum/map_loader/proc/do_load(z_override)
 /datum/map_loader/proc/get_bounds()
 /datum/controller/subsystem/mapping
 /datum/controller/subsystem/mapping/proc/get_next_z_level()
-/datum/controller/subsystem/mapping/proc/free_z_level(z_level)
+/datum/controller/subsystem/mapping/proc/free_z_level(datum/space_reservation/reservation)
 /datum/controller/subsystem/lighting
 /datum/controller/subsystem/lighting/proc/init_lighting_for_z(z_level)
 /datum/controller/subsystem/air
 /datum/controller/subsystem/air/proc/init_new_z_level(z_level)
+
+// Proc forward declarations
+/proc/IS_LIST_OF_ATOMS(list/L)
+
 
 
 
@@ -247,7 +252,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	if(!dmm_content)
 		return generation_failed("No map data received")
 
-	var/datum/space_reservation/reservation = SSmapping.get_next_z_level()
+	var/datum/space_reservation/reservation = SSmapping.get_next_z_level(/area/space)
 	if(!reservation)
 		log_game("Dungeon Generator: Failed to reserve a new Z-level.", LOG_CATEGORY_DEBUG_MAPPING)
 		return generation_failed("Failed to reserve a new Z-level.")
