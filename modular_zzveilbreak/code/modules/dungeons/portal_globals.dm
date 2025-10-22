@@ -260,10 +260,10 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	SSmapping.prepare_new_z_level(dungeon_z_level)
 
 	log_game("Dungeon Generator: Creating new dungeon at Z-level [dungeon_z_level].", LOG_CATEGORY_DEBUG_MAPPING)
-	var/datum/map_template/dungeon_map = new()
-	dungeon_map.mappath = dmm_content
+	// Use the correct map loader that can handle raw DMM content from a string.
+	var/datum/map_loader/dungeon_loader = new(list(dmm_content))
 
-	var/list/loaded_atoms = dungeon_map.load(locate(1, 1, dungeon_z_level), centered = FALSE)
+	var/list/loaded_atoms = dungeon_loader.do_load(z_override = dungeon_z_level)
 
 	if(!IS_LIST_OF_ATOMS(loaded_atoms))
 		log_game("Dungeon Generator: Failed to load map at Z-level [dungeon_z_level]. Map loader returned no atoms.", LOG_CATEGORY_DEBUG_MAPPING)
