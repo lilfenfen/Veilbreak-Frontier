@@ -252,6 +252,10 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	if(!dmm_content)
 		return generation_failed("No map data received")
 
+	// Dynamically add a new z-level to the world. This is more reliable than
+	// trying to find a pre-existing empty one.
+	world.maxz++
+	dungeon_z_level = world.maxz
 	var/datum/turf_reservation/reservation = SSmapping.get_next_z_level(/area/space)
 	if(!reservation)
 		log_game("Dungeon Generator: Failed to reserve a new Z-level.", LOG_CATEGORY_DEBUG_MAPPING)
@@ -259,7 +263,6 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 
 	dungeon_z_level = reservation.bottom_left_turfs[1].z
 	log_game("Dungeon Generator: Creating new dungeon at Z-level [dungeon_z_level] (reserved via turf_reservation).", LOG_CATEGORY_DEBUG_MAPPING)
-
 	var/datum/map_template/dungeon_map = new()
 	dungeon_map.mappath = dmm_content
 
