@@ -1,5 +1,10 @@
 // modular_zzveilbreak/code/modules/dungeons/portal_globals.dm
 
+// ADD THESE CONSTANTS AT THE TOP
+#define DUNGEON_GENERATOR_URL "http://127.0.0.1:8000"
+#define DUNGEON_GENERATE_ENDPOINT "/generate_dungeon"
+#define DUNGEON_GENERATOR_TIMEOUT 300 // 30 seconds
+
 // Global list for portal destinations (separate from gateways)
 GLOBAL_LIST_EMPTY(portal_destinations)
 
@@ -142,10 +147,13 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	if(!dungeon_z_level || !last_generation_data)
 		return null
 
-	var/list/key_positions = last_generation_data["key_positions"]
-	if(key_positions && key_positions["gateway"])
-		var/list/gateway_pos = key_positions["gateway"]
-		return locate(gateway_pos["x"], gateway_pos["y"], dungeon_z_level)
+	// FIXED: Access metadata correctly from the nested structure
+	var/list/metadata = last_generation_data["metadata"]
+	if(metadata && metadata["key_positions"])
+		var/list/key_positions = metadata["key_positions"]
+		if(key_positions && key_positions["gateway"])
+			var/list/gateway_pos = key_positions["gateway"]
+			return locate(gateway_pos["x"], gateway_pos["y"], dungeon_z_level)
 
 	// Fallback to center
 	return locate(world.maxx/2, world.maxy/2, dungeon_z_level)
@@ -195,13 +203,14 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	generated = TRUE
 	last_generation_data = data
 
-	// Load the DMM content into a new z-level
+	// FIXED: Access dmm_content from top level, not nested
 	if(data["dmm_content"])
 		load_generated_map(data)
 	else
 		generation_failed("No map data in response")
 
 	if(connected_portal)
+		// FIXED: Access metadata correctly
 		connected_portal.generated_dungeon_data = data["metadata"]
 		connected_portal.say("Dungeon generation complete. Portal stabilized.")
 
@@ -217,6 +226,9 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		connected_portal.generated_dungeon_data = null
 
 /datum/portal_destination/veilbreak/proc/load_generated_map(list/generation_data)
+	world.log << "=== LOAD_GENERATED_MAP DEBUG ==="
+	world.log << "DMM content length: [length(generation_data["dmm_content"])]"
+
 	var/dmm_content = generation_data["dmm_content"]
 	if(!dmm_content)
 		generation_failed("No map data received")
@@ -225,18 +237,24 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	// Create new z-level
 	dungeon_z_level = world.maxz + 1
 	world.incrementMaxZ()
+	world.log << "New z-level: [dungeon_z_level]"
 
-	// Use the global load_map proc to load the DMM content
+	// FIXED CALL
 	var/datum/parsed_map/parsed = load_map(
-		dmm_content = dmm_content,
+		dmm_content,
 		z_offset = dungeon_z_level,
 		measure_only = FALSE,
 		no_changeturf = FALSE,
 		new_z = TRUE
 	)
 
+	world.log << "Parsed result: [parsed ? "SUCCESS" : "FAILED"]"
+	world.log << "Bounds: [parsed?.bounds]"
+
 	if(!parsed || !parsed.bounds)
 		generation_failed("Failed to load generated map")
 		return
+
+	world.log << "Map loaded successfully!"
 
 	// Success - the map is now loaded
