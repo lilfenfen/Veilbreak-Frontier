@@ -191,6 +191,7 @@
 	glow_opacity = num2hex(opacity_clamped, 2)
 	*/
 
+	action_mob.remove_filter("rad_fiend_glow")
 	// Update outline effect
 	action_mob.add_filter("rad_fiend_glow", 1, outline_filter("color" = glow_color + "[glow_opacity]", "size" = glow_thickness))
 
