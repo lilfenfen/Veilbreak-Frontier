@@ -11,6 +11,7 @@ GLOBAL_LIST_EMPTY(portal_destinations)
 /datum/http_dungeon_generator/proc/generate_dungeon(datum/portal_destination/veilbreak/destination, width = 150, height = 150)
 	// Check if RUSTG HTTP is available by trying to create a request
 	var/datum/http_request/test_request = new()
+	world.log << "DEBUG: Attempting to create HTTP request. test_request: [test_request]"
 	if(!test_request)
 		destination.generation_failed("HTTP system not available")
 		return 0
@@ -20,6 +21,7 @@ GLOBAL_LIST_EMPTY(portal_destinations)
 
 	var/datum/http_request/request = new()
 	var/url = "[DUNGEON_GENERATOR_URL][DUNGEON_GENERATE_ENDPOINT]?width=[width]&height=[height]&seed=[rand(1,1000000)]"
+	world.log << "DEBUG: Dungeon generation URL: [url]"
 
 	request.prepare(RUSTG_HTTP_METHOD_GET, url, "", "")
 	request.begin_async()

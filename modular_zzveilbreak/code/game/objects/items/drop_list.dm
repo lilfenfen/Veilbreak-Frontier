@@ -13,7 +13,8 @@
 
 /var/list/inai_drops = list(
 	/obj/item/clothing/neck/aether_pendant = 50,
-	/obj/item/clothing/neck/life_pendant = 50
+	/obj/item/clothing/neck/life_pendant = 50,
+	/obj/item/clothing/gloves/voidring = 50
 )
 
 /var/list/void_healer_table = list(
