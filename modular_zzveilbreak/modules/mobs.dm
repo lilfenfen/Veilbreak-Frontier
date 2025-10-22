@@ -36,7 +36,7 @@
 
 /mob/living/simple_animal/hostile/Voidling/New()
 	. = ..()
-	addtimer(CALLBACK(src, PROC_REF(qdel)), 30 SECONDS )
+	//addtimer(CALLBACK(src, PROC_REF(qdel)), 30 SECONDS )
 
 /mob/living/simple_animal/hostile/Voidling/Move()
 	. = ..()
