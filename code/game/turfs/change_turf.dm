@@ -225,17 +225,11 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 	if(old_opacity != opacity && SSticker)
 		GLOB.cameranet.bareMajorChunkChange(src)
 
-// We will only run this logic if the tile is not on the prime z layer, since we use area overlays to cover that
-if(SSmapping.z_level_to_plane_offset[z])
-    var/area/our_area = new_turf.loc
-    var/plane_index = SSmapping.z_level_to_plane_offset[z] + 1 // Index for the list
-    if(our_area.lighting_effects)
-        // **SAFETY CHECK ADDED HERE:**
-        if(plane_index > 0 && plane_index <= our_area.lighting_effects.len)
-            new_turf.add_overlay(our_area.lighting_effects[plane_index])
-        else
-            // LOG the issue instead of crashing. This pinpoints the problem Area/Z-Level setup.
-            world.log << "ChangeTurf Overlay Error: Area [our_area] on Z=[z] does not have lighting_effects for plane index [plane_index]. Skipping overlay."
+	// We will only run this logic if the tile is not on the prime z layer, since we use area overlays to cover that
+	if(SSmapping.z_level_to_plane_offset[z])
+		var/area/our_area = new_turf.loc
+		if(our_area.lighting_effects)
+			new_turf.add_overlay(our_area.lighting_effects[SSmapping.z_level_to_plane_offset[z] + 1])
 
 	// only queue for smoothing if SSatom initialized us, and we'd be changing smoothing state
 	if(flags_1 & INITIALIZED_1)

@@ -230,79 +230,35 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		connected_portal.generated_dungeon_data = null
 
 /datum/portal_destination/veilbreak/proc/load_generated_map(list/generation_data)
-	world.log << "=== LOAD_GENERATED_MAP DEBUG ==="
-	world.log << "DMM content length: [length(generation_data["dmm_content"])]"
-
 	var/dmm_content = generation_data["dmm_content"]
 	if(!dmm_content)
-		generation_failed("No map data received")
-		return
+		return generation_failed("No map data received")
 
-	// Create new z-level
-	dungeon_z_level = world.maxz + 1
-	world.incrementMaxZ()
-	world.log << "New z-level: [dungeon_z_level]"
+	dungeon_z_level = SSmapping.get_next_z_level()
+	log_admin("Dungeon Generator: Creating new dungeon at Z-level [dungeon_z_level].")
 
-	// Try ChangeTurf first (since it seems to be working for you)
-	var/datum/parsed_map/parsed = null
+	var/datum/map_loader/loader = new(list(dmm_content))
+	if(!loader.do_load(z_override = dungeon_z_level))
+		log_admin("Dungeon Generator: Failed to load map at Z-level [dungeon_z_level].")
+		SSmapping.free_z_level(dungeon_z_level)
+		dungeon_z_level = 0
+		return generation_failed("Failed to load generated map into world.")
 
-	world.log << "Attempting to load with ChangeTurf..."
-	parsed = load_map(
-		dmm_content,
-		z_offset = dungeon_z_level,
-		measure_only = FALSE,
-		no_changeturf = FALSE,  // Use ChangeTurf
-		new_z = TRUE
-	)
+	// The map loader should handle initialization correctly, but if issues persist,
+	// we can add a post-load fixup proc.
+	// fix_red_x_issues(dungeon_z_level, loader.get_bounds())
 
-	// If ChangeTurf fails, try no_changeturf as fallback
-	if(!parsed || !parsed.bounds)
-		world.log << "ChangeTurf loading failed, trying no_changeturf fallback..."
-		parsed = load_map(
-			dmm_content,
-			z_offset = dungeon_z_level,
-			measure_only = FALSE,
-			no_changeturf = TRUE,  // Avoid ChangeTurf
-			new_z = TRUE
-		)
+	log_admin("Dungeon Generator: Map loaded successfully at Z-level [dungeon_z_level].")
 
-	world.log << "Parsed result: [parsed ? "SUCCESS" : "FAILED"]"
-	world.log << "Bounds: [parsed?.bounds]"
+	// Initialize lighting for the new Z-level
+	if(SSlighting)
+		SSlighting.init_lighting_for_z(dungeon_z_level)
 
-	if(!parsed || !parsed.bounds)
-		generation_failed("Failed to load generated map")
-		return
+	// Initialize atmos for the new Z-level
+	if(SSair)
+		SSair.init_new_z_level(dungeon_z_level)
 
-	world.log << "Map loaded successfully!"
-
-	// Check if we need to fix red X issues
-	check_and_fix_map_issues(dungeon_z_level, parsed.bounds)
-
-	world.log << "Dungeon ready at z-level [dungeon_z_level]"
-
-/datum/portal_destination/veilbreak/proc/check_and_fix_map_issues(z_level, list/bounds)
-	world.log << "Checking for map issues on z-level [z_level]..."
-
-	if(!bounds || bounds.len < 6)
-		bounds = list(1, 1, world.maxx, world.maxy, z_level, z_level)
-
-	// Sample a few turfs to check for red X issues
-	var/red_x_count = 0
-	var/sample_count = 0
-
-	for(var/turf/T in block(locate(bounds[1], bounds[2], z_level), locate(min(bounds[3], bounds[1]+10), min(bounds[4], bounds[2]+10), z_level)))
-		sample_count++
-		if(T.icon_state == "" || T.icon_state == "redx" || !T.icon)
-			red_x_count++
-
-	world.log << "Found [red_x_count] red X issues in [sample_count] sample turfs"
-
-	// If we found red X issues, fix them
-	if(red_x_count > 0)
-		world.log << "Fixing red X issues..."
-		fix_red_x_issues(z_level, bounds)
-	else
-		world.log << "No red X issues found"
+	log_admin("Dungeon Generator: Dungeon ready at z-level [dungeon_z_level]")
 
 /datum/portal_destination/veilbreak/proc/fix_red_x_issues(z_level, list/bounds)
 	if(!bounds || bounds.len < 6)
@@ -314,19 +270,12 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	var/fixed_count = 0
 	for(var/turf/T in block(start, end))
 		// Check for red X indicators
-		if(T.icon_state == "" || T.icon_state == "redx" || !T.icon)
+		if(T.icon == 'icons/turf/unsimulated.dmi' && T.icon_state == "redx")
 			fixed_count++
-
-			// Reset to proper values
-			T.icon = initial(T.icon)
-			T.icon_state = initial(T.icon_state)
-
-			// Set common icon states
-			if(istype(T, /turf/open/floor))
-				T.icon_state = "floor"
-			else if(istype(T, /turf/closed/wall))
-				T.icon_state = "wall"
-			else if(istype(T, /turf/open/space))
-				T.icon_state = "default"
+			// Re-running Initialize() on the turf often fixes visual issues
+			// by re-applying overlays and other visual properties.
+			T.Initialize()
+			// Forcing a smooth queue can also help update neighbors.
+			QUEUE_SMOOTH(T)
 
 	world.log << "Fixed [fixed_count] turfs with red X issues"
