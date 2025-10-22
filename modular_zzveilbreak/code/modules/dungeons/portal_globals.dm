@@ -250,12 +250,17 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	dungeon_z_level = SSmapping.get_next_z_level()
 	log_admin("Dungeon Generator: Creating new dungeon at Z-level [dungeon_z_level].")
 
-	var/datum/map_loader/loader = new(list(dmm_content))
-	if(!loader.do_load(z_override = dungeon_z_level))
-		log_admin("Dungeon Generator: Failed to load map at Z-level [dungeon_z_level].")
+	var/datum/map_template/dungeon_map = new()
+	dungeon_map.mappath = dmm_content
+
+	var/list/loaded_atoms = dungeon_map.load(locate(1, 1, dungeon_z_level), centered = FALSE)
+
+	if(!loaded_atoms || !loaded_atoms.len)
+		log_admin("Dungeon Generator: Failed to load map at Z-level [dungeon_z_level]. Map loader returned no atoms.")
 		SSmapping.free_z_level(dungeon_z_level)
 		dungeon_z_level = 0
 		return generation_failed("Failed to load generated map into world.")
+
 
 	// The map loader should handle initialization correctly, but if issues persist,
 	// we can add a post-load fixup proc.
