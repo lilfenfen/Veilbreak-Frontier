@@ -247,17 +247,22 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	if(!dmm_content)
 		return generation_failed("No map data received")
 
-	dungeon_z_level = SSmapping.get_next_z_level()
-	log_admin("Dungeon Generator: Creating new dungeon at Z-level [dungeon_z_level].")
+	var/datum/space_reservation/reservation = SSmapping.get_next_z_level()
+	if(!reservation)
+		log_game("Dungeon Generator: Failed to reserve a new Z-level.", LOG_CATEGORY_DEBUG_MAPPING)
+		return generation_failed("Failed to reserve a new Z-level.")
+
+	dungeon_z_level = reservation.z
+	log_game("Dungeon Generator: Creating new dungeon at Z-level [dungeon_z_level].", LOG_CATEGORY_DEBUG_MAPPING)
 
 	var/datum/map_template/dungeon_map = new()
 	dungeon_map.mappath = dmm_content
 
 	var/list/loaded_atoms = dungeon_map.load(locate(1, 1, dungeon_z_level), centered = FALSE)
 
-	if(!loaded_atoms || !loaded_atoms.len)
-		log_admin("Dungeon Generator: Failed to load map at Z-level [dungeon_z_level]. Map loader returned no atoms.")
-		SSmapping.free_z_level(dungeon_z_level)
+	if(!IS_LIST_OF_ATOMS(loaded_atoms))
+		log_game("Dungeon Generator: Failed to load map at Z-level [dungeon_z_level]. Map loader returned no atoms.", LOG_CATEGORY_DEBUG_MAPPING)
+		SSmapping.free_z_level(reservation)
 		dungeon_z_level = 0
 		return generation_failed("Failed to load generated map into world.")
 
@@ -266,7 +271,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	// we can add a post-load fixup proc.
 	// fix_red_x_issues(dungeon_z_level, loader.get_bounds())
 
-	log_admin("Dungeon Generator: Map loaded successfully at Z-level [dungeon_z_level].")
+	log_game("Dungeon Generator: Map loaded successfully at Z-level [dungeon_z_level].", LOG_CATEGORY_DEBUG_MAPPING)
 
 	// Initialize lighting for the new Z-level
 	if(SSlighting)
@@ -276,7 +281,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	if(SSair)
 		SSair.init_new_z_level(dungeon_z_level)
 
-	log_admin("Dungeon Generator: Dungeon ready at z-level [dungeon_z_level]")
+	log_game("Dungeon Generator: Dungeon ready at z-level [dungeon_z_level]", LOG_CATEGORY_DEBUG_MAPPING)
 
 /datum/portal_destination/veilbreak/proc/fix_red_x_issues(z_level, list/bounds)
 	if(!bounds || bounds.len < 6)
@@ -296,4 +301,4 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 			// Forcing a smooth queue can also help update neighbors.
 			QUEUE_SMOOTH(T)
 
-	log_admin("Fixed [fixed_count] turfs with red X issues")
+	log_game("Fixed [fixed_count] turfs with red X issues", LOG_CATEGORY_DEBUG_MAPPING)
