@@ -1,6 +1,19 @@
 // modular_zzveilbreak/code/modules/dungeons/portal_globals.dm
 
-// ADD THESE CONSTANTS AT THE TOP
+// Forward declarations to satisfy the compiler for types and procs defined elsewhere.
+/datum/map_loader
+/datum/map_loader/proc/do_load(z_override)
+/datum/map_loader/proc/get_bounds()
+/datum/controller/subsystem/mapping
+/datum/controller/subsystem/mapping/proc/get_next_z_level()
+/datum/controller/subsystem/mapping/proc/free_z_level(z_level)
+/datum/controller/subsystem/lighting
+/datum/controller/subsystem/lighting/proc/init_lighting_for_z(z_level)
+/datum/controller/subsystem/air
+/datum/controller/subsystem/air/proc/init_new_z_level(z_level)
+
+
+
 #define DUNGEON_GENERATOR_URL "http://127.0.0.1:8000"
 #define DUNGEON_GENERATE_ENDPOINT "/generate_dungeon"
 #define DUNGEON_GENERATOR_TIMEOUT 300 // 30 seconds
@@ -270,7 +283,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	var/fixed_count = 0
 	for(var/turf/T in block(start, end))
 		// Check for red X indicators
-		if(T.icon == 'icons/turf/unsimulated.dmi' && T.icon_state == "redx")
+		if(initial(T.icon_state) == "redx") // Check the initial icon_state to be more robust
 			fixed_count++
 			// Re-running Initialize() on the turf often fixes visual issues
 			// by re-applying overlays and other visual properties.
