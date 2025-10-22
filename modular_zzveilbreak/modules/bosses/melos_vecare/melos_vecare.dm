@@ -16,9 +16,9 @@
 	harm_intent_damage = 10
 	melee_damage_lower = 7
 	melee_damage_upper = 13
-	attack_verb_continuous = "sings"
+	attack_verb_continuous = "blasts"
 	loot = /obj/item/voidshard
-	attack_verb_simple = "sing"
+	attack_verb_simple = "blast"
 	attack_sound = 'modular_zzveilbreak/sound/weapons/voidling_attack.ogg'
 	faction = list("Void")
 	environment_smash = ENVIRONMENT_SMASH_NONE
@@ -27,12 +27,32 @@
 	dodging = FALSE
 	var/ability_cooldown = 0
 	var/spell_range = 20
+	var/ability_uses_counter = 0
+	var/lyric_index = 1
 
 	anchored = TRUE
 
 /mob/living/simple_animal/hostile/megafauna/melos_vecare/Life()
 	. = ..()
 	if(world.time > ability_cooldown)
+		var/has_target = FALSE
+		for(var/mob/living/L in range(spell_range, src))
+			if(L != src && !L.stat)
+				if(!length(L.faction & faction)) // Check if the mob is not in the void faction
+					has_target = TRUE
+					break
+
+		if(!has_target)
+			return
+
+		ability_uses_counter++
+		if(ability_uses_counter % 3 == 0)
+			if(lyric_index <= length(GLOB.melos_lyrics))
+				var/lyric = GLOB.melos_lyrics[lyric_index]
+				// Using a similar style to other void entities for consistency.
+				visible_message("<span style='color:#8a2be2; font-style:italic; font-size: 1.2em;'>[src] sings, \"[lyric]\"</span>")
+				lyric_index++
+
 		ability_cooldown = world.time + 6 SECONDS
 		var/ability = pick("push", "pull")
 		for(var/mob/living/L in range(spell_range, src))

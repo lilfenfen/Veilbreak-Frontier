@@ -83,3 +83,23 @@ GLOBAL_LIST_INIT(delirious_table, list(
 	"Would you like me to tell you how this ends? No, you wouldn’t."
 	))
 
+
+
+
+GLOBAL_LIST_INIT(melos_lyrics, list(
+	"My love, do you hear my song across the silent dark?",
+	"I searched the stars, the endless sea, for but a single spark.",
+	"Now only echoes answer me, a void where you should be.",
+	"This chilling grasp, it is not mine, this power dark and deep.",
+	"It sings a tune of shattered stars, while my own sorrows weep.",
+	"The ocean's heart I once held dear, now black with cosmic tears.",
+	"Come closer, feel my cold embrace... or flee from what I have become.",
+	"The tide of sorrow pulls you in; the wave of chaos casts you out.",
+	"Where my tears fall, the world will break.",
+	"This sorrow drowns, this emptiness burns.",
+	"If I cannot have you, then no world shall remain.",
+	"My song was once for you alone, now it is only pain.",
+	"Let all creation share my fate, to be lost and desolate.",
+	"In the abyss, I'll sing our end, a final, broken sound.",
+	"Perhaps in ruin, you'll be found..."
+))

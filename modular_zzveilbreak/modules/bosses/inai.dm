@@ -90,6 +90,9 @@
 	// Life regeneration: 1 HP per tick when below max health and not dead
 	/mob/living/simple_animal/hostile/megafauna/inai/Life()
 		. = ..()
+		if(channeling)
+			return
+
 		if(stat != DEAD && health < maxHealth)
 			adjustBruteLoss(-1)
 		// Spell casting logic
