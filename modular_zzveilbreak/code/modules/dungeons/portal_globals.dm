@@ -7,6 +7,7 @@
 /datum/map_loader/proc/get_bounds()
 /datum/controller/subsystem/mapping
 /datum/controller/subsystem/mapping/proc/get_next_z_level()
+/datum/controller/subsystem/mapping/proc/prepare_new_z_level(z_level)
 /datum/controller/subsystem/mapping/proc/free_z_level(datum/turf_reservation/reservation)
 /datum/controller/subsystem/lighting
 /datum/controller/subsystem/lighting/proc/init_lighting_for_z(z_level)
@@ -252,17 +253,13 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	if(!dmm_content)
 		return generation_failed("No map data received")
 
-	// Dynamically add a new z-level to the world. This is more reliable than
-	// trying to find a pre-existing empty one.
+	// Dynamically add a new z-level to the world and prepare it for use.
+	// This is more reliable than trying to find a pre-existing empty one.
 	world.maxz++
 	dungeon_z_level = world.maxz
-	var/datum/turf_reservation/reservation = SSmapping.get_next_z_level(/area/space)
-	if(!reservation)
-		log_game("Dungeon Generator: Failed to reserve a new Z-level.", LOG_CATEGORY_DEBUG_MAPPING)
-		return generation_failed("Failed to reserve a new Z-level.")
+	SSmapping.prepare_new_z_level(dungeon_z_level)
 
-	dungeon_z_level = reservation.bottom_left_turfs[1].z
-	log_game("Dungeon Generator: Creating new dungeon at Z-level [dungeon_z_level] (reserved via turf_reservation).", LOG_CATEGORY_DEBUG_MAPPING)
+	log_game("Dungeon Generator: Creating new dungeon at Z-level [dungeon_z_level].", LOG_CATEGORY_DEBUG_MAPPING)
 	var/datum/map_template/dungeon_map = new()
 	dungeon_map.mappath = dmm_content
 
@@ -270,7 +267,6 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 
 	if(!IS_LIST_OF_ATOMS(loaded_atoms))
 		log_game("Dungeon Generator: Failed to load map at Z-level [dungeon_z_level]. Map loader returned no atoms.", LOG_CATEGORY_DEBUG_MAPPING)
-		SSmapping.free_z_level(reservation)
 		dungeon_z_level = 0
 		return generation_failed("Failed to load generated map into world.")
 
