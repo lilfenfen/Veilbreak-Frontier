@@ -236,7 +236,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	generated = FALSE
 	generation_progress = 0
 
-	world.log << "Dungeon generation failed: [reason]"
+	log_admin("Dungeon generation failed: [reason]")
 
 	if(connected_portal)
 		connected_portal.say("Dungeon generation failed: [reason]")
@@ -291,4 +291,4 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 			// Forcing a smooth queue can also help update neighbors.
 			QUEUE_SMOOTH(T)
 
-	world.log << "Fixed [fixed_count] turfs with red X issues"
+	log_admin("Fixed [fixed_count] turfs with red X issues")
