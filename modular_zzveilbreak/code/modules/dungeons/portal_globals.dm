@@ -270,8 +270,8 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	if(!text2file(dmm_content, tmp_map_filename))
 		return generation_failed("Failed to write temporary map file.")
 
-	var/datum/map_loader/dungeon_loader = new()
-	var/list/loaded_atoms = dungeon_loader.do_load(z_override = dungeon_z_level, map_file = file(tmp_map_filename))
+	// Use the global load_map() proc for a more direct and reliable loading method.
+	var/list/loaded_atoms = load_map(file(tmp_map_filename), 1, 1, dungeon_z_level)
 
 	// Clean up the temporary file
 	fdel(tmp_map_filename)
