@@ -3,12 +3,11 @@
 import {
   Box,
   Button,
-  ByondUi,
   NoticeBox,
   ProgressBar,
   Section,
-  Stack,
 } from 'tgui-core/components';
+
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
 
@@ -30,6 +29,7 @@ const PortalControlContent = (props) => {
     current_target = null,
     destinations = [],
     generation_status = 'idle',
+    generation_progress = 0,
     dungeon_data = null,
   } = data;
 
@@ -38,7 +38,7 @@ const PortalControlContent = (props) => {
       <Section>
         <NoticeBox>No linked portal</NoticeBox>
         <Button fluid onClick={() => act('linkup')}>
-          Link to Portal
+          Linkup
         </Button>
       </Section>
     );
@@ -47,113 +47,115 @@ const PortalControlContent = (props) => {
   if (current_target) {
     return (
       <Section title={current_target.name}>
-        <Stack vertical>
-          <Stack.Item>
-            <Box bold>Portal Active</Box>
-            <Box>Destination: {current_target.name}</Box>
-            {dungeon_data && (
-              <Box>
-                Size: {dungeon_data.dimensions?.width}x
-                {dungeon_data.dimensions?.height} | Rooms:{' '}
-                {dungeon_data.statistics?.rooms} | Difficulty:{' '}
-                {dungeon_data.statistics?.mobs} threats
-              </Box>
-            )}
-          </Stack.Item>
-          <Stack.Item>
-            <Button
-              mt="2px"
-              textAlign="center"
-              fluid
-              onClick={() => act('deactivate')}
-            >
-              Deactivate Portal
-            </Button>
-          </Stack.Item>
-        </Stack>
+        <Box bold>Portal Status: Active</Box>
+        {dungeon_data && (
+          <Box mt={1}>
+            <Box bold>Dungeon Information:</Box>
+            <Box>Name: {dungeon_data.map_name}</Box>
+            <Box>
+              Size: {dungeon_data.dimensions?.width}x
+              {dungeon_data.dimensions?.height}
+            </Box>
+            <Box>Rooms: {dungeon_data.statistics?.rooms}</Box>
+            <Box>Threats: {dungeon_data.statistics?.mobs}</Box>
+            <Box>Loot: {dungeon_data.statistics?.containers} containers</Box>
+          </Box>
+        )}
+        <Button
+          mt="2px"
+          textAlign="center"
+          fluid
+          onClick={() => act('deactivate')}
+        >
+          Deactivate
+        </Button>
+      </Section>
+    );
+  }
+
+  if (!destinations.length) {
+    return (
+      <Section>
+        <NoticeBox>No portal destinations detected.</NoticeBox>
+        <Button
+          fluid
+          onClick={() => act('generate_new')}
+          disabled={generation_status === 'generating'}
+        >
+          {generation_status === 'generating'
+            ? `Generating... ${generation_progress}%`
+            : 'Generate New Dungeon'}
+        </Button>
+        {generation_status === 'generating' && (
+          <ProgressBar value={generation_progress}>
+            Generating... {generation_progress}%
+          </ProgressBar>
+        )}
       </Section>
     );
   }
 
   return (
-    <Stack vertical>
-      <Stack.Item>
-        <Section title="Portal Control">
-          {!portal_status && <NoticeBox>Portal Unpowered</NoticeBox>}
-          <Button
-            fluid
-            mb={1}
-            onClick={() => act('generate_new')}
-            disabled={generation_status === 'generating'}
-          >
-            {generation_status === 'generating'
-              ? 'Generating...'
-              : generation_status === 'ready'
-                ? 'Regenerate Dungeon'
-                : 'Generate New Dungeon'}
-          </Button>
-          {generation_status === 'generating' && (
-            <ProgressBar value={Math.random() * 100}>
-              Stabilizing Portal...
-            </ProgressBar>
-          )}
-        </Section>
-      </Stack.Item>
+    <>
+      {!portal_status && <NoticeBox>Portal Unpowered</NoticeBox>}
 
-      <Stack.Item>
-        <Section title="Available Destinations">
-          {destinations.length === 0 ? (
-            <Box>No portal destinations available.</Box>
-          ) : (
-            destinations.map((dest) => (
-              <Box key={dest.ref} mb={1}>
-                <Box bold>{dest.name}</Box>
-                {(dest.available && (
-                  <Button
-                    fluid
-                    onClick={() =>
-                      act('activate', {
-                        destination: dest.ref,
-                      })
-                    }
-                  >
-                    Activate Portal
-                  </Button>
-                )) || (
-                  <>
-                    <Box m={1} textColor="bad">
-                      {dest.reason}
-                    </Box>
-                    {!!dest.timeout && (
-                      <ProgressBar value={dest.timeout}>
-                        Calibrating...
-                      </ProgressBar>
-                    )}
-                  </>
-                )}
+      <Section>
+        <Button
+          fluid
+          mb={1}
+          onClick={() => act('generate_new')}
+          disabled={generation_status === 'generating'}
+        >
+          {generation_status === 'generating'
+            ? `Generating... ${generation_progress}%`
+            : 'Generate New Dungeon'}
+        </Button>
+        {generation_status === 'generating' && (
+          <ProgressBar value={generation_progress}>
+            Generating... {generation_progress}%
+          </ProgressBar>
+        )}
+      </Section>
+
+      {destinations.map((dest) => (
+        <Section key={dest.ref} title={dest.name}>
+          {(dest.available && (
+            <Button
+              fluid
+              onClick={() =>
+                act('activate', {
+                  destination: dest.ref,
+                })
+              }
+            >
+              Activate
+            </Button>
+          )) || (
+            <>
+              <Box m={1} textColor="bad">
+                {dest.reason}
               </Box>
-            ))
+              {!!dest.timeout && (
+                <ProgressBar value={dest.timeout}>Calibrating...</ProgressBar>
+              )}
+            </>
           )}
         </Section>
-      </Stack.Item>
+      ))}
 
       {dungeon_data && generation_status === 'ready' && (
-        <Stack.Item>
-          <Section title="Last Generated Dungeon">
-            <Box>
-              <Box bold>{dungeon_data.map_name}</Box>
-              <Box>
-                Size: {dungeon_data.dimensions?.width}x
-                {dungeon_data.dimensions?.height}
-              </Box>
-              <Box>Rooms: {dungeon_data.statistics?.rooms}</Box>
-              <Box>Threats: {dungeon_data.statistics?.mobs}</Box>
-              <Box>Loot: {dungeon_data.statistics?.containers} containers</Box>
-              <Box>Coverage: {dungeon_data.statistics?.coverage_percent}%</Box>
-            </Box>
-          </Section>
-        </Stack.Item>
+        <Section title="Generated Dungeon Ready">
+          <Box bold>{dungeon_data.map_name}</Box>
+          <Box>
+            Size: {dungeon_data.dimensions?.width}x
+            {dungeon_data.dimensions?.height}
+          </Box>
+          <Box>Rooms: {dungeon_data.statistics?.rooms}</Box>
+          <Box>Threats: {dungeon_data.statistics?.mobs}</Box>
+          <Box>Loot: {dungeon_data.statistics?.containers} containers</Box>
+          <Box>Coverage: {dungeon_data.statistics?.coverage_percent}%</Box>
+        </Section>
       )}
-    </Stack>
+    </>
   );
 };

@@ -1,7 +1,9 @@
+// modular_zzveilbreak/code/modules/dungeons/portal_machinery.dm
+
 /obj/machinery/portal
 	name = "dimensional portal"
 	desc = "A shimmering portal to unknown realms. This one seems to lead to dynamically generated Veilbreak dungeons."
-	icon = 'icons/obj/machines/portal.dmi'
+	icon = 'icons/obj/machines/gateway.dmi'
 	icon_state = "portal_frame"
 	resistance_flags = INDESTRUCTIBLE | LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF
 
@@ -19,25 +21,23 @@
 	var/datum/portal_destination/veilbreak/destination
 	var/datum/portal_destination/target
 	var/obj/effect/portal_bumper/portal
-	var/atom/movable/screen/map_view/portal_view/portal_visuals
 	var/portal_possible = FALSE
 	var/transport_active = FALSE
 	var/list/generated_dungeon_data = null
 
 /obj/machinery/portal/Initialize(mapload)
 	. = ..()
-	destination = new()
+	destination = new /datum/portal_destination/veilbreak()
 	destination.connected_portal = src
 	GLOB.portal_destinations += destination
-	portal_visuals = new
-	portal_visuals.generate_view("portal_popup_[REF(src)]")
 	update_appearance()
 
 /obj/machinery/portal/Destroy()
-	QDEL_NULL(portal_visuals)
 	if(destination)
 		GLOB.portal_destinations -= destination
 		QDEL_NULL(destination)
+	if(target)
+		deactivate()
 	return ..()
 
 /obj/machinery/portal/process()
@@ -47,16 +47,18 @@
 			deactivate()
 		return
 
-	if(portal_possible)
-		return
+	// Update portal possibility based on destination generation status
+	var/was_possible = portal_possible
+	portal_possible = FALSE
 
-	// Check if we can connect to any destinations
 	for(var/datum/portal_destination/possible_destination in GLOB.portal_destinations)
 		if(!valid_destination(possible_destination) || !possible_destination.is_available())
 			continue
 		portal_possible = TRUE
-		update_appearance()
 		break
+
+	if(was_possible != portal_possible)
+		update_appearance()
 
 /obj/machinery/portal/proc/valid_destination(datum/portal_destination/possible_destination)
 	if(possible_destination == destination)
@@ -86,23 +88,35 @@
 		if(!veil_dest.generated && !veil_dest.generating)
 			veil_dest.start_generation()
 			say("Initializing portal to [veil_dest.name]...")
+			// Don't fully activate until generation is complete
+			transport_active = FALSE
+			target = null
+			return
 		else if(veil_dest.generating)
 			say("Portal to [veil_dest.name] still stabilizing...")
+			transport_active = FALSE
+			target = null
 			return
 
-	playsound(src, 'sound/machines/portal/portal_open.ogg', 140, TRUE, TRUE, SOUND_RANGE)
+	// Only play sounds and create bumper if we're actually activating
+	playsound(src, 'sound/machines/gateway/gateway_open.ogg', 140, TRUE, TRUE, SOUND_RANGE)
 	generate_bumper()
 	update_use_power(ACTIVE_POWER_USE)
 	update_appearance()
+	D.activate(src)
 
 /obj/machinery/portal/proc/deactivate()
+	if(!target)
+		return
+
 	var/datum/portal_destination/dest = target
 	target = null
-	playsound(src, 'sound/machines/portal/portal_close.ogg', 140, TRUE, TRUE, SOUND_RANGE)
+	transport_active = FALSE
+
+	playsound(src, 'sound/machines/gateway/gateway_close.ogg', 140, TRUE, TRUE, SOUND_RANGE)
 	dest.deactivate(src)
 	QDEL_NULL(portal)
 	update_use_power(IDLE_POWER_USE)
-	transport_active = FALSE
 	update_appearance()
 
 /obj/machinery/portal/proc/Transfer(atom/movable/AM)
@@ -119,9 +133,9 @@
 
 	// Announce dungeon info if available
 	if(istype(target, /datum/portal_destination/veilbreak) && generated_dungeon_data)
-		var/datum/portal_destination/veilbreak/veil_dest = target
 		var/dungeon_name = generated_dungeon_data["map_name"] || "Unknown Dungeon"
-		to_chat(AM, span_notice("You enter [dungeon_name]."))
+		to_chat(AM, span_notice("You enter the [dungeon_name]."))
+		to_chat(AM, span_info("Size: [generated_dungeon_data["dimensions"]["width"]]x[generated_dungeon_data["dimensions"]["height"]] | Rooms: [generated_dungeon_data["statistics"]["rooms"]] | Threats: [generated_dungeon_data["statistics"]["mobs"]]"))
 
 /obj/machinery/portal/attack_ghost(mob/user)
 	. = ..()
@@ -135,6 +149,14 @@
 
 	Transfer(user)
 
+/obj/machinery/portal/multitool_act(mob/living/user, obj/item/I)
+	if(calibrated)
+		to_chat(user, span_alert("The portal is already calibrated, there is no work for you to do here."))
+	else
+		to_chat(user, span_boldnotice("Recalibration successful!") + " Portal systems have been fine tuned.")
+		calibrated = TRUE
+	return TRUE
+
 // Portal bumper for collision detection
 /obj/effect/portal_bumper
 	var/obj/machinery/portal/parent_portal
@@ -143,7 +165,7 @@
 
 /obj/effect/portal_bumper/Bumped(atom/movable/AM)
 	if(get_dir(src, AM) == parent_portal?.dir)
-		playsound(src, 'sound/machines/portal/portal_travel.ogg', 70, TRUE, SHORT_RANGE_SOUND_EXTRARANGE)
+		playsound(src, 'sound/machines/gateway/gateway_travel.ogg', 70, TRUE, SHORT_RANGE_SOUND_EXTRARANGE)
 		parent_portal.Transfer(AM)
 
 /obj/effect/portal_bumper/Destroy(force)

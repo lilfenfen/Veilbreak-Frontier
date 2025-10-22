@@ -1,5 +1,76 @@
+// modular_zzveilbreak/code/modules/dungeons/portal_globals.dm
+
 // Global list for portal destinations (separate from gateways)
 GLOBAL_LIST_EMPTY(portal_destinations)
+
+// HTTP request manager for dungeon generation
+/datum/http_dungeon_generator
+	var/current_request_id = 0
+	var/list/active_requests = list()
+
+/datum/http_dungeon_generator/proc/generate_dungeon(datum/portal_destination/veilbreak/destination, width = 150, height = 150)
+	// Check if RUSTG HTTP is available by trying to create a request
+	var/datum/http_request/test_request = new()
+	if(!test_request)
+		destination.generation_failed("HTTP system not available")
+		return 0
+
+	var/request_id = ++current_request_id
+	active_requests["[request_id]"] = destination
+
+	var/datum/http_request/request = new()
+	var/url = "[DUNGEON_GENERATOR_URL][DUNGEON_GENERATE_ENDPOINT]?width=[width]&height=[height]&seed=[rand(1,1000000)]"
+
+	request.prepare(RUSTG_HTTP_METHOD_GET, url, "", "")
+	request.begin_async()
+
+	// Store the request data
+	active_requests["[request_id]_req"] = request
+	active_requests["[request_id]_time"] = world.time
+
+	return request_id
+
+/datum/http_dungeon_generator/proc/check_request(request_id)
+	var/datum/portal_destination/veilbreak/destination = active_requests["[request_id]"]
+	if(!destination)
+		return FALSE
+
+	var/datum/http_request/request = active_requests["[request_id]_req"]
+	if(!request)
+		active_requests -= "[request_id]"
+		return FALSE
+
+	if(!request.is_complete())
+		// Check for timeout
+		var/start_time = active_requests["[request_id]_time"]
+		if(world.time - start_time > DUNGEON_GENERATOR_TIMEOUT)
+			destination.generation_failed("Request timeout")
+			active_requests -= "[request_id]"
+			active_requests -= "[request_id]_req"
+			active_requests -= "[request_id]_time"
+			return FALSE
+		return TRUE // Still processing
+
+	var/datum/http_response/response = request.into_response()
+
+	if(response.errored || !response.body)
+		destination.generation_failed("HTTP error: [response.error]")
+	else
+		var/list/data = json_decode(response.body)
+		if(data && data["status"] == "success")
+			destination.generation_complete(data)
+		else
+			destination.generation_failed(data?["message"] || "Unknown error")
+
+	// Cleanup
+	active_requests -= "[request_id]"
+	active_requests -= "[request_id]_req"
+	active_requests -= "[request_id]_time"
+
+	return FALSE
+
+// Global instance
+GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 
 // Base portal destination type
 /datum/portal_destination
@@ -42,3 +113,130 @@ GLOBAL_LIST_EMPTY(portal_destinations)
 	.["reason"] = get_available_reason()
 	if(wait)
 		.["timeout"] = max(1 - (wait - (world.time - SSticker.round_start_time)) / wait, 0)
+	else
+		.["timeout"] = 0
+
+// Veilbreak-specific destination
+/datum/portal_destination/veilbreak
+	name = "Veilbreak Dungeon"
+	var/generating = FALSE
+	var/generated = FALSE
+	var/dungeon_z_level = 0
+	var/obj/machinery/portal/connected_portal
+	var/last_generation_data = null
+	var/current_request_id = 0
+	var/generation_progress = 0
+	var/last_progress_update = 0
+
+/datum/portal_destination/veilbreak/is_available()
+	return ..() && generated && !generating
+
+/datum/portal_destination/veilbreak/get_available_reason()
+	if(generating)
+		return "Dungeon generation in progress... [generation_progress]%"
+	if(!generated)
+		return "No dungeon generated yet"
+	return ..()
+
+/datum/portal_destination/veilbreak/get_target_turf()
+	if(!dungeon_z_level || !last_generation_data)
+		return null
+
+	var/list/key_positions = last_generation_data["key_positions"]
+	if(key_positions && key_positions["gateway"])
+		var/list/gateway_pos = key_positions["gateway"]
+		return locate(gateway_pos["x"], gateway_pos["y"], dungeon_z_level)
+
+	// Fallback to center
+	return locate(world.maxx/2, world.maxy/2, dungeon_z_level)
+
+/datum/portal_destination/veilbreak/proc/start_generation()
+	if(generating)
+		return
+
+	generating = TRUE
+	generated = FALSE
+	generation_progress = 0
+	last_progress_update = world.time
+
+	if(!GLOB.dungeon_generator)
+		GLOB.dungeon_generator = new /datum/http_dungeon_generator()
+
+	current_request_id = GLOB.dungeon_generator.generate_dungeon(src, 150, 150)
+
+	if(!current_request_id)
+		generation_failed("Failed to start generation request")
+		return
+
+	// Start progress updates
+	START_PROCESSING(SSobj, src)
+
+/datum/portal_destination/veilbreak/process()
+	if(!generating)
+		STOP_PROCESSING(SSobj, src)
+		return
+
+	// Update progress for UI
+	if(world.time - last_progress_update > 1 SECONDS)
+		generation_progress = min(generation_progress + rand(5, 15), 90)
+		last_progress_update = world.time
+
+	// Check if request is complete
+	if(current_request_id && GLOB.dungeon_generator.check_request(current_request_id))
+		// Still processing
+		return
+
+	// Request completed or failed
+	STOP_PROCESSING(SSobj, src)
+	generation_progress = 100
+
+/datum/portal_destination/veilbreak/proc/generation_complete(list/data)
+	generating = FALSE
+	generated = TRUE
+	last_generation_data = data
+
+	// Load the DMM content into a new z-level
+	if(data["dmm_content"])
+		load_generated_map(data)
+	else
+		generation_failed("No map data in response")
+
+	if(connected_portal)
+		connected_portal.generated_dungeon_data = data["metadata"]
+		connected_portal.say("Dungeon generation complete. Portal stabilized.")
+
+	generation_progress = 100
+
+/datum/portal_destination/veilbreak/proc/generation_failed(reason)
+	generating = FALSE
+	generated = FALSE
+	generation_progress = 0
+
+	if(connected_portal)
+		connected_portal.say("Dungeon generation failed: [reason]")
+		connected_portal.generated_dungeon_data = null
+
+/datum/portal_destination/veilbreak/proc/load_generated_map(list/generation_data)
+	var/dmm_content = generation_data["dmm_content"]
+	if(!dmm_content)
+		generation_failed("No map data received")
+		return
+
+	// Create new z-level
+	dungeon_z_level = world.maxz + 1
+	world.incrementMaxZ()
+
+	// Use the global load_map proc to load the DMM content
+	var/datum/parsed_map/parsed = load_map(
+		dmm_content = dmm_content,
+		z_offset = dungeon_z_level,
+		measure_only = FALSE,
+		no_changeturf = FALSE,
+		new_z = TRUE
+	)
+
+	if(!parsed || !parsed.bounds)
+		generation_failed("Failed to load generated map")
+		return
+
+	// Success - the map is now loaded
