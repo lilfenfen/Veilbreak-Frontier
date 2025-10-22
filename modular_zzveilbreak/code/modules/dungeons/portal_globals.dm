@@ -1,7 +1,8 @@
 // modular_zzveilbreak/code/modules/dungeons/portal_globals.dm
 
 // Forward declarations to satisfy the compiler for types and procs defined elsewhere.
-/datum/space_reservation
+#include "code/modules/mapping/space_management/space_reservation.dm"
+
 /datum/map_loader
 /datum/map_loader/proc/do_load(z_override)
 /datum/map_loader/proc/get_bounds()
