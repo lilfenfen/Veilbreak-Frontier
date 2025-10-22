@@ -226,9 +226,6 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		connected_portal.generated_dungeon_data = null
 
 /datum/portal_destination/veilbreak/proc/load_generated_map(list/generation_data)
-	world.log << "=== LOAD_GENERATED_MAP DEBUG ==="
-	world.log << "DMM content length: [length(generation_data["dmm_content"])]"
-
 	var/dmm_content = generation_data["dmm_content"]
 	if(!dmm_content)
 		generation_failed("No map data received")
@@ -237,24 +234,25 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	// Create new z-level
 	dungeon_z_level = world.maxz + 1
 	world.incrementMaxZ()
-	world.log << "New z-level: [dungeon_z_level]"
 
-	// FIXED CALL
+	world.log << "Loading dungeon at z-level [dungeon_z_level]"
+
+	// Load with no_changeturf to avoid the ChangeTurf bug
 	var/datum/parsed_map/parsed = load_map(
 		dmm_content,
 		z_offset = dungeon_z_level,
 		measure_only = FALSE,
-		no_changeturf = FALSE,
+		no_changeturf = TRUE,
 		new_z = TRUE
 	)
-
-	world.log << "Parsed result: [parsed ? "SUCCESS" : "FAILED"]"
-	world.log << "Bounds: [parsed?.bounds]"
 
 	if(!parsed || !parsed.bounds)
 		generation_failed("Failed to load generated map")
 		return
 
-	world.log << "Map loaded successfully!"
+	world.log << "Map loaded successfully with bounds: [parsed.bounds]"
 
-	// Success - the map is now loaded
+	// Let the game systems handle initialization naturally
+	// SSair, SSlighting, etc. will detect the new z-level and initialize as needed
+
+	return
