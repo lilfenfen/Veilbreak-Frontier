@@ -226,6 +226,9 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		connected_portal.generated_dungeon_data = null
 
 /datum/portal_destination/veilbreak/proc/load_generated_map(list/generation_data)
+	world.log << "=== LOAD_GENERATED_MAP DEBUG ==="
+	world.log << "DMM content length: [length(generation_data["dmm_content"])]"
+
 	var/dmm_content = generation_data["dmm_content"]
 	if(!dmm_content)
 		generation_failed("No map data received")
@@ -234,25 +237,92 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	// Create new z-level
 	dungeon_z_level = world.maxz + 1
 	world.incrementMaxZ()
+	world.log << "New z-level: [dungeon_z_level]"
 
-	world.log << "Loading dungeon at z-level [dungeon_z_level]"
+	// Try ChangeTurf first (since it seems to be working for you)
+	var/datum/parsed_map/parsed = null
 
-	// Load with no_changeturf to avoid the ChangeTurf bug
-	var/datum/parsed_map/parsed = load_map(
+	world.log << "Attempting to load with ChangeTurf..."
+	parsed = load_map(
 		dmm_content,
 		z_offset = dungeon_z_level,
 		measure_only = FALSE,
-		no_changeturf = TRUE,
+		no_changeturf = FALSE,  // Use ChangeTurf
 		new_z = TRUE
 	)
+
+	// If ChangeTurf fails, try no_changeturf as fallback
+	if(!parsed || !parsed.bounds)
+		world.log << "ChangeTurf loading failed, trying no_changeturf fallback..."
+		parsed = load_map(
+			dmm_content,
+			z_offset = dungeon_z_level,
+			measure_only = FALSE,
+			no_changeturf = TRUE,  // Avoid ChangeTurf
+			new_z = TRUE
+		)
+
+	world.log << "Parsed result: [parsed ? "SUCCESS" : "FAILED"]"
+	world.log << "Bounds: [parsed?.bounds]"
 
 	if(!parsed || !parsed.bounds)
 		generation_failed("Failed to load generated map")
 		return
 
-	world.log << "Map loaded successfully with bounds: [parsed.bounds]"
+	world.log << "Map loaded successfully!"
 
-	// Let the game systems handle initialization naturally
-	// SSair, SSlighting, etc. will detect the new z-level and initialize as needed
+	// Check if we need to fix red X issues
+	check_and_fix_map_issues(dungeon_z_level, parsed.bounds)
 
-	return
+	world.log << "Dungeon ready at z-level [dungeon_z_level]"
+
+/datum/portal_destination/veilbreak/proc/check_and_fix_map_issues(z_level, list/bounds)
+	world.log << "Checking for map issues on z-level [z_level]..."
+
+	if(!bounds || bounds.len < 6)
+		bounds = list(1, 1, world.maxx, world.maxy, z_level, z_level)
+
+	// Sample a few turfs to check for red X issues
+	var/red_x_count = 0
+	var/sample_count = 0
+
+	for(var/turf/T in block(locate(bounds[1], bounds[2], z_level), locate(min(bounds[3], bounds[1]+10), min(bounds[4], bounds[2]+10), z_level)))
+		sample_count++
+		if(T.icon_state == "" || T.icon_state == "redx" || !T.icon)
+			red_x_count++
+
+	world.log << "Found [red_x_count] red X issues in [sample_count] sample turfs"
+
+	// If we found red X issues, fix them
+	if(red_x_count > 0)
+		world.log << "Fixing red X issues..."
+		fix_red_x_issues(z_level, bounds)
+	else
+		world.log << "No red X issues found"
+
+/datum/portal_destination/veilbreak/proc/fix_red_x_issues(z_level, list/bounds)
+	if(!bounds || bounds.len < 6)
+		bounds = list(1, 1, world.maxx, world.maxy, z_level, z_level)
+
+	var/turf/start = locate(bounds[1], bounds[2], z_level)
+	var/turf/end = locate(bounds[3], bounds[4], z_level)
+
+	var/fixed_count = 0
+	for(var/turf/T in block(start, end))
+		// Check for red X indicators
+		if(T.icon_state == "" || T.icon_state == "redx" || !T.icon)
+			fixed_count++
+
+			// Reset to proper values
+			T.icon = initial(T.icon)
+			T.icon_state = initial(T.icon_state)
+
+			// Set common icon states
+			if(istype(T, /turf/open/floor))
+				T.icon_state = "floor"
+			else if(istype(T, /turf/closed/wall))
+				T.icon_state = "wall"
+			else if(istype(T, /turf/open/space))
+				T.icon_state = "default"
+
+	world.log << "Fixed [fixed_count] turfs with red X issues"
