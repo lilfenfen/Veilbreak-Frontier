@@ -14,12 +14,18 @@
 /var/list/inai_drops = list(
 	/obj/item/clothing/neck/aether_pendant = 50,
 	/obj/item/clothing/neck/life_pendant = 50,
-	/obj/item/clothing/gloves/voidring = 50
+	/obj/item/clothing/gloves/ring/voidring = 50
 )
 
 /var/list/void_healer_table = list(
 	/obj/item/clothing/neck/life_pendant = 30,
 	/obj/item/food/donkpocket = 70
+)
+
+var/list/melos_vecare_drops = list(
+	/obj/item/clothing/neck/aether_pendant = 50,
+	/obj/item/clothing/neck/life_pendant = 50,
+	/obj/item/clothing/gloves/ring/voidring = 50
 )
 
 /var/list/voidbug_loot_table = list(
