@@ -1,24 +1,11 @@
 // modular_zzveilbreak/code/modules/dungeons/portal_globals.dm
 
-// Forward declarations to satisfy the compiler for types and procs defined elsewhere.
-/datum/turf_reservation
-/datum/map_loader
-/datum/map_loader/proc/do_load(z_override)
-/datum/map_loader/proc/get_bounds()
-/datum/controller/subsystem/mapping
-/datum/controller/subsystem/mapping/proc/get_next_z_level()
-/datum/controller/subsystem/mapping/proc/prepare_new_z_level(z_level)
-/datum/controller/subsystem/mapping/proc/free_z_level(datum/turf_reservation/reservation)
-/datum/controller/subsystem/lighting
-/datum/controller/subsystem/lighting/proc/init_lighting_for_z(z_level)
-/datum/controller/subsystem/air
-/datum/controller/subsystem/air/proc/init_new_z_level(z_level)
+// CORRECTED Forward declarations - only what we actually need
+/datum/space_level
+/datum/parsed_map
 
 // Proc forward declarations
 /proc/IS_LIST_OF_ATOMS(list/L)
-
-
-
 
 #define DUNGEON_GENERATOR_URL "http://127.0.0.1:8000"
 #define DUNGEON_GENERATE_ENDPOINT "/generate_dungeon"
@@ -32,10 +19,9 @@ GLOBAL_LIST_EMPTY(portal_destinations)
 	var/current_request_id = 0
 	var/list/active_requests = list()
 
-/datum/http_dungeon_generator/proc/generate_dungeon(datum/portal_destination/veilbreak/destination, width = 150, height = 150)
-	// Check if RUSTG HTTP is available by trying to create a request
+/datum/http_dungeon_generator/proc/generate_dungeon(datum/portal_destination/veilbreak/destination, width = 80, height = 80)
+	// Check if RUSTG HTTP is available
 	var/datum/http_request/test_request = new()
-	world.log << "DEBUG: Attempting to create HTTP request. test_request: [test_request]"
 	if(!test_request)
 		destination.generation_failed("HTTP system not available")
 		return 0
@@ -45,7 +31,8 @@ GLOBAL_LIST_EMPTY(portal_destinations)
 
 	var/datum/http_request/request = new()
 	var/url = "[DUNGEON_GENERATOR_URL][DUNGEON_GENERATE_ENDPOINT]?width=[width]&height=[height]&seed=[rand(1,1000000)]"
-	world.log << "DEBUG: Dungeon generation URL: [url]"
+
+	log_game("Dungeon Generator: Starting HTTP request to [url]", LOG_CATEGORY_DEBUG_MAPPING)
 
 	request.prepare(RUSTG_HTTP_METHOD_GET, url, "", "")
 	request.begin_async()
@@ -70,7 +57,7 @@ GLOBAL_LIST_EMPTY(portal_destinations)
 		// Check for timeout
 		var/start_time = active_requests["[request_id]_time"]
 		if(world.time - start_time > DUNGEON_GENERATOR_TIMEOUT)
-			destination.generation_failed("Request timeout")
+			destination.generation_failed("Request timeout after [DUNGEON_GENERATOR_TIMEOUT/10] seconds")
 			active_requests -= "[request_id]"
 			active_requests -= "[request_id]_req"
 			active_requests -= "[request_id]_time"
@@ -86,7 +73,7 @@ GLOBAL_LIST_EMPTY(portal_destinations)
 		if(data && data["status"] == "success")
 			destination.generation_complete(data)
 		else
-			destination.generation_failed(data?["message"] || "Unknown error")
+			destination.generation_failed(data?["message"] || "Unknown error from generator")
 
 	// Cleanup
 	active_requests -= "[request_id]"
@@ -154,6 +141,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	var/generation_progress = 0
 	var/last_progress_update = 0
 
+// ADD THE MISSING PROCS FOR VEILBREAK DESTINATION
 /datum/portal_destination/veilbreak/is_available()
 	return ..() && generated && !generating
 
@@ -168,7 +156,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	if(!dungeon_z_level || !last_generation_data)
 		return null
 
-	// FIXED: Access metadata correctly from the nested structure
+	// Access metadata correctly from the nested structure
 	var/list/metadata = last_generation_data["metadata"]
 	if(metadata && metadata["key_positions"])
 		var/list/key_positions = metadata["key_positions"]
@@ -177,10 +165,23 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 			return locate(gateway_pos["x"], gateway_pos["y"], dungeon_z_level)
 
 	// Fallback to center
-	return locate(world.maxx/2, world.maxy/2, dungeon_z_level)
+	return locate(round(world.maxx/2), round(world.maxy/2), dungeon_z_level)
 
 /datum/portal_destination/veilbreak/proc/start_generation()
 	if(generating)
+		return
+
+	// Verify mapping subsystem is ready
+	if(!SSmapping || !SSmapping.initialized)
+		generation_failed("Mapping subsystem not ready")
+		return
+
+	if(SSmapping.clearing_reserved_turfs)
+		generation_failed("Mapping subsystem is currently clearing reservations")
+		return
+
+	if(SSmapping.adding_new_zlevel)
+		generation_failed("Mapping subsystem is already adding a Z-level")
 		return
 
 	generating = TRUE
@@ -191,11 +192,13 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	if(!GLOB.dungeon_generator)
 		GLOB.dungeon_generator = new /datum/http_dungeon_generator()
 
-	current_request_id = GLOB.dungeon_generator.generate_dungeon(src, 150, 150)
+	current_request_id = GLOB.dungeon_generator.generate_dungeon(src, 80, 80)
 
 	if(!current_request_id)
 		generation_failed("Failed to start generation request")
 		return
+
+	log_game("Dungeon Generator: Started generation request [current_request_id]", LOG_CATEGORY_DEBUG_MAPPING)
 
 	// Start progress updates
 	START_PROCESSING(SSobj, src)
@@ -219,101 +222,210 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	STOP_PROCESSING(SSobj, src)
 	generation_progress = 100
 
+// ADD THE MISSING GENERATION PROCS
 /datum/portal_destination/veilbreak/proc/generation_complete(list/data)
 	generating = FALSE
-	generated = TRUE
 	last_generation_data = data
 
-	// FIXED: Access dmm_content from top level, not nested
+	log_game("Dungeon Generator: Received successful generation response", LOG_CATEGORY_DEBUG_MAPPING)
+
+	// Access dmm_content from top level
 	if(data["dmm_content"])
-		load_generated_map(data)
+		load_generated_dmm(data["dmm_content"], data["metadata"])
 	else
-		generation_failed("No map data in response")
-
-	if(connected_portal)
-		// FIXED: Access metadata correctly
-		connected_portal.generated_dungeon_data = data["metadata"]
-		connected_portal.say("Dungeon generation complete. Portal stabilized.")
-
-	generation_progress = 100
+		generation_failed("No DMM content in response")
 
 /datum/portal_destination/veilbreak/proc/generation_failed(reason)
 	generating = FALSE
 	generated = FALSE
 	generation_progress = 0
 
-	log_admin("Dungeon generation failed: [reason]")
+	log_game("Dungeon Generator: Generation failed - [reason]", LOG_CATEGORY_DEBUG_MAPPING)
 
 	if(connected_portal)
 		connected_portal.say("Dungeon generation failed: [reason]")
 		connected_portal.generated_dungeon_data = null
 
-/datum/portal_destination/veilbreak/proc/load_generated_map(list/generation_data)
-	var/dmm_content = generation_data["dmm_content"]
+// CORRECTED: Complete dungeon loading implementation
+/datum/portal_destination/veilbreak/proc/load_generated_dmm(dmm_content, list/metadata)
 	if(!dmm_content)
-		return generation_failed("No map data received")
+		return generation_failed("No DMM content provided")
 
-	// DEBUG: Log the received DMM content to a file for manual inspection.
-	log_admin("Dungeon Generator: Received DMM content. See data/logs/dungeon_content.log for details.")
-	text2file(dmm_content, "data/logs/dungeon_content.log")
+	log_game("Dungeon Generator: Starting DMM content load for Veilbreak dungeon", LOG_CATEGORY_DEBUG_MAPPING)
 
-	// Dynamically add a new z-level to the world and prepare it for use.
-	// This is more reliable than trying to find a pre-existing empty one.
-	world.maxz++
-	dungeon_z_level = world.maxz
-	SSmapping.prepare_new_z_level(dungeon_z_level)
+	// Save original DMM for debugging
+	text2file(dmm_content, "data/logs/dungeon_content_[world.time].dmm")
 
-	log_game("Dungeon Generator: Creating new dungeon at Z-level [dungeon_z_level].", LOG_CATEGORY_DEBUG_MAPPING)
+	// Verify mapping subsystem is ready
+	if(!SSmapping.initialized)
+		return generation_failed("Mapping subsystem not initialized")
 
-	// Saving the DMM content to a temporary file is more reliable for the map loader.
-	var/tmp_map_filename = "tmp/dungeon_[rand(1, 1000000)].dmm"
-	if(!text2file(dmm_content, tmp_map_filename))
-		return generation_failed("Failed to write temporary map file.")
+	// Create new Z-level using mapping subsystem
+	var/datum/space_level/dungeon_level = SSmapping.add_new_zlevel(
+		name = "Veilbreak Dungeon [rand(1000,9999)]",
+		traits = list(
+			ZTRAIT_AWAY = TRUE,
+			ZTRAIT_MINING = TRUE,
+			ZTRAIT_BASETURF = /turf/open/space/basic
+		),
+		z_type = /datum/space_level
+	)
 
-	var/datum/map_loader/dungeon_loader = new()
-	var/list/loaded_atoms = dungeon_loader.do_load(z_override = dungeon_z_level, map_file = file(tmp_map_filename))
+	if(!dungeon_level)
+		return generation_failed("Failed to create new Z-level")
 
-	// Clean up the temporary file
-	fdel(tmp_map_filename)
+	dungeon_z_level = dungeon_level.z_value
+	log_game("Dungeon Generator: Created new dungeon at Z-level [dungeon_z_level]", LOG_CATEGORY_DEBUG_MAPPING)
 
-	if(!IS_LIST_OF_ATOMS(loaded_atoms))
-		log_game("Dungeon Generator: Failed to load map at Z-level [dungeon_z_level]. Map loader returned no atoms.", LOG_CATEGORY_DEBUG_MAPPING)
-		dungeon_z_level = 0
-		return generation_failed("Failed to load generated map into world.")
+	// Parse and load the DMM content
+	var/datum/parsed_map/parsed = new(dmm_content)
+	if(!parsed || !parsed.bounds)
+		log_game("Dungeon Generator: Failed to parse DMM content - invalid format or null bounds", LOG_CATEGORY_DEBUG_MAPPING)
+		return generation_failed("Failed to parse DMM content")
 
+	log_game("Dungeon Generator: Parsed map with bounds [json_encode(parsed.bounds)]", LOG_CATEGORY_DEBUG_MAPPING)
 
-	// The map loader should handle initialization correctly, but if issues persist,
-	// we can add a post-load fixup proc.
-	// fix_red_x_issues(dungeon_z_level, loader.get_bounds())
+	// Use SSair's map loading system if available
+	if(SSair.initialized)
+		SSair.StartLoadingMap()
 
-	log_game("Dungeon Generator: Map loaded successfully at Z-level [dungeon_z_level].", LOG_CATEGORY_DEBUG_MAPPING)
+	var/loaded_successfully = FALSE
+	try
+		loaded_successfully = parsed.load(
+			z_offset = dungeon_z_level,
+			no_changeturf = FALSE,
+			place_on_top = FALSE,
+			new_z = TRUE
+		)
+	catch(var/exception/e)
+		log_game("Dungeon Generator: Exception during map load: [e]", LOG_CATEGORY_DEBUG_MAPPING)
+		loaded_successfully = FALSE
 
-	// Initialize lighting for the new Z-level
-	if(SSlighting)
-		SSlighting.init_lighting_for_z(dungeon_z_level)
+	if(SSair.initialized)
+		SSair.StopLoadingMap()
 
-	// Initialize atmos for the new Z-level
-	if(SSair)
-		SSair.init_new_z_level(dungeon_z_level)
+	if(!loaded_successfully)
+		log_game("Dungeon Generator: Map loading failed at Z-level [dungeon_z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+		return generation_failed("Failed to load map into world")
 
-	log_game("Dungeon Generator: Dungeon ready at z-level [dungeon_z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+	log_game("Dungeon Generator: Map loaded successfully at Z-level [dungeon_z_level]", LOG_CATEGORY_DEBUG_MAPPING)
 
-/datum/portal_destination/veilbreak/proc/fix_red_x_issues(z_level, list/bounds)
-	if(!bounds || bounds.len < 6)
-		bounds = list(1, 1, world.maxx, world.maxy, z_level, z_level)
+	// Initialize all required subsystems
+	initialize_dungeon_subsystems(dungeon_z_level)
 
-	var/turf/start = locate(bounds[1], bounds[2], z_level)
-	var/turf/end = locate(bounds[3], bounds[4], z_level)
+	// Mark as complete
+	generated = TRUE
+	generation_progress = 100
+	last_generation_data = metadata
 
-	var/fixed_count = 0
-	for(var/turf/T in block(start, end))
-		// Check for red X indicators
-		if(initial(T.icon_state) == "redx") // Check the initial icon_state to be more robust
-			fixed_count++
-			// Re-running Initialize() on the turf often fixes visual issues
-			// by re-applying overlays and other visual properties.
-			T.Initialize()
-			// Forcing a smooth queue can also help update neighbors.
-			QUEUE_SMOOTH(T)
+	if(connected_portal)
+		connected_portal.generated_dungeon_data = metadata
+		connected_portal.say("Dungeon generation complete. Portal stabilized.")
 
-	log_game("Fixed [fixed_count] turfs with red X issues", LOG_CATEGORY_DEBUG_MAPPING)
+	log_game("Dungeon Generator: Veilbreak dungeon fully initialized at Z-level [dungeon_z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+	return TRUE
+
+// ADD THE MISSING SUBSYSTEM INITIALIZATION PROCS
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_subsystems(z_level)
+	log_game("Dungeon Generator: Initializing subsystems for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+
+	// 1. Initialize lighting using area-based approach
+	initialize_dungeon_lighting(z_level)
+
+	// 2. Initialize atmospherics machinery and pipenets
+	initialize_dungeon_atmospherics(z_level)
+
+	log_game("Dungeon Generator: All subsystems initialized for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_lighting(z_level)
+	if(!SSlighting || !SSlighting.initialized)
+		log_game("Dungeon Generator: Lighting subsystem not available for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+		return
+
+	log_game("Dungeon Generator: Initializing lighting for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+
+	var/lighting_objects_created = 0
+	var/areas_processed = 0
+
+	// Follow the exact same pattern as SSlighting.create_all_lighting_objects()
+	for(var/area/area as anything in GLOB.areas)
+		if(!area.static_lighting)
+			continue
+
+		areas_processed++
+		var/list/zlevel_turfs = area.get_zlevel_turf_lists()
+
+		// Safely check if this area has turfs on our Z-level
+		if(!zlevel_turfs || !islist(zlevel_turfs) || !zlevel_turfs["[z_level]"])
+			continue
+
+		for(var/turf/area_turf as anything in zlevel_turfs["[z_level]"])
+			if(area_turf.space_lit || area_turf.lighting_object)
+				continue
+
+			new /datum/lighting_object(area_turf)
+			lighting_objects_created++
+
+		CHECK_TICK
+
+	log_game("Dungeon Generator: Created [lighting_objects_created] lighting objects across [areas_processed] areas on Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_atmospherics(z_level)
+	if(!SSair || !SSair.initialized)
+		log_game("Dungeon Generator: Air subsystem not available for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+		return
+
+	log_game("Dungeon Generator: Initializing atmospherics for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+
+	var/atmos_machines_initialized = 0
+	var/list/atmos_machines = list()
+
+	// Collect all atmos machinery on the new Z-level
+	for(var/obj/machinery/atmospherics/AM as anything in SSair.atmos_machinery)
+		if(AM.z == z_level)
+			atmos_machines += AM
+			atmos_machines_initialized++
+
+	// Use SSair's template machinery setup if we found any machines
+	if(length(atmos_machines))
+		SSair.setup_template_machinery(atmos_machines)
+		log_game("Dungeon Generator: Initialized [atmos_machines_initialized] atmos machines on Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+	else
+		log_game("Dungeon Generator: No atmos machines found on Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+
+// ADD THE MISSING UTILITY PROCS
+/datum/portal_destination/veilbreak/proc/cleanup_dungeon()
+	if(dungeon_z_level && dungeon_z_level <= world.maxz)
+		log_game("Dungeon at Z-level [dungeon_z_level] marked for cleanup", LOG_CATEGORY_DEBUG_MAPPING)
+		// Note: In your system, Z-levels can't be easily removed
+		// The dungeon will remain but portals won't target it
+
+	dungeon_z_level = 0
+	generated = FALSE
+	last_generation_data = null
+
+/datum/portal_destination/veilbreak/proc/get_dungeon_stats()
+	if(!last_generation_data || !last_generation_data["metadata"])
+		return null
+
+	var/list/metadata = last_generation_data["metadata"]
+	var/list/stats = list()
+
+	stats["z_level"] = dungeon_z_level
+	stats["name"] = metadata["map_name"]
+	stats["technical_name"] = metadata["technical_name"]
+	stats["seed"] = metadata["seed"]
+	stats["dimensions"] = metadata["dimensions"]
+	stats["statistics"] = metadata["statistics"]
+	stats["generation_info"] = metadata["generation_info"]
+
+	return stats
+
+/datum/portal_destination/veilbreak/proc/validate_state()
+	if(generating && generated)
+		log_game("Dungeon Generator: WARNING - Portal in invalid state (both generating and generated)", LOG_CATEGORY_DEBUG_MAPPING)
+		return FALSE
+	if(dungeon_z_level > world.maxz)
+		log_game("Dungeon Generator: WARNING - Dungeon Z-level [dungeon_z_level] exceeds world maxz [world.maxz]", LOG_CATEGORY_DEBUG_MAPPING)
+		return FALSE
+	return TRUE
