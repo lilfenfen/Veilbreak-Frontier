@@ -36,14 +36,27 @@
 	else
 		.["current_target"] = null
 
-	// Available destinations
+	// FIX: This is the problem - GLOB.portal_destinations is an associative list, not a flat list
 	var/list/destinations = list()
 	if(linked_portal)
-		for(var/datum/portal_destination/possible_destination in GLOB.portal_destinations)
+		// CORRECTED: Iterate through the associative list properly
+		for(var/destination_key in GLOB.portal_destinations)
+			var/datum/portal_destination/possible_destination = GLOB.portal_destinations[destination_key]
 			if(!linked_portal.valid_destination(possible_destination))
 				continue
 			destinations += list(possible_destination.get_ui_data())
 	.["destinations"] = destinations
+
+	// Generation status
+	if(linked_portal?.destination)
+		var/datum/portal_destination/veilbreak/veil_dest = linked_portal.destination
+		.["generation_status"] = veil_dest.generating ? "generating" : (veil_dest.generated ? "ready" : "idle")
+		.["generation_progress"] = veil_dest.generation_progress
+		.["dungeon_data"] = linked_portal.generated_dungeon_data
+	else
+		.["generation_status"] = "idle"
+		.["generation_progress"] = 0
+		.["dungeon_data"] = null
 
 	// Generation status
 	if(linked_portal?.destination)
@@ -113,3 +126,39 @@
 
 	log_portal_control("Portal Control: Successfully connecting to [D.name]")
 	linked_portal.activate(D)
+
+
+// Add to portal_control.dm for debugging
+/obj/machinery/computer/portal_control/verb/debug_portal_info()
+	set name = "Debug Portal Info"
+	set category = "Debug"
+	set src in view(1)
+
+	usr << "=== PORTAL DEBUG INFO ==="
+	usr << "Linked Portal: [linked_portal ? AREACOORD(linked_portal) : "NONE"]"
+	usr << "Portal Powered: [linked_portal ? linked_portal.powered() : "N/A"]"
+	usr << "Portal Possible: [linked_portal ? linked_portal.portal_possible : "N/A"]"
+	usr << "Transport Active: [linked_portal ? linked_portal.transport_active : "N/A"]"
+	usr << "Current Target: [linked_portal?.target ? linked_portal.target.name : "NONE"]"
+
+	usr << "=== GLOBAL DESTINATIONS ==="
+	var/count = 0
+	for(var/key in GLOB.portal_destinations)
+		var/datum/portal_destination/D = GLOB.portal_destinations[key]
+		usr << "[key]: [D.name] - Available: [D.is_available()] - Reason: [D.get_available_reason()]"
+		count++
+	usr << "Total Destinations: [count]"
+
+// Add to portal_globals.dm for destination debugging
+/datum/portal_destination/veilbreak/verb/debug_dungeon_info()
+	set name = "Debug Dungeon Info"
+	set category = "Debug"
+	set src in view(1)
+
+	usr << "=== DUNGEON DESTINATION DEBUG ==="
+	usr << "Name: [name]"
+	usr << "Generating: [generating]"
+	usr << "Generated: [generated]"
+	usr << "Z-Level: [dungeon_z_level]"
+	usr << "Connected Portal: [connected_portal ? AREACOORD(connected_portal) : "NONE"]"
+	usr << "Last Data: [last_generation_data ? "Present" : "None"]"

@@ -95,6 +95,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	var/wait = 0
 	var/enabled = TRUE
 	var/hidden = FALSE
+	var/obj/machinery/portal/connected_portal
 
 /datum/portal_destination/proc/is_available()
 	return enabled && (world.time - SSticker.round_start_time >= wait)
@@ -117,6 +118,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 			M.client.move_delay = max(world.time + 5, M.client.move_delay)
 
 /datum/portal_destination/proc/activate(obj/machinery/portal/activated)
+	log_dungeon("Portal Destination: [name] activated by portal at [AREACOORD(activated)]")
 	return
 
 /datum/portal_destination/proc/deactivate(obj/machinery/portal/deactivated)
@@ -132,6 +134,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		.["timeout"] = max(1 - (wait - (world.time - SSticker.round_start_time)) / wait, 0)
 	else
 		.["timeout"] = 0
+	.["connected"] = !!connected_portal
 
 // Veilbreak-specific destination
 /datum/portal_destination/veilbreak
@@ -139,7 +142,6 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	var/generating = FALSE
 	var/generated = FALSE
 	var/dungeon_z_level = 0
-	var/obj/machinery/portal/connected_portal
 	var/last_generation_data = null
 	var/current_request_id = 0
 	var/generation_progress = 0
@@ -156,18 +158,17 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	return ..()
 
 /datum/portal_destination/veilbreak/get_target_turf()
-	if(!dungeon_z_level || !last_generation_data)
+	if(!dungeon_z_level)
 		return null
 
-	// Access metadata correctly from the nested structure
-	var/list/metadata = last_generation_data["metadata"]
-	if(metadata && metadata["key_positions"])
-		var/list/key_positions = metadata["key_positions"]
-		if(key_positions && key_positions["gateway"])
-			var/list/gateway_pos = key_positions["gateway"]
-			return locate(gateway_pos["x"], gateway_pos["y"], dungeon_z_level)
+	// Just find any portal on the Z-level and use its location
+	var/obj/machinery/portal/any_portal = scan_for_existing_portal()
+	if(any_portal)
+		log_dungeon("Dungeon Generator: Using portal at [AREACOORD(any_portal)] as target")
+		return get_turf(any_portal)
 
-	// Fallback to center
+	// Fallback to center if no portal found (shouldn't happen with our new system)
+	log_dungeon("Dungeon Generator: No portal found, using center as fallback")
 	return locate(round(world.maxx/2), round(world.maxy/2), dungeon_z_level)
 
 /datum/portal_destination/veilbreak/proc/start_generation()
@@ -229,13 +230,32 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 
 /datum/portal_destination/veilbreak/proc/generation_complete(list/data)
 	generating = FALSE
-	last_generation_data = data
 
-	log_dungeon("Dungeon Generator: Received successful generation response with [length(data["dmm_content"] || "")] bytes of DMM content")
+	// DEBUG: Log the complete data structure we received
+	log_dungeon("Dungeon Generator: Received complete data structure")
+	log_dungeon("Dungeon Generator: Status: [data["status"]]")
+	log_dungeon("Dungeon Generator: DMM content length: [length(data["dmm_content"] || "")] bytes")
+	log_dungeon("Dungeon Generator: Metadata present: [data["metadata"] ? "YES" : "NO"]")
+
+	if(data["metadata"])
+		log_dungeon("Dungeon Generator: Metadata keys: [json_encode(data["metadata"])]")
+		if(data["metadata"]["key_positions"])
+			log_dungeon("Dungeon Generator: Key positions found: [json_encode(data["metadata"]["key_positions"])]")
+			if(data["metadata"]["key_positions"]["gateway"])
+				log_dungeon("Dungeon Generator: Gateway position: [json_encode(data["metadata"]["key_positions"]["gateway"])]")
+
+	// CRITICAL FIX: Store the complete data structure
+	last_generation_data = data.Copy()
+
+	// Double-check storage worked
+	log_dungeon("Dungeon Generator: Stored data verification - metadata: [last_generation_data["metadata"] ? "PRESENT" : "MISSING"]")
+	if(last_generation_data["metadata"] && last_generation_data["metadata"]["key_positions"])
+		log_dungeon("Dungeon Generator: Stored key positions: [json_encode(last_generation_data["metadata"]["key_positions"])]")
 
 	// Access dmm_content from top level
 	if(data["dmm_content"])
-		load_generated_dmm(data["dmm_content"], data["metadata"])
+		// Pass both the dmm_content and the metadata to ensure they're available
+		load_generated_dmm(data["dmm_content"], data["metadata"] ? data["metadata"].Copy() : list())
 	else
 		generation_failed("No DMM content in response")
 
@@ -252,7 +272,11 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 
 // Add interface method for portal control
 /datum/portal_destination/veilbreak/activate(obj/machinery/portal/activated)
+	. = ..() // Call parent for logging
 	log_dungeon("Dungeon Generator: Portal activated to [name] at Z-level [dungeon_z_level]")
+	// Ensure portal connection is established when activated
+	if(activated == connected_portal) // Only do this for the station portal, not the dungeon portal
+		ensure_portal_connection()
 
 /datum/portal_destination/veilbreak/deactivate(obj/machinery/portal/deactivated)
 	log_dungeon("Dungeon Generator: Portal deactivated from [name]")
@@ -261,7 +285,8 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 /datum/portal_destination/veilbreak/proc/load_generated_dmm(dmm_content, list/metadata)
 	if(!dmm_content)
 		return generation_failed("No DMM content provided")
-
+	if(SSatoms.initialized)
+		SSatoms.InitializeAtoms()
 	log_dungeon("Dungeon Generator: Starting DMM content load for Veilbreak dungeon")
 
 	// Save original DMM for debugging
@@ -338,6 +363,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	if(connected_portal)
 		connected_portal.generated_dungeon_data = metadata
 		connected_portal.say("Dungeon generation complete. Portal stabilized.")
+		ensure_portal_connection()
 
 	log_dungeon("Dungeon Generator: Veilbreak dungeon fully initialized at Z-level [dungeon_z_level]")
 	return TRUE
@@ -386,23 +412,67 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	log_dungeon("Dungeon Generator: Initializing atoms for Z-level [z_level]")
 
 	var/atoms_initialized = 0
+	var/turfs_processed = 0
 
-	// Get all atoms on the Z-level that haven't been properly initialized
+	// First pass: Initialize all atoms and queue turfs for smoothing
+	var/list/turfs_to_smooth = list()
+	var/list/atoms_to_initialize = list()
+
+	// Collect all atoms first to avoid modifying while iterating
 	for(var/atom/A in world)
 		if(A.z != z_level)
 			continue
+		atoms_to_initialize += A
 
-		// Check if this atom needs initialization
+	log_dungeon("Dungeon Generator: Found [length(atoms_to_initialize)] atoms to initialize on Z-level [z_level]")
+
+	// Initialize atoms in batches
+	for(var/atom/A in atoms_to_initialize)
+		// Skip atoms that shouldn't be smoothed
+		if(istype(A, /obj/effect/decal/cleanable) || istype(A, /obj/effect))
+			continue
+
+		// Initialize atom if needed
 		if(!(A.flags_1 & INITIALIZED_1))
-			// Use SSatoms' InitAtom proc to properly initialize it
-			// This will call Initialize() and set up smoothing, lighting, etc.
-			SSatoms.InitAtom(A, FALSE, list(FALSE)) // FALSE for mapload since we're post-initial load
+			SSatoms.InitAtom(A, FALSE, list(FALSE))
 			atoms_initialized++
+
+		// Collect turfs for smoothing (skip effects and decals)
+		if(isturf(A) && !istype(A, /turf/open/space))
+			turfs_to_smooth += A
+			turfs_processed++
 
 		if(atoms_initialized % 100 == 0)
 			CHECK_TICK
 
-	log_dungeon("Dungeon Generator: Initialized [atoms_initialized] atoms on Z-level [z_level]")
+	log_dungeon("Dungeon Generator: Initialized [atoms_initialized] atoms, found [turfs_processed] turfs on Z-level [z_level]")
+
+	// Second pass: Trigger smoothing for turfs only
+	log_dungeon("Dungeon Generator: Starting turf smoothing for [length(turfs_to_smooth)] turfs")
+	var/smoothed_turfs = 0
+
+	for(var/turf/T as anything in turfs_to_smooth)
+		// Only smooth turfs that support smoothing
+		if(T.smoothing_flags & (SMOOTH_BITMASK))
+			T.smooth_icon()
+		T.update_icon()
+		T.update_appearance()
+
+		// Trigger AfterChange for turfs to handle connections
+		if(istype(T, /turf/closed))
+			var/turf/closed/CT = T
+			CT.AfterChange()
+
+		smoothed_turfs++
+
+		if(smoothed_turfs % 100 == 0)
+			CHECK_TICK
+
+	log_dungeon("Dungeon Generator: Processed [smoothed_turfs] turfs on Z-level [z_level]")
+
+	// Let SSicon_smooth handle the actual smoothing in the next tick
+	log_dungeon("Dungeon Generator: Queuing icon smoothing subsystem for Z-level [z_level]")
+
 	return atoms_initialized > 0
 
 // NEW: Area initialization - FIXED to handle area power and appearance
@@ -549,11 +619,13 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	var/turfs_updated = 0
 	var/areas_updated = 0
 
-	// Update all turfs immediately
+	// Update all turfs immediately, but skip problematic types
 	for(var/turf/iter_turf as anything in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
-		iter_turf.update_icon()
-		iter_turf.update_appearance()
-		turfs_updated++
+		// Skip effects and decals from smoothing
+		if(!istype(iter_turf, /obj/effect) && !istype(iter_turf, /obj/effect/decal))
+			iter_turf.update_icon()
+			iter_turf.update_appearance()
+			turfs_updated++
 
 		if(turfs_updated % 100 == 0)
 			CHECK_TICK
@@ -574,6 +646,193 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 
 	log_dungeon("Dungeon Generator: Updated [turfs_updated] turfs and [areas_updated] areas on Z-level [z_level]")
 	return TRUE
+
+// ===== COMPLETELY REFACTORED PORTAL CONNECTION SYSTEM =====
+// Scans the actual generated map for portals instead of relying on metadata
+
+/datum/portal_destination/veilbreak/proc/ensure_portal_connection()
+	if(!dungeon_z_level)
+		log_dungeon("Dungeon Generator: Cannot ensure connection - no Z-level assigned")
+		return FALSE
+
+	log_dungeon("Dungeon Generator: Scanning Z-level [dungeon_z_level] for portals...")
+
+	// Scan the entire Z-level for portal objects
+	var/obj/machinery/portal/found_portal = scan_for_existing_portal()
+
+	if(found_portal)
+		log_dungeon("Dungeon Generator: Found existing portal at [AREACOORD(found_portal)]")
+		return connect_to_existing_portal(found_portal)
+	else
+		log_dungeon("Dungeon Generator: No portal found in dungeon, creating optimal one")
+		return create_and_connect_new_portal()
+
+/datum/portal_destination/veilbreak/proc/scan_for_existing_portal()
+	// Method 1: Direct search for portal machinery
+	for(var/obj/machinery/portal/P in world)
+		if(P.z == dungeon_z_level)
+			log_dungeon("Dungeon Generator: Found portal at [AREACOORD(P)]")
+			return P
+
+	// Method 2: Search for portal bumpers (they indicate portal presence)
+	for(var/obj/effect/portal_bumper/bumper in world)
+		if(bumper.z == dungeon_z_level && bumper.parent_portal)
+			log_dungeon("Dungeon Generator: Found portal via bumper at [AREACOORD(bumper.parent_portal)]")
+			return bumper.parent_portal
+
+	log_dungeon("Dungeon Generator: No portals found on Z-level [dungeon_z_level]")
+	return null
+
+/datum/portal_destination/veilbreak/proc/connect_to_existing_portal(obj/machinery/portal/dungeon_portal)
+	if(!dungeon_portal)
+		return FALSE
+
+	log_dungeon("Dungeon Generator: Connecting to existing portal at [AREACOORD(dungeon_portal)]")
+
+	// Configure the found portal for dungeon use
+	dungeon_portal.use_power = NO_POWER_USE
+	dungeon_portal.portal_possible = TRUE
+
+	// Ensure it has a bumper
+	if(!dungeon_portal.bumper)
+		dungeon_portal.generate_bumper()
+
+	// Create return destination
+	var/datum/portal_destination/simple/return_destination = new()
+	return_destination.name = "Return to Station"
+	return_destination.return_portal = connected_portal
+
+	// Register return destination
+	var/return_id = "veilbreak_return_[dungeon_z_level]_[world.time]"
+	GLOB.portal_destinations[return_id] = return_destination
+	log_dungeon("Dungeon Generator: Registered return destination [return_id]")
+
+	// Configure the dungeon portal to target the return destination
+	dungeon_portal.target = return_destination
+	dungeon_portal.transport_active = TRUE
+	dungeon_portal.update_appearance()
+
+	log_dungeon("Dungeon Generator: Dungeon portal configured at [AREACOORD(dungeon_portal)]")
+
+	// Configure the station portal to target this dungeon
+	if(connected_portal)
+		connected_portal.target = src
+		connected_portal.transport_active = TRUE
+		connected_portal.update_appearance()
+
+		log_dungeon("Dungeon Generator: SUCCESS - Bidirectional connection established!")
+		log_dungeon("Dungeon Generator: Station -> Dungeon: [AREACOORD(connected_portal)]")
+		log_dungeon("Dungeon Generator: Dungeon -> Station: [AREACOORD(dungeon_portal)]")
+		return TRUE
+
+	log_dungeon("Dungeon Generator: WARNING - No connected portal found for station side")
+	return FALSE
+
+/datum/portal_destination/veilbreak/proc/create_and_connect_new_portal()
+	log_dungeon("Dungeon Generator: Creating new portal at optimal location")
+
+	var/turf/optimal_turf = find_optimal_portal_location()
+	if(!optimal_turf)
+		log_dungeon("Dungeon Generator: ERROR - Could not find suitable location for portal")
+		return FALSE
+
+	// Create the portal
+	var/obj/machinery/portal/dungeon_portal = new(optimal_turf)
+	log_dungeon("Dungeon Generator: Created new portal at [AREACOORD(dungeon_portal)]")
+
+	// Now connect it (reuse the same logic as for existing portals)
+	return connect_to_existing_portal(dungeon_portal)
+
+/datum/portal_destination/veilbreak/proc/find_optimal_portal_location()
+	log_dungeon("Dungeon Generator: Searching for optimal portal location on Z-level [dungeon_z_level]")
+
+	// Strategy: Look for open areas that are accessible and not blocked
+	var/list/candidate_turfs = list()
+
+	// First, scan the entire Z-level for good locations
+	for(var/turf/T in block(locate(1, 1, dungeon_z_level), locate(world.maxx, world.maxy, dungeon_z_level)))
+		if(is_good_portal_location(T))
+			candidate_turfs += T
+		CHECK_TICK
+
+	log_dungeon("Dungeon Generator: Found [length(candidate_turfs)] candidate locations")
+
+	if(!length(candidate_turfs))
+		// Emergency fallback: any open turf
+		for(var/turf/open/T in block(locate(1, 1, dungeon_z_level), locate(world.maxx, world.maxy, dungeon_z_level)))
+			if(!T.density)
+				log_dungeon("Dungeon Generator: Using emergency fallback location at [AREACOORD(T)]")
+				return T
+			CHECK_TICK
+		return null
+
+	// Score and select the best candidate
+	var/turf/best_turf = candidate_turfs[1]
+	var/best_score = rate_portal_location(best_turf)
+
+	for(var/turf/candidate in candidate_turfs)
+		var/score = rate_portal_location(candidate)
+		if(score > best_score)
+			best_turf = candidate
+			best_score = score
+		CHECK_TICK
+
+	log_dungeon("Dungeon Generator: Selected optimal location at [AREACOORD(best_turf)] with score [best_score]")
+	return best_turf
+
+/datum/portal_destination/veilbreak/proc/is_good_portal_location(turf/T)
+	if(!T)
+		return FALSE
+	if(!istype(T, /turf/open))
+		return FALSE
+	if(T.density)
+		return FALSE
+	if(locate(/obj/machinery/portal) in T)
+		return FALSE
+	// Avoid placing on top of important structures
+	if(locate(/obj/structure) in T)
+		return FALSE
+	if(locate(/obj/machinery) in T)
+		return FALSE
+
+	// Check for reasonable clear space (at least 3x3 area)
+	var/clear_tiles = 0
+	for(var/turf/adjacent in range(1, T))
+		if(istype(adjacent, /turf/open) && !adjacent.density)
+			clear_tiles++
+
+	return clear_tiles >= 5 // Need decent clearance
+
+/datum/portal_destination/veilbreak/proc/rate_portal_location(turf/T)
+	var/score = 0
+
+	// Base score for being open
+	if(istype(T, /turf/open))
+		score += 10
+
+	// Bonus for specific open types (floors better than space)
+	if(istype(T, /turf/open/floor))
+		score += 5
+
+	// Check surrounding area for openness
+	var/open_tiles = 0
+	for(var/turf/adjacent in range(2, T))
+		if(istype(adjacent, /turf/open) && !adjacent.density)
+			open_tiles++
+
+	score += min(open_tiles, 20) // Cap the openness bonus
+
+	// Bonus for being near the center of the map
+	var/distance_from_center = abs(T.x - round(world.maxx/2)) + abs(T.y - round(world.maxy/2))
+	var/max_distance = round((world.maxx + world.maxy) / 2)
+	var/center_bonus = round((1 - (distance_from_center / max_distance)) * 10)
+	score += max(0, center_bonus)
+
+	// Penalty for being near map edges
+	if(T.x <= 3 || T.x >= world.maxx - 3 || T.y <= 3 || T.y >= world.maxy - 3)
+		score -= 10
+
+	return score
 
 // Cleanup and utility procs
 /datum/portal_destination/veilbreak/proc/cleanup_dungeon()
@@ -609,3 +868,75 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		log_dungeon("Dungeon Generator: WARNING - Dungeon Z-level [dungeon_z_level] exceeds world maxz [world.maxz]")
 		return FALSE
 	return TRUE
+
+// Simple destination that directly references a portal location
+/datum/portal_destination/simple
+	name = "Simple Destination"
+	var/obj/machinery/portal/return_portal
+
+/datum/portal_destination/simple/get_target_turf()
+	if(return_portal)
+		return get_turf(return_portal)
+	return null
+
+/datum/portal_destination/simple/is_available()
+	return return_portal && !QDELETED(return_portal)
+
+/datum/portal_destination/simple/get_available_reason()
+	if(!return_portal || QDELETED(return_portal))
+		return "Return portal not available"
+	return "Available for return"
+
+// Debug verbs
+/datum/portal_destination/veilbreak/verb/debug_metadata()
+	set name = "Debug Dungeon Metadata"
+	set category = "Debug"
+	set src in view(1)
+
+	usr << "=== DUNGEON METADATA DEBUG ==="
+	if(last_generation_data)
+		usr << "Full generation data keys: [json_encode(last_generation_data)]"
+		if(last_generation_data["metadata"])
+			usr << "Metadata keys: [json_encode(last_generation_data["metadata"])]"
+			var/list/metadata = last_generation_data["metadata"]
+			if(metadata["key_positions"])
+				usr << "Key positions: [json_encode(metadata["key_positions"])]"
+			else
+				usr << "No key_positions found in metadata"
+		else
+			usr << "No metadata found in generation data"
+	else
+		usr << "No generation data available"
+
+/datum/portal_destination/veilbreak/verb/scan_and_debug_portals()
+	set name = "Debug Portal Scan"
+	set category = "Debug"
+	set src in view(1)
+
+	usr << "=== PORTAL SCAN DEBUG ==="
+	usr << "Dungeon Z-level: [dungeon_z_level]"
+
+	var/obj/machinery/portal/found = scan_for_existing_portal()
+	if(found)
+		usr << "Found portal at: [AREACOORD(found)]"
+		usr << "Portal state: active=[found.transport_active], target=[found.target]"
+	else
+		usr << "No portals found in dungeon"
+
+	// Test optimal location finding
+	var/turf/test_turf = find_optimal_portal_location()
+	if(test_turf)
+		usr << "Optimal location: [AREACOORD(test_turf)] (score: [rate_portal_location(test_turf)])"
+	else
+		usr << "No optimal location found"
+
+	usr << "=== END DEBUG ==="
+
+/datum/portal_destination/veilbreak/verb/force_reconnect()
+	set name = "Force Portal Reconnect"
+	set category = "Debug"
+	set src in view(1)
+
+	usr << "Forcing portal reconnection..."
+	var/result = ensure_portal_connection()
+	usr << "Reconnection result: [result ? "SUCCESS" : "FAILED"]"
