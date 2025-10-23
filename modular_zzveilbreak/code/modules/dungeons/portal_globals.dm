@@ -719,13 +719,21 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	var/turf/gateway_turf = get_target_turf()
 
 	if(!gateway_turf)
-		log_dungeon("Dungeon Generator: Failed to get gateway turf")
-		return FALSE
+		log_dungeon("Dungeon Generator: Failed to get gateway turf, using fallback")
+		return ensure_connection_fallback()
 
 	log_dungeon("Dungeon Generator: Found gateway turf at [AREACOORD(gateway_turf)]")
 
-	// Look for existing portal or create one
+	// Look for existing portal or create one - IMPROVED SEARCH
 	var/obj/machinery/portal/dungeon_portal = locate(/obj/machinery/portal) in gateway_turf
+	if(!dungeon_portal)
+		// Search in adjacent turfs as well
+		for(var/turf/adjacent in range(1, gateway_turf))
+			dungeon_portal = locate(/obj/machinery/portal) in adjacent
+			if(dungeon_portal)
+				log_dungeon("Dungeon Generator: Found nearby portal at [AREACOORD(dungeon_portal)]")
+				break
+
 	if(!dungeon_portal)
 		// Create a portal at the exact gateway position
 		dungeon_portal = new(gateway_turf)
@@ -733,7 +741,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	else
 		log_dungeon("Dungeon Generator: Found existing portal at [AREACOORD(dungeon_portal)]")
 
-	// Configure dungeon portal
+	// CRITICAL FIX: Ensure the dungeon portal is properly configured
 	dungeon_portal.use_power = NO_POWER_USE
 	dungeon_portal.portal_possible = TRUE
 
@@ -751,14 +759,14 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	GLOB.portal_destinations[return_id] = return_destination
 	log_dungeon("Dungeon Generator: Registered return destination [return_id]")
 
-	// Configure the dungeon portal to target the return destination
+	// CRITICAL FIX: Configure the dungeon portal FIRST
 	dungeon_portal.target = return_destination
 	dungeon_portal.transport_active = TRUE
 	dungeon_portal.update_appearance()
 
 	log_dungeon("Dungeon Generator: Dungeon portal configured at [AREACOORD(dungeon_portal)]")
 
-	// Configure the station portal to target this dungeon
+	// CRITICAL FIX: Then configure the station portal to target this dungeon
 	if(connected_portal)
 		connected_portal.target = src
 		connected_portal.transport_active = TRUE
