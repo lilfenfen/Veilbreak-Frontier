@@ -334,16 +334,15 @@ GLOBAL_LIST_INIT(message_modes_stat_limits, list(
 
 	// we need to send this signal before compose_message() is used since other signals need to modify
 	// the raw_message first. After the raw_message is passed through the various signals, it's ready to be formatted
-	// by compose_message() to be displayed in chat boxes for to_chat or runechat
+	// by compose_message() to be displayed in chat boxes for to_chat or runechat.
 	SEND_SIGNAL(src, COMSIG_MOVABLE_HEAR, args)
+	// adding emote notifications
+	if(message_mods[MODE_CUSTOM_SAY_EMOTE])
+		playsound_local(src, 'modular_zzveilbreak/sound/effects/jingle.ogg', 25, FALSE, pressure_affected = FALSE)
+	// end
 
 	if(speaker_is_signing) //Checks if speaker is using sign language
 		deaf_message = compose_message(speaker, message_language, raw_message, radio_freq, radio_freq_name, radio_freq_color, spans, message_mods, TRUE)
-
-		// play a custom sound on emotes
-		if(message_mods[MODE_CUSTOM_SAY_EMOTE])
-			playsound_local(src, 'modular_zzveilbreak/sound/effects/jingle.ogg', 25, FALSE, pressure_affected: FALSE)
-		// end
 
 		if(speaker != src)
 			if(!radio_freq) //I'm about 90% sure there's a way to make this less cluttered
@@ -370,15 +369,9 @@ GLOBAL_LIST_INIT(message_modes_stat_limits, list(
 		if(!radio_freq) //These checks have to be separate, else people talking on the radio will make "You can't hear yourself!" appear when hearing people over the radio while deaf.
 			deaf_message = "[span_name("[speaker]")] [speaker.get_default_say_verb()] something but you cannot hear [speaker.p_them()]."
 			deaf_type = MSG_VISUAL
-	else
-		// play a sound for custom emotes, deaf
-		if(message_mods[MODE_CUSTOM_SAY_EMOTE])
-			playsound_local(src, 'modular_zzveilbreak/master_files/sound/effects/jingle.ogg', 25, FALSE, pressure_affected: FALSE)
-		// end
-
+	else if(!message_mods[MODE_CUSTOM_SAY_EMOTE]) // Don't show "You can't hear yourself!" for emotes
 		deaf_message = span_notice("You can't hear yourself!")
 		deaf_type = MSG_AUDIBLE // Since you should be able to hear yourself without looking
-
 	// Create map text prior to modifying message for goonchat
 	if (use_runechat && can_hear())
 		if (message_mods[MODE_CUSTOM_SAY_ERASE_INPUT])
