@@ -159,17 +159,42 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 
 /datum/portal_destination/veilbreak/get_target_turf()
 	if(!dungeon_z_level || !last_generation_data)
+		log_dungeon("Dungeon Generator: get_target_turf failed - missing Z-level or data")
 		return null
 
-	// Access metadata correctly from the nested structure
+	log_dungeon("Dungeon Generator: get_target_turf checking for Z-level [dungeon_z_level]")
+	log_dungeon("Dungeon Generator: Has last_generation_data: [last_generation_data ? "YES" : "NO"]")
+
+	// Try to get gateway position from metadata
 	var/list/metadata = last_generation_data["metadata"]
-	if(metadata && metadata["key_positions"])
+	if(metadata)
+		log_dungeon("Dungeon Generator: Metadata found: [json_encode(metadata)]")
+
 		var/list/key_positions = metadata["key_positions"]
-		if(key_positions && key_positions["gateway"])
+		if(key_positions)
+			log_dungeon("Dungeon Generator: Key positions found: [json_encode(key_positions)]")
+
 			var/list/gateway_pos = key_positions["gateway"]
-			return locate(gateway_pos["x"], gateway_pos["y"], dungeon_z_level)
+			if(gateway_pos)
+				log_dungeon("Dungeon Generator: Gateway position found: [json_encode(gateway_pos)]")
+
+				if(gateway_pos["x"] && gateway_pos["y"])
+					var/turf/target = locate(gateway_pos["x"], gateway_pos["y"], dungeon_z_level)
+					log_dungeon("Dungeon Generator: Using gateway at X:[gateway_pos["x"]], Y:[gateway_pos["y"]], Z:[dungeon_z_level] -> [AREACOORD(target)]")
+					return target
+				else if(gateway_pos[1] && gateway_pos[2])
+					var/turf/target = locate(gateway_pos[1], gateway_pos[2], dungeon_z_level)
+					log_dungeon("Dungeon Generator: Using gateway at X:[gateway_pos[1]], Y:[gateway_pos[2]], Z:[dungeon_z_level] -> [AREACOORD(target)]")
+					return target
+			else
+				log_dungeon("Dungeon Generator: No gateway in key_positions")
+		else
+			log_dungeon("Dungeon Generator: No key_positions in metadata")
+	else
+		log_dungeon("Dungeon Generator: No metadata in last_generation_data")
 
 	// Fallback to center
+	log_dungeon("Dungeon Generator: Using fallback target turf at center of Z-level [dungeon_z_level]")
 	return locate(round(world.maxx/2), round(world.maxy/2), dungeon_z_level)
 
 /datum/portal_destination/veilbreak/proc/start_generation()
@@ -231,13 +256,32 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 
 /datum/portal_destination/veilbreak/proc/generation_complete(list/data)
 	generating = FALSE
-	last_generation_data = data
 
-	log_dungeon("Dungeon Generator: Received successful generation response with [length(data["dmm_content"] || "")] bytes of DMM content")
+	// DEBUG: Log the complete data structure we received
+	log_dungeon("Dungeon Generator: Received complete data structure")
+	log_dungeon("Dungeon Generator: Status: [data["status"]]")
+	log_dungeon("Dungeon Generator: DMM content length: [length(data["dmm_content"] || "")] bytes")
+	log_dungeon("Dungeon Generator: Metadata present: [data["metadata"] ? "YES" : "NO"]")
+
+	if(data["metadata"])
+		log_dungeon("Dungeon Generator: Metadata keys: [json_encode(data["metadata"])]")
+		if(data["metadata"]["key_positions"])
+			log_dungeon("Dungeon Generator: Key positions found: [json_encode(data["metadata"]["key_positions"])]")
+			if(data["metadata"]["key_positions"]["gateway"])
+				log_dungeon("Dungeon Generator: Gateway position: [json_encode(data["metadata"]["key_positions"]["gateway"])]")
+
+	// CRITICAL FIX: Store the complete data structure
+	last_generation_data = data.Copy()
+
+	// Double-check storage worked
+	log_dungeon("Dungeon Generator: Stored data verification - metadata: [last_generation_data["metadata"] ? "PRESENT" : "MISSING"]")
+	if(last_generation_data["metadata"] && last_generation_data["metadata"]["key_positions"])
+		log_dungeon("Dungeon Generator: Stored key positions: [json_encode(last_generation_data["metadata"]["key_positions"])]")
 
 	// Access dmm_content from top level
 	if(data["dmm_content"])
-		load_generated_dmm(data["dmm_content"], data["metadata"])
+		// Pass both the dmm_content and the metadata to ensure they're available
+		load_generated_dmm(data["dmm_content"], data["metadata"] ? data["metadata"].Copy() : list())
 	else
 		generation_failed("No DMM content in response")
 
@@ -665,47 +709,16 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		log_dungeon("Dungeon Generator: Cannot ensure connection - missing Z-level or generation data")
 		return FALSE
 
-	// DEBUG: Log what metadata we actually have
-	log_dungeon("Dungeon Generator: Metadata dump - [json_encode(last_generation_data["metadata"])]")
+	log_dungeon("Dungeon Generator: Starting portal connection for Z-level [dungeon_z_level]")
 
-	var/list/metadata = last_generation_data["metadata"]
-	if(!metadata)
-		log_dungeon("Dungeon Generator: No metadata found in generation data")
-		// Try to find a portal location anyway
-		return ensure_connection_fallback()
-
-	// Try multiple possible key position formats
-	var/list/key_positions = metadata["key_positions"] || metadata["key_pos"] || metadata["landmarks"] || metadata["positions"]
-
-	if(!key_positions)
-		log_dungeon("Dungeon Generator: No key positions found in metadata, trying fallback")
-		return ensure_connection_fallback()
-
-	// Try different gateway key names
-	var/list/gateway_pos = key_positions["gateway"] || key_positions["portal"] || key_positions["entry"] || key_positions["start"]
-
-	if(!gateway_pos)
-		log_dungeon("Dungeon Generator: No gateway position found in key positions")
-		return ensure_connection_fallback()
-
-	var/turf/gateway_turf = null
-
-	// Handle different position formats
-	if(gateway_pos["x"] && gateway_pos["y"])
-		gateway_turf = locate(gateway_pos["x"], gateway_pos["y"], dungeon_z_level)
-		log_dungeon("Dungeon Generator: Found gateway at X:[gateway_pos["x"]], Y:[gateway_pos["y"]], Z:[dungeon_z_level]")
-	else if(gateway_pos[1] && gateway_pos[2]) // Array format [x, y]
-		gateway_turf = locate(gateway_pos[1], gateway_pos[2], dungeon_z_level)
-		log_dungeon("Dungeon Generator: Found gateway at X:[gateway_pos[1]], Y:[gateway_pos[2]], Z:[dungeon_z_level]")
-	else
-		log_dungeon("Dungeon Generator: Unknown gateway position format: [json_encode(gateway_pos)]")
-		return ensure_connection_fallback()
+	// Get the target turf using our improved function
+	var/turf/gateway_turf = get_target_turf()
 
 	if(!gateway_turf)
-		log_dungeon("Dungeon Generator: Invalid gateway coordinates")
-		return ensure_connection_fallback()
+		log_dungeon("Dungeon Generator: Failed to get gateway turf")
+		return FALSE
 
-	log_dungeon("Dungeon Generator: Ensuring portal connection at dungeon turf [AREACOORD(gateway_turf)]")
+	log_dungeon("Dungeon Generator: Found gateway turf at [AREACOORD(gateway_turf)]")
 
 	// Look for existing portal or create one
 	var/obj/machinery/portal/dungeon_portal = locate(/obj/machinery/portal) in gateway_turf
@@ -713,6 +726,8 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		// Create a portal at the exact gateway position
 		dungeon_portal = new(gateway_turf)
 		log_dungeon("Dungeon Generator: Created new dungeon portal at [AREACOORD(dungeon_portal)]")
+	else
+		log_dungeon("Dungeon Generator: Found existing portal at [AREACOORD(dungeon_portal)]")
 
 	// Configure dungeon portal
 	dungeon_portal.use_power = NO_POWER_USE
@@ -722,21 +737,22 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	if(!dungeon_portal.bumper)
 		dungeon_portal.generate_bumper()
 
-	// Create return destination
+	// Create simple return destination
 	var/datum/portal_destination/simple/return_destination = new()
 	return_destination.name = "Return to Station"
 	return_destination.return_portal = connected_portal
 
-	// Register return destination
+	// Register return destination with unique ID
 	var/return_id = "veilbreak_return_[dungeon_z_level]_[world.time]"
 	GLOB.portal_destinations[return_id] = return_destination
+	log_dungeon("Dungeon Generator: Registered return destination [return_id]")
 
 	// Configure the dungeon portal to target the return destination
 	dungeon_portal.target = return_destination
 	dungeon_portal.transport_active = TRUE
 	dungeon_portal.update_appearance()
 
-	log_dungeon("Dungeon Generator: Dungeon portal configured with return destination at [AREACOORD(dungeon_portal)]")
+	log_dungeon("Dungeon Generator: Dungeon portal configured at [AREACOORD(dungeon_portal)]")
 
 	// Configure the station portal to target this dungeon
 	if(connected_portal)
@@ -749,7 +765,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		log_dungeon("Dungeon Generator: Dungeon -> Station: [AREACOORD(dungeon_portal)] -> [AREACOORD(connected_portal)]")
 		return TRUE
 
-	log_dungeon("Dungeon Generator: WARNING - No connected portal found")
+	log_dungeon("Dungeon Generator: WARNING - No connected portal found for station side")
 	return FALSE
 
 /datum/portal_destination/veilbreak/proc/ensure_connection_fallback()
