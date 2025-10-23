@@ -134,6 +134,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		.["timeout"] = max(1 - (wait - (world.time - SSticker.round_start_time)) / wait, 0)
 	else
 		.["timeout"] = 0
+	.["connected"] = !!connected_portal
 
 // Veilbreak-specific destination
 /datum/portal_destination/veilbreak
@@ -393,23 +394,65 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	log_dungeon("Dungeon Generator: Initializing atoms for Z-level [z_level]")
 
 	var/atoms_initialized = 0
+	var/turfs_processed = 0
 
-	// Get all atoms on the Z-level that haven't been properly initialized
+	// First pass: Initialize all atoms and queue turfs for smoothing
+	var/list/turfs_to_smooth = list()
+
 	for(var/atom/A in world)
 		if(A.z != z_level)
 			continue
 
-		// Check if this atom needs initialization
+		// Initialize atom if needed
 		if(!(A.flags_1 & INITIALIZED_1))
-			// Use SSatoms' InitAtom proc to properly initialize it
-			// This will call Initialize() and set up smoothing, lighting, etc.
-			SSatoms.InitAtom(A, FALSE, list(FALSE)) // FALSE for mapload since we're post-initial load
+			SSatoms.InitAtom(A, FALSE, list(FALSE))
 			atoms_initialized++
+
+		// Collect turfs for smoothing
+		if(isturf(A))
+			turfs_to_smooth += A
+			turfs_processed++
 
 		if(atoms_initialized % 100 == 0)
 			CHECK_TICK
 
-	log_dungeon("Dungeon Generator: Initialized [atoms_initialized] atoms on Z-level [z_level]")
+	log_dungeon("Dungeon Generator: Initialized [atoms_initialized] atoms, found [turfs_processed] turfs on Z-level [z_level]")
+
+	// Second pass: Trigger smoothing for all turfs
+	log_dungeon("Dungeon Generator: Starting turf smoothing for [length(turfs_to_smooth)] turfs")
+	var/smoothed_turfs = 0
+
+	for(var/turf/T as anything in turfs_to_smooth)
+		// Force immediate smoothing
+		T.smooth_icon() // This directly updates the icon
+		T.update_icon() // This ensures the appearance is updated
+		T.update_appearance() // This handles any visual effects
+
+		// Trigger AfterChange for turfs to handle connections
+		if(istype(T, /turf/closed))
+			var/turf/closed/CT = T
+			CT.AfterChange()
+
+		smoothed_turfs++
+
+		if(smoothed_turfs % 100 == 0)
+			CHECK_TICK
+
+	log_dungeon("Dungeon Generator: Smoothed [smoothed_turfs] turfs on Z-level [z_level]")
+
+	// Third pass: Force area updates that might affect smoothing
+	for(var/area/area as anything in GLOB.areas)
+		var/has_turfs_on_z = FALSE
+		for(var/turf/T in area.contents)
+			if(T.z == z_level)
+				has_turfs_on_z = TRUE
+				break
+
+		if(has_turfs_on_z)
+			area.update_icon()
+
+		CHECK_TICK
+
 	return atoms_initialized > 0
 
 // NEW: Area initialization - FIXED to handle area power and appearance
@@ -617,13 +660,14 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		return FALSE
 	return TRUE
 
-
 /datum/portal_destination/veilbreak/proc/ensure_portal_connection()
 	if(!dungeon_z_level || !last_generation_data)
+		log_dungeon("Dungeon Generator: Cannot ensure connection - missing Z-level or generation data")
 		return FALSE
 
 	var/list/metadata = last_generation_data["metadata"]
 	if(!metadata || !metadata["key_positions"])
+		log_dungeon("Dungeon Generator: Cannot ensure connection - missing key positions in metadata")
 		return FALSE
 
 	// Find the gateway position in the dungeon
@@ -632,71 +676,63 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		log_dungeon("Dungeon Generator: No gateway position found in metadata")
 		return FALSE
 
+	log_dungeon("Dungeon Generator: Ensuring portal connection at dungeon turf [AREACOORD(gateway_turf)]")
+
 	// Look for existing portal or create one
 	var/obj/machinery/portal/dungeon_portal = locate(/obj/machinery/portal) in gateway_turf
 	if(!dungeon_portal)
-		// Create a portal
-		if(connected_portal)
-			dungeon_portal = new connected_portal.type(gateway_turf)
-		else
-			dungeon_portal = new /obj/machinery/portal(gateway_turf)
+		// Create a portal at the exact gateway position
+		dungeon_portal = new(gateway_turf)
+		log_dungeon("Dungeon Generator: Created new dungeon portal at [AREACOORD(dungeon_portal)]")
 
-		// Make it always powered
-		dungeon_portal.use_power = NO_POWER_USE
-		dungeon_portal.active_power_usage = 0
-		dungeon_portal.idle_power_usage = 0
-
-		log_dungeon("Dungeon Generator: Created always-powered dungeon portal at [gateway_turf.x],[gateway_turf.y],[gateway_turf.z]")
-
-	// Force the portal to be active
+	// Configure dungeon portal as always-powered
+	dungeon_portal.use_power = NO_POWER_USE
+	dungeon_portal.active_power_usage = 0
+	dungeon_portal.idle_power_usage = 0
 	dungeon_portal.portal_possible = TRUE
-	dungeon_portal.transport_active = TRUE
 
-	// FIX: Use the correct variable name 'bumper' instead of 'portal'
+	// Generate bumper if needed
 	if(!dungeon_portal.bumper)
 		dungeon_portal.generate_bumper()
 
+	// CRITICAL: Create a proper return destination for the dungeon portal
+	var/datum/portal_destination/return_destination = new()
+	return_destination.name = "Return to Station"
+	return_destination.wait = 0
+	return_destination.enabled = TRUE
+
+	// Store reference to the station portal for return trips
+	return_destination.connected_portal = connected_portal
+
+	// Add to global destinations with unique ID
+	var/return_id = "veilbreak_return_[dungeon_z_level]_[world.time]"
+	GLOB.portal_destinations[return_id] = return_destination
+
+	// Configure the dungeon portal to target the return destination
+	dungeon_portal.target = return_destination
+	dungeon_portal.transport_active = TRUE
 	dungeon_portal.update_appearance()
 
-	// Configure the dungeon portal to point back to station
-	dungeon_portal.name = "Veilbreak Return Gateway"
+	log_dungeon("Dungeon Generator: Dungeon portal configured with return destination at [AREACOORD(dungeon_portal)]")
 
-	// Set up bidirectional connection using the actual portal system mechanics
+	// Configure the station portal to target this dungeon
 	if(connected_portal)
-		// Create a simple return destination that points to the station portal's location
-		var/datum/portal_destination/return_destination = new /datum/portal_destination()
-		return_destination.name = "Return to Station"
-		return_destination.wait = 0
-		return_destination.enabled = TRUE
-
-		// Store the station portal's location for the return trip
-		return_destination.connected_portal = connected_portal
-
-		// Add to global list with unique ID
-		var/return_id = "veilbreak_return_[dungeon_z_level]"
-		GLOB.portal_destinations[return_id] = return_destination
-
-		// Configure dungeon portal to use this return destination
-		dungeon_portal.target = return_destination
-		dungeon_portal.portal_possible = TRUE
-
-		// CRITICAL: Activate the dungeon portal
-		dungeon_portal.activate(return_destination)
-
-		// Configure station portal to point to this dungeon destination
 		connected_portal.target = src
-		connected_portal.portal_possible = TRUE
-		connected_portal.name = "Veilbreak Dungeon Gateway"
+		connected_portal.transport_active = TRUE
 
-		// FIX: Use the correct variable name 'bumper' instead of 'portal'
 		if(!connected_portal.bumper)
 			connected_portal.generate_bumper()
-		connected_portal.activate(src)
 
-		// Update both portals
 		connected_portal.update_appearance()
-		dungeon_portal.update_appearance()
 
-		log_dungeon("Dungeon Generator: Bidirectional portal connection established - station portal at [AREACOORD(connected_portal)] linked to dungeon portal at [AREACOORD(dungeon_portal)]")
+		log_dungeon("Dungeon Generator: Station portal at [AREACOORD(connected_portal)] configured to target dungeon at Z-level [dungeon_z_level]")
 
-	return TRUE
+		// Let the portal machinery handle the sounds - remove these lines:
+		// playsound(connected_portal, 'sound/machines/gateway/gateway_open.ogg', 140, TRUE, TRUE, PORTAL_SOUND_RANGE)
+		// playsound(dungeon_portal, 'sound/machines/gateway/gateway_open.ogg', 140, TRUE, TRUE, PORTAL_SOUND_RANGE)
+
+		log_dungeon("Dungeon Generator: Bidirectional portal connection ESTABLISHED between station and dungeon Z-level [dungeon_z_level]")
+		return TRUE
+
+	log_dungeon("Dungeon Generator: WARNING - No connected_portal found for bidirectional setup")
+	return FALSE
