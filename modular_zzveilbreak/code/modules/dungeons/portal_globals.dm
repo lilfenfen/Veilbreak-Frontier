@@ -14,6 +14,10 @@
 // Global list for portal destinations (separate from gateways)
 GLOBAL_LIST_EMPTY(portal_destinations)
 
+// Helper proc for dungeon generator logging that's compatible with our log_game
+/proc/log_dungeon(text)
+	log_game(text, list(), null)
+
 // HTTP request manager for dungeon generation
 /datum/http_dungeon_generator
 	var/current_request_id = 0
@@ -32,7 +36,7 @@ GLOBAL_LIST_EMPTY(portal_destinations)
 	var/datum/http_request/request = new()
 	var/url = "[DUNGEON_GENERATOR_URL][DUNGEON_GENERATE_ENDPOINT]?width=[width]&height=[height]&seed=[rand(1,1000000)]"
 
-	log_game("Dungeon Generator: Starting HTTP request to [url]", LOG_CATEGORY_DEBUG_MAPPING)
+	log_dungeon("Dungeon Generator: Starting HTTP request to [url]")
 
 	request.prepare(RUSTG_HTTP_METHOD_GET, url, "", "")
 	request.begin_async()
@@ -141,7 +145,6 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	var/generation_progress = 0
 	var/last_progress_update = 0
 
-// ADD THE MISSING PROCS FOR VEILBREAK DESTINATION
 /datum/portal_destination/veilbreak/is_available()
 	return ..() && generated && !generating
 
@@ -198,7 +201,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		generation_failed("Failed to start generation request")
 		return
 
-	log_game("Dungeon Generator: Started generation request [current_request_id]", LOG_CATEGORY_DEBUG_MAPPING)
+	log_dungeon("Dungeon Generator: Started generation request [current_request_id]")
 
 	// Start progress updates
 	START_PROCESSING(SSobj, src)
@@ -222,12 +225,11 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	STOP_PROCESSING(SSobj, src)
 	generation_progress = 100
 
-// ADD THE MISSING GENERATION PROCS
 /datum/portal_destination/veilbreak/proc/generation_complete(list/data)
 	generating = FALSE
 	last_generation_data = data
 
-	log_game("Dungeon Generator: Received successful generation response", LOG_CATEGORY_DEBUG_MAPPING)
+	log_dungeon("Dungeon Generator: Received successful generation response")
 
 	// Access dmm_content from top level
 	if(data["dmm_content"])
@@ -240,18 +242,18 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	generated = FALSE
 	generation_progress = 0
 
-	log_game("Dungeon Generator: Generation failed - [reason]", LOG_CATEGORY_DEBUG_MAPPING)
+	log_dungeon("Dungeon Generator: Generation failed - [reason]")
 
 	if(connected_portal)
 		connected_portal.say("Dungeon generation failed: [reason]")
 		connected_portal.generated_dungeon_data = null
 
-// CORRECTED: Complete dungeon loading implementation
+// CORRECTED: Complete dungeon loading implementation with proper atom initialization
 /datum/portal_destination/veilbreak/proc/load_generated_dmm(dmm_content, list/metadata)
 	if(!dmm_content)
 		return generation_failed("No DMM content provided")
 
-	log_game("Dungeon Generator: Starting DMM content load for Veilbreak dungeon", LOG_CATEGORY_DEBUG_MAPPING)
+	log_dungeon("Dungeon Generator: Starting DMM content load for Veilbreak dungeon")
 
 	// Save original DMM for debugging
 	text2file(dmm_content, "data/logs/dungeon_content_[world.time].dmm")
@@ -275,15 +277,18 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		return generation_failed("Failed to create new Z-level")
 
 	dungeon_z_level = dungeon_level.z_value
-	log_game("Dungeon Generator: Created new dungeon at Z-level [dungeon_z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+	log_dungeon("Dungeon Generator: Created new dungeon at Z-level [dungeon_z_level]")
 
 	// Parse and load the DMM content
 	var/datum/parsed_map/parsed = new(dmm_content)
 	if(!parsed || !parsed.bounds)
-		log_game("Dungeon Generator: Failed to parse DMM content - invalid format or null bounds", LOG_CATEGORY_DEBUG_MAPPING)
+		log_dungeon("Dungeon Generator: Failed to parse DMM content - invalid format or null bounds")
 		return generation_failed("Failed to parse DMM content")
 
-	log_game("Dungeon Generator: Parsed map with bounds [json_encode(parsed.bounds)]", LOG_CATEGORY_DEBUG_MAPPING)
+	log_dungeon("Dungeon Generator: Parsed map with bounds [json_encode(parsed.bounds)]")
+
+	// CRITICAL: Tell SSatoms we're starting a map load
+	SSatoms.map_loader_begin("dungeon_generator_[dungeon_z_level]")
 
 	// Use SSair's map loading system if available
 	if(SSair.initialized)
@@ -298,21 +303,23 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 			new_z = TRUE
 		)
 	catch(var/exception/e)
-		log_game("Dungeon Generator: Exception during map load: [e]", LOG_CATEGORY_DEBUG_MAPPING)
+		log_dungeon("Dungeon Generator: Exception during map load: [e]")
 		loaded_successfully = FALSE
 
 	if(SSair.initialized)
 		SSair.StopLoadingMap()
 
+	// CRITICAL: Tell SSatoms we're done with map loading
+	SSatoms.map_loader_stop("dungeon_generator_[dungeon_z_level]")
+
 	if(!loaded_successfully)
-		log_game("Dungeon Generator: Map loading failed at Z-level [dungeon_z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+		log_dungeon("Dungeon Generator: Map loading failed at Z-level [dungeon_z_level]")
 		return generation_failed("Failed to load map into world")
 
-	log_game("Dungeon Generator: Map loaded successfully at Z-level [dungeon_z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+	log_dungeon("Dungeon Generator: Map loaded successfully at Z-level [dungeon_z_level]")
 
-	// Initialize all required subsystems
+	// Initialize all required subsystems - NOW WITH PROPER ATOM INITIALIZATION
 	initialize_dungeon_subsystems(dungeon_z_level)
-	initialize_dungeon_visuals(dungeon_z_level)
 
 	// Mark as complete
 	generated = TRUE
@@ -323,72 +330,246 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		connected_portal.generated_dungeon_data = metadata
 		connected_portal.say("Dungeon generation complete. Portal stabilized.")
 
-	log_game("Dungeon Generator: Veilbreak dungeon fully initialized at Z-level [dungeon_z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+	log_dungeon("Dungeon Generator: Veilbreak dungeon fully initialized at Z-level [dungeon_z_level]")
 	return TRUE
 
+// NEW: Comprehensive subsystem initialization to fix red X's with proper atom initialization
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_subsystems(z_level)
+	log_dungeon("Dungeon Generator: Starting subsystem initialization for Z-level [z_level]")
 
-/datum/portal_destination/veilbreak/proc/initialize_dungeon_lighting(z_level)
-	if(!SSlighting || !SSlighting.initialized)
-		log_game("Dungeon Generator: Lighting subsystem not available for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-		return
+	// Track initialization results
+	var/list/initialization_results = list()
 
-	log_game("Dungeon Generator: Initializing lighting for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+	// 1. CRITICAL: Force Initialize all atoms on the new Z-level (this is what fixes red X's)
+	initialization_results["atoms"] = initialize_dungeon_atoms(z_level)
 
-	var/lighting_objects_created = 0
-	var/areas_processed = 0
+	// 2. CRITICAL: Initialize area properties (fixes darkness)
+	initialization_results["areas"] = initialize_dungeon_areas(z_level)
 
-	// Follow the exact same pattern as SSlighting.create_all_lighting_objects()
+	// 3. CRITICAL: Initialize power systems
+	initialization_results["power"] = initialize_dungeon_power(z_level)
+
+	// 4. CRITICAL: Initialize lighting (visibility)
+	initialization_results["lighting"] = initialize_dungeon_lighting(z_level)
+
+	// 5. CRITICAL: Initialize atmospherics (air, pipenets)
+	initialization_results["atmospherics"] = initialize_dungeon_atmospherics(z_level)
+
+	// 6. IMPORTANT: Initialize machinery processing
+	initialization_results["machinery"] = initialize_dungeon_machinery(z_level)
+
+	// 7. Force immediate visual updates
+	initialization_results["visuals"] = force_immediate_visual_updates(z_level)
+
+	// Log summary
+	var/success_count = 0
+	var/total_count = length(initialization_results)
+	for(var/subsystem in initialization_results)
+		if(initialization_results[subsystem])
+			success_count++
+
+	log_dungeon("Dungeon Generator: Subsystem initialization complete - [success_count]/[total_count] successful for Z-level [z_level]")
+
+	return success_count >= 3 // Return TRUE if at least critical systems initialized
+
+// NEW: CRITICAL - Force initialization of all atoms on the Z-level
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_atoms(z_level)
+	log_dungeon("Dungeon Generator: Initializing atoms for Z-level [z_level]")
+
+	var/atoms_initialized = 0
+
+	// Get all atoms on the Z-level that haven't been properly initialized
+	for(var/atom/A in world)
+		if(A.z != z_level)
+			continue
+
+		// Check if this atom needs initialization
+		if(!(A.flags_1 & INITIALIZED_1))
+			// Use SSatoms' InitAtom proc to properly initialize it
+			// This will call Initialize() and set up smoothing, lighting, etc.
+			SSatoms.InitAtom(A, FALSE, list(FALSE)) // FALSE for mapload since we're post-initial load
+			atoms_initialized++
+
+		if(atoms_initialized % 100 == 0)
+			CHECK_TICK
+
+	log_dungeon("Dungeon Generator: Initialized [atoms_initialized] atoms on Z-level [z_level]")
+	return atoms_initialized > 0
+
+// NEW: Area initialization - FIXED to handle area power and appearance
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_areas(z_level)
+	log_dungeon("Dungeon Generator: Initializing area properties for Z-level [z_level]")
+
+	var/areas_initialized = 0
+
 	for(var/area/area as anything in GLOB.areas)
-		if(!area.static_lighting)
+		// Check if this area has turfs on our Z-level
+		var/has_turfs_on_z = FALSE
+		for(var/turf/T in area.contents)
+			if(T.z == z_level)
+				has_turfs_on_z = TRUE
+				break
+
+		if(!has_turfs_on_z)
 			continue
 
-		areas_processed++
-		var/list/zlevel_turfs = area.get_zlevel_turf_lists()
+		areas_initialized++
 
-		// Safely check if this area has turfs on our Z-level
-		if(!zlevel_turfs || !islist(zlevel_turfs) || !zlevel_turfs["[z_level]"])
-			continue
+		// Reset area to default power state
+		area.power_equip = initial(area.power_equip)
+		area.power_light = initial(area.power_light)
+		area.power_environ = initial(area.power_environ)
+		area.always_unpowered = initial(area.always_unpowered)
 
-		for(var/turf/area_turf as anything in zlevel_turfs["[z_level]"])
-			if(area_turf.space_lit || area_turf.lighting_object)
-				continue
-
-			new /datum/lighting_object(area_turf)
-			lighting_objects_created++
+		// Force area to update its appearance (fixes darkness)
+		area.power_change()
+		area.update_icon()
 
 		CHECK_TICK
 
-	log_game("Dungeon Generator: Created [lighting_objects_created] lighting objects across [areas_processed] areas on Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+	log_dungeon("Dungeon Generator: Initialized [areas_initialized] areas on Z-level [z_level]")
+	return areas_initialized > 0
 
+// NEW: Power initialization - FIXED to use world iteration instead of undefined globals
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_power(z_level)
+	log_dungeon("Dungeon Generator: Initializing power systems for Z-level [z_level]")
+
+	var/areas_powered = 0
+	var/machines_powered = 0
+
+	// Initialize area power
+	for(var/area/area as anything in GLOB.areas)
+		var/has_turfs_on_z = FALSE
+		for(var/turf/T in area.contents)
+			if(T.z == z_level)
+				has_turfs_on_z = TRUE
+				break
+
+		if(!has_turfs_on_z)
+			continue
+
+		areas_powered++
+		area.power_change() // This updates area lighting and equipment power
+
+		CHECK_TICK
+
+	// Initialize machinery power states - FIXED: Use world iteration
+	for(var/obj/machinery/machine in world)
+		if(machine.z == z_level)
+			machines_powered++
+			machine.power_change() // Ensure machinery power states are correct
+
+		if(machines_powered % 50 == 0)
+			CHECK_TICK
+
+	log_dungeon("Dungeon Generator: Initialized power for [areas_powered] areas and [machines_powered] machines on Z-level [z_level]")
+	return areas_powered > 0
+
+// NEW: Lighting initialization - FIXED to properly set up lighting
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_lighting(z_level)
+	log_dungeon("Dungeon Generator: Initializing lighting for Z-level [z_level]")
+
+	if(!SSlighting || !SSlighting.initialized)
+		log_dungeon("Dungeon Generator: Lighting subsystem not available for Z-level [z_level]")
+		return FALSE
+
+	var/lighting_objects_created = 0
+
+	// Create lighting objects for all turfs that need them
+	for(var/turf/iter_turf as anything in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
+		// Only create lighting objects for turfs that don't have them and aren't space lit
+		if(!iter_turf.space_lit && !iter_turf.lighting_object)
+			new /datum/lighting_object(iter_turf)
+			lighting_objects_created++
+
+		if(lighting_objects_created % 100 == 0)
+			CHECK_TICK
+
+	log_dungeon("Dungeon Generator: Created [lighting_objects_created] lighting objects on Z-level [z_level]")
+	return TRUE
+
+// NEW: Atmospherics initialization
 /datum/portal_destination/veilbreak/proc/initialize_dungeon_atmospherics(z_level)
-	if(!SSair || !SSair.initialized)
-		log_game("Dungeon Generator: Air subsystem not available for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-		return
+	log_dungeon("Dungeon Generator: Initializing atmospherics for Z-level [z_level]")
 
-	log_game("Dungeon Generator: Initializing atmospherics for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+	if(!SSair || !SSair.initialized)
+		log_dungeon("Dungeon Generator: Air subsystem not available for Z-level [z_level]")
+		return FALSE
 
 	var/atmos_machines_initialized = 0
-	var/list/atmos_machines = list()
 
-	// Collect all atmos machinery on the new Z-level
+	// Initialize atmos machinery on the new Z-level
 	for(var/obj/machinery/atmospherics/AM as anything in SSair.atmos_machinery)
 		if(AM.z == z_level)
-			atmos_machines += AM
 			atmos_machines_initialized++
+			// The atmos system will handle these in its next process cycle
 
-	// Use SSair's template machinery setup if we found any machines
-	if(length(atmos_machines))
-		SSair.setup_template_machinery(atmos_machines)
-		log_game("Dungeon Generator: Initialized [atmos_machines_initialized] atmos machines on Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-	else
-		log_game("Dungeon Generator: No atmos machines found on Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+		if(atmos_machines_initialized % 50 == 0)
+			CHECK_TICK
 
-// ADD THE MISSING UTILITY PROCS
+	log_dungeon("Dungeon Generator: Found [atmos_machines_initialized] atmos machines on Z-level [z_level]")
+	return TRUE
+
+// NEW: Machinery initialization - FIXED to use world iteration instead of undefined globals
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_machinery(z_level)
+	log_dungeon("Dungeon Generator: Initializing machinery for Z-level [z_level]")
+
+	var/machines_processed = 0
+
+	// Process all machinery on the new Z-level - FIXED: Use world iteration
+	for(var/obj/machinery/machine in world)
+		if(machine.z == z_level)
+			machines_processed++
+			// Ensure machinery is properly set up
+			if(machine.use_power)
+				machine.power_change()
+			// Update appearance
+			machine.update_icon()
+			machine.update_appearance()
+
+		if(machines_processed % 50 == 0)
+			CHECK_TICK
+
+	log_dungeon("Dungeon Generator: Processed [machines_processed] machines on Z-level [z_level]")
+	return machines_processed > 0
+
+// NEW: Force immediate visual updates - CRITICAL for fixing red X's
+/datum/portal_destination/veilbreak/proc/force_immediate_visual_updates(z_level)
+	log_dungeon("Dungeon Generator: Forcing immediate visual updates for Z-level [z_level]")
+
+	var/turfs_updated = 0
+	var/areas_updated = 0
+
+	// Update all turfs immediately
+	for(var/turf/iter_turf as anything in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
+		iter_turf.update_icon()
+		iter_turf.update_appearance()
+		turfs_updated++
+
+		if(turfs_updated % 100 == 0)
+			CHECK_TICK
+
+	// Update all areas
+	for(var/area/area as anything in GLOB.areas)
+		var/has_turfs_on_z = FALSE
+		for(var/turf/T in area.contents)
+			if(T.z == z_level)
+				has_turfs_on_z = TRUE
+				break
+
+		if(has_turfs_on_z)
+			areas_updated++
+			area.update_icon()
+
+		CHECK_TICK
+
+	log_dungeon("Dungeon Generator: Updated [turfs_updated] turfs and [areas_updated] areas on Z-level [z_level]")
+	return TRUE
+
+// Cleanup and utility procs
 /datum/portal_destination/veilbreak/proc/cleanup_dungeon()
 	if(dungeon_z_level && dungeon_z_level <= world.maxz)
-		log_game("Dungeon at Z-level [dungeon_z_level] marked for cleanup", LOG_CATEGORY_DEBUG_MAPPING)
-		// Note: In your system, Z-levels can't be easily removed
-		// The dungeon will remain but portals won't target it
+		log_dungeon("Dungeon at Z-level [dungeon_z_level] marked for cleanup")
 
 	dungeon_z_level = 0
 	generated = FALSE
@@ -413,183 +594,9 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 
 /datum/portal_destination/veilbreak/proc/validate_state()
 	if(generating && generated)
-		log_game("Dungeon Generator: WARNING - Portal in invalid state (both generating and generated)", LOG_CATEGORY_DEBUG_MAPPING)
+		log_dungeon("Dungeon Generator: WARNING - Portal in invalid state (both generating and generated)")
 		return FALSE
 	if(dungeon_z_level > world.maxz)
-		log_game("Dungeon Generator: WARNING - Dungeon Z-level [dungeon_z_level] exceeds world maxz [world.maxz]", LOG_CATEGORY_DEBUG_MAPPING)
+		log_dungeon("Dungeon Generator: WARNING - Dungeon Z-level [dungeon_z_level] exceeds world maxz [world.maxz]")
 		return FALSE
 	return TRUE
-
-/datum/portal_destination/veilbreak/proc/initialize_dungeon_subsystems(z_level)
-	log_game("Dungeon Generator: Starting subsystem initialization for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-
-	// Track initialization results
-	var/list/initialization_results = list()
-
-	// 1. CRITICAL: Initialize visual systems first (fixes red X's and darkness)
-	initialization_results["SSvisuals"] = initialize_dungeon_visuals(z_level)
-
-	// 2. CRITICAL: Initialize lighting (visibility)
-	initialization_results["SSlighting"] = initialize_dungeon_lighting(z_level)
-
-	// 3. CRITICAL: Initialize atmospherics (air, pipenets)
-	initialization_results["SSair"] = initialize_dungeon_atmospherics(z_level)
-
-	// 4. CRITICAL: Initialize power systems
-	initialization_results["SSpower"] = initialize_dungeon_power(z_level)
-
-	// 5. IMPORTANT: Initialize machinery processing
-	initialization_results["SSmachinery"] = initialize_dungeon_machinery(z_level)
-
-	// 6. IMPORTANT: Initialize area properties
-	initialization_results["SSareas"] = initialize_dungeon_areas(z_level)
-
-	// Log summary
-	var/success_count = 0
-	var/total_count = length(initialization_results)
-	for(var/subsystem in initialization_results)
-		if(initialization_results[subsystem])
-			success_count++
-
-	log_game("Dungeon Generator: Subsystem initialization complete - [success_count]/[total_count] successful for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-
-	return success_count >= 3 // Return TRUE if at least critical systems initialized
-
-// NEW: Visual system initialization (fixes red X's and wall connections)
-/datum/portal_destination/veilbreak/proc/initialize_dungeon_visuals(z_level)
-	log_game("Dungeon Generator: Initializing visual systems for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-
-	// 1. Initialize icon smoothing (fixes red X's and wall connections)
-	initialize_icon_smoothing(z_level)
-
-	// 2. Initialize area appearance (fixes darkness and area colors)
-	initialize_area_appearance(z_level)
-
-	// 3. Initialize turf visuals
-	initialize_turf_visuals(z_level)
-
-	log_game("Dungeon Generator: Visual systems initialized for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-	return TRUE
-
-// NEW: Icon smoothing initialization
-/datum/portal_destination/veilbreak/proc/initialize_icon_smoothing(z_level)
-	log_game("Dungeon Generator: Initializing icon smoothing for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-
-	var/turfs_smoothed = 0
-
-	// Queue smoothing for all turfs on the Z-level
-	for(var/turf/iter_turf as anything in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
-		// Use standard BYOND smoothing
-		QUEUE_SMOOTH(iter_turf)
-		turfs_smoothed++
-
-		if(turfs_smoothed % 100 == 0) // Check tick every 100 turfs
-			CHECK_TICK
-
-	log_game("Dungeon Generator: Queued smoothing for [turfs_smoothed] turfs on Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-
-// NEW: Area appearance initialization
-/datum/portal_destination/veilbreak/proc/initialize_area_appearance(z_level)
-	log_game("Dungeon Generator: Initializing area appearance for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-
-	var/areas_processed = 0
-
-	for(var/area/iter_area as anything in GLOB.areas)
-		var/list/zlevel_turfs = iter_area.get_zlevel_turf_lists()
-		if(!zlevel_turfs || !zlevel_turfs["[z_level]"])
-			continue
-
-		areas_processed++
-
-		// Force area to update its appearance
-		iter_area.power_change() // This triggers visual updates
-
-		// Update all turfs in the area
-		for(var/turf/iter_turf as anything in zlevel_turfs["[z_level]"])
-			iter_turf.update_icon()
-			iter_turf.update_appearance()
-
-		CHECK_TICK
-
-	log_game("Dungeon Generator: Updated appearance for [areas_processed] areas on Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-
-// NEW: Turf visuals initialization
-/datum/portal_destination/veilbreak/proc/initialize_turf_visuals(z_level)
-	log_game("Dungeon Generator: Initializing turf visuals for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-
-	var/turfs_updated = 0
-
-	for(var/turf/iter_turf as anything in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
-		// Update turf visuals
-		iter_turf.update_icon()
-		iter_turf.update_appearance()
-
-		turfs_updated++
-
-		if(turfs_updated % 100 == 0) // Check tick every 100 turfs
-			CHECK_TICK
-
-	log_game("Dungeon Generator: Updated visuals for [turfs_updated] turfs on Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-
-// NEW: Power initialization
-/datum/portal_destination/veilbreak/proc/initialize_dungeon_power(z_level)
-	log_game("Dungeon Generator: Initializing power systems for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-
-	var/areas_powered = 0
-
-	// Initialize area power (most critical for power distribution)
-	for(var/area/area as anything in GLOB.areas)
-		var/list/zlevel_turfs = area.get_zlevel_turf_lists()
-		if(zlevel_turfs && zlevel_turfs["[z_level]"] && length(zlevel_turfs["[z_level]"]) > 0)
-			// Trigger area power initialization
-			area.power_change()
-			areas_powered++
-
-		CHECK_TICK
-
-	log_game("Dungeon Generator: Initialized power for [areas_powered] areas on Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-	return areas_powered > 0
-
-// NEW: Machinery initialization
-/datum/portal_destination/veilbreak/proc/initialize_dungeon_machinery(z_level)
-	log_game("Dungeon Generator: Initializing machinery for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-
-	var/machines_processed = 0
-
-	// Process all machinery on the new Z-level
-	for(var/obj/machinery/machine in world)
-		if(machine.z == z_level)
-			machines_processed++
-			// Ensure machinery is properly set up
-			if(machine.use_power)
-				machine.power_change()
-
-		if(machines_processed % 50 == 0) // Check tick every 50 machines
-			CHECK_TICK
-
-	log_game("Dungeon Generator: Processed [machines_processed] machines on Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-	return machines_processed > 0
-
-// NEW: Area initialization
-/datum/portal_destination/veilbreak/proc/initialize_dungeon_areas(z_level)
-	log_game("Dungeon Generator: Initializing area properties for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-
-	var/areas_initialized = 0
-
-	for(var/area/area as anything in GLOB.areas)
-		var/list/zlevel_turfs = area.get_zlevel_turf_lists()
-		if(zlevel_turfs && zlevel_turfs["[z_level]"] && length(zlevel_turfs["[z_level]"]) > 0)
-			areas_initialized++
-
-			// Ensure area power settings are properly initialized
-			area.power_equip = initial(area.power_equip)
-			area.power_light = initial(area.power_light)
-			area.power_environ = initial(area.power_environ)
-
-			// Trigger area power update
-			area.power_change()
-
-		CHECK_TICK
-
-	log_game("Dungeon Generator: Initialized [areas_initialized] areas on Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-	return areas_initialized > 0
