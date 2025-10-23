@@ -95,6 +95,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	var/wait = 0
 	var/enabled = TRUE
 	var/hidden = FALSE
+	var/obj/machinery/portal/connected_portal
 
 /datum/portal_destination/proc/is_available()
 	return enabled && (world.time - SSticker.round_start_time >= wait)
@@ -139,7 +140,6 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	var/generating = FALSE
 	var/generated = FALSE
 	var/dungeon_z_level = 0
-	var/obj/machinery/portal/connected_portal
 	var/last_generation_data = null
 	var/current_request_id = 0
 	var/generation_progress = 0
@@ -261,7 +261,8 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 /datum/portal_destination/veilbreak/proc/load_generated_dmm(dmm_content, list/metadata)
 	if(!dmm_content)
 		return generation_failed("No DMM content provided")
-
+	if(SSatoms.initialized)
+		SSatoms.InitializeAtoms()
 	log_dungeon("Dungeon Generator: Starting DMM content load for Veilbreak dungeon")
 
 	// Save original DMM for debugging
@@ -608,4 +609,76 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	if(dungeon_z_level > world.maxz)
 		log_dungeon("Dungeon Generator: WARNING - Dungeon Z-level [dungeon_z_level] exceeds world maxz [world.maxz]")
 		return FALSE
+	return TRUE
+
+
+/datum/portal_destination/veilbreak/proc/ensure_portal_connection()
+	if(!dungeon_z_level || !last_generation_data)
+		return FALSE
+
+	var/list/metadata = last_generation_data["metadata"]
+	if(!metadata || !metadata["key_positions"])
+		return FALSE
+
+	// Find the gateway position in the dungeon
+	var/turf/gateway_turf = get_target_turf()
+	if(!gateway_turf)
+		log_dungeon("Dungeon Generator: No gateway position found in metadata")
+		return FALSE
+
+	// Look for existing portal or create one
+	var/obj/machinery/portal/dungeon_portal = locate(/obj/machinery/portal) in gateway_turf
+	if(!dungeon_portal)
+		// Create a portal
+		if(connected_portal)
+			dungeon_portal = new connected_portal.type(gateway_turf)
+		else
+			dungeon_portal = new /obj/machinery/portal(gateway_turf)
+
+		// Make it always powered
+		dungeon_portal.use_power = NO_POWER_USE
+		dungeon_portal.active_power_usage = 0
+		dungeon_portal.idle_power_usage = 0
+
+		log_dungeon("Dungeon Generator: Created always-powered dungeon portal at [gateway_turf.x],[gateway_turf.y],[gateway_turf.z]")
+
+	// Force the portal to be active
+	dungeon_portal.portal_possible = TRUE
+	dungeon_portal.transport_active = TRUE
+	dungeon_portal.update_appearance()
+
+
+	// Configure the dungeon portal to point back to station
+	dungeon_portal.name = "Veilbreak Return Gateway"
+
+	// Set up bidirectional connection using the actual portal system mechanics
+	if(connected_portal)
+		// Method 1: Use the destination system that already exists
+		// Create a return destination for the dungeon portal
+		var/datum/portal_destination/return_destination = new /datum/portal_destination()
+		return_destination.name = "Return to Station"
+		return_destination.wait = 0
+		return_destination.enabled = TRUE
+
+		// Store the station portal's turf as the return target
+		return_destination.connected_portal = connected_portal
+
+		// Add to global list with unique ID
+		var/return_id = "veilbreak_return_[dungeon_z_level]"
+		GLOB.portal_destinations[return_id] = return_destination
+
+		// Configure dungeon portal to use this return destination
+		dungeon_portal.target = return_destination
+		dungeon_portal.portal_possible = TRUE
+
+		// Configure station portal to point to this dungeon destination
+		connected_portal.target = src
+		connected_portal.portal_possible = TRUE
+		connected_portal.name = "Veilbreak Dungeon Gateway"
+
+		// Update both portals
+		connected_portal.update_appearance()
+		dungeon_portal.update_appearance()
+
+	log_dungeon("Dungeon Generator: Portal connection established between station and dungeon")
 	return TRUE

@@ -17,9 +17,10 @@
 
 	active_power_usage = BASE_MACHINE_ACTIVE_CONSUMPTION * 8
 
+	// MAKE SURE THESE VARIABLES EXIST:
 	var/calibrated = TRUE
 	var/datum/portal_destination/veilbreak/destination
-	var/datum/portal_destination/target
+	var/datum/portal_destination/target  // THIS IS CRITICAL
 	var/obj/effect/portal_bumper/portal
 	var/portal_possible = FALSE
 	var/transport_active = FALSE
