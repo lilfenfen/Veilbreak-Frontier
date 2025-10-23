@@ -118,6 +118,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 			M.client.move_delay = max(world.time + 5, M.client.move_delay)
 
 /datum/portal_destination/proc/activate(obj/machinery/portal/activated)
+	log_dungeon("Portal Destination: [name] activated by portal at [AREACOORD(activated)]")
 	return
 
 /datum/portal_destination/proc/deactivate(obj/machinery/portal/deactivated)
@@ -252,7 +253,11 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 
 // Add interface method for portal control
 /datum/portal_destination/veilbreak/activate(obj/machinery/portal/activated)
+	. = ..() // Call parent for logging
 	log_dungeon("Dungeon Generator: Portal activated to [name] at Z-level [dungeon_z_level]")
+	// Ensure portal connection is established when activated
+	if(activated == connected_portal) // Only do this for the station portal, not the dungeon portal
+		ensure_portal_connection()
 
 /datum/portal_destination/veilbreak/deactivate(obj/machinery/portal/deactivated)
 	log_dungeon("Dungeon Generator: Portal deactivated from [name]")
@@ -339,6 +344,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	if(connected_portal)
 		connected_portal.generated_dungeon_data = metadata
 		connected_portal.say("Dungeon generation complete. Portal stabilized.")
+		ensure_portal_connection()
 
 	log_dungeon("Dungeon Generator: Veilbreak dungeon fully initialized at Z-level [dungeon_z_level]")
 	return TRUE
@@ -645,22 +651,25 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	// Force the portal to be active
 	dungeon_portal.portal_possible = TRUE
 	dungeon_portal.transport_active = TRUE
-	dungeon_portal.update_appearance()
 
+	// CRITICAL: Generate the portal bumper
+	if(!dungeon_portal.portal)
+		dungeon_portal.generate_bumper()
+
+	dungeon_portal.update_appearance()
 
 	// Configure the dungeon portal to point back to station
 	dungeon_portal.name = "Veilbreak Return Gateway"
 
 	// Set up bidirectional connection using the actual portal system mechanics
 	if(connected_portal)
-		// Method 1: Use the destination system that already exists
-		// Create a return destination for the dungeon portal
+		// Create a simple return destination that points to the station portal's location
 		var/datum/portal_destination/return_destination = new /datum/portal_destination()
 		return_destination.name = "Return to Station"
 		return_destination.wait = 0
 		return_destination.enabled = TRUE
 
-		// Store the station portal's turf as the return target
+		// Store the station portal's location for the return trip
 		return_destination.connected_portal = connected_portal
 
 		// Add to global list with unique ID
@@ -671,14 +680,23 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		dungeon_portal.target = return_destination
 		dungeon_portal.portal_possible = TRUE
 
+		// CRITICAL: Activate the dungeon portal
+		dungeon_portal.activate(return_destination)
+
 		// Configure station portal to point to this dungeon destination
 		connected_portal.target = src
 		connected_portal.portal_possible = TRUE
 		connected_portal.name = "Veilbreak Dungeon Gateway"
 
+		// CRITICAL: Activate the station portal and generate its bumper
+		if(!connected_portal.portal)
+			connected_portal.generate_bumper()
+		connected_portal.activate(src)
+
 		// Update both portals
 		connected_portal.update_appearance()
 		dungeon_portal.update_appearance()
 
-	log_dungeon("Dungeon Generator: Portal connection established between station and dungeon")
+		log_dungeon("Dungeon Generator: Bidirectional portal connection established - station portal at [AREACOORD(connected_portal)] linked to dungeon portal at [AREACOORD(dungeon_portal)]")
+
 	return TRUE
