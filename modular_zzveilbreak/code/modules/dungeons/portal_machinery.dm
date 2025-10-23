@@ -94,19 +94,24 @@
 	destination = new /datum/portal_destination/veilbreak()
 	destination.connected_portal = src
 
-	// FIX: Properly add to global destinations with a unique key
-	var/destination_id = "veilbreak_[REF(src)]_[world.time]"
+	// FIX: Use a proper string key, not a raw reference
+	var/destination_id = "veilbreak_station_[world.time]_[rand(1000,9999)]"
 	GLOB.portal_destinations[destination_id] = destination
 
 	log_portal("Initialized at [AREACOORD(src)] with destination [destination.name] (ID: [destination_id])")
 	update_appearance()
 
+
 /obj/machinery/portal/Destroy()
 	log_portal("Destroying portal at [AREACOORD(src)]")
 
-	// Clean up destination
+	// Clean up destination - find and remove it from global list
 	if(destination)
-		GLOB.portal_destinations -= destination
+		for(var/key in GLOB.portal_destinations)
+			if(GLOB.portal_destinations[key] == destination)
+				GLOB.portal_destinations -= key
+				log_portal("Removed destination [key] from global list")
+				break
 		QDEL_NULL(destination)
 
 	// Clean up active connection
@@ -157,7 +162,12 @@
 
 /// Check if any valid destinations are available
 /obj/machinery/portal/proc/check_destination_availability()
-	for(var/datum/portal_destination/possible_destination as anything in GLOB.portal_destinations)
+	// FIX: Safely iterate through the associative list
+	for(var/destination_key in GLOB.portal_destinations)
+		var/datum/portal_destination/possible_destination = GLOB.portal_destinations[destination_key]
+		if(!istype(possible_destination)) // Safety check
+			log_portal("WARNING: Invalid destination found in global list: [destination_key]")
+			continue
 		if(valid_destination(possible_destination) && possible_destination.is_available())
 			return TRUE
 	return FALSE

@@ -442,9 +442,20 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 
 	// First pass: Initialize all atoms and queue turfs for smoothing
 	var/list/turfs_to_smooth = list()
+	var/list/atoms_to_initialize = list()
 
+	// Collect all atoms first to avoid modifying while iterating
 	for(var/atom/A in world)
 		if(A.z != z_level)
+			continue
+		atoms_to_initialize += A
+
+	log_dungeon("Dungeon Generator: Found [length(atoms_to_initialize)] atoms to initialize on Z-level [z_level]")
+
+	// Initialize atoms in batches
+	for(var/atom/A in atoms_to_initialize)
+		// Skip atoms that shouldn't be smoothed
+		if(istype(A, /obj/effect/decal/cleanable) || istype(A, /obj/effect))
 			continue
 
 		// Initialize atom if needed
@@ -452,8 +463,8 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 			SSatoms.InitAtom(A, FALSE, list(FALSE))
 			atoms_initialized++
 
-		// Collect turfs for smoothing
-		if(isturf(A))
+		// Collect turfs for smoothing (skip effects and decals)
+		if(isturf(A) && !istype(A, /turf/open/space))
 			turfs_to_smooth += A
 			turfs_processed++
 
@@ -462,15 +473,16 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 
 	log_dungeon("Dungeon Generator: Initialized [atoms_initialized] atoms, found [turfs_processed] turfs on Z-level [z_level]")
 
-	// Second pass: Trigger smoothing for all turfs
+	// Second pass: Trigger smoothing for turfs only
 	log_dungeon("Dungeon Generator: Starting turf smoothing for [length(turfs_to_smooth)] turfs")
 	var/smoothed_turfs = 0
 
 	for(var/turf/T as anything in turfs_to_smooth)
-		// Force immediate smoothing
-		T.smooth_icon() // This directly updates the icon
-		T.update_icon() // This ensures the appearance is updated
-		T.update_appearance() // This handles any visual effects
+		// Only smooth turfs that support smoothing
+		if(T.smoothing_flags & (SMOOTH_BITMASK))
+			T.smooth_icon()
+		T.update_icon()
+		T.update_appearance()
 
 		// Trigger AfterChange for turfs to handle connections
 		if(istype(T, /turf/closed))
@@ -482,20 +494,10 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		if(smoothed_turfs % 100 == 0)
 			CHECK_TICK
 
-	log_dungeon("Dungeon Generator: Smoothed [smoothed_turfs] turfs on Z-level [z_level]")
+	log_dungeon("Dungeon Generator: Processed [smoothed_turfs] turfs on Z-level [z_level]")
 
-	// Third pass: Force area updates that might affect smoothing
-	for(var/area/area as anything in GLOB.areas)
-		var/has_turfs_on_z = FALSE
-		for(var/turf/T in area.contents)
-			if(T.z == z_level)
-				has_turfs_on_z = TRUE
-				break
-
-		if(has_turfs_on_z)
-			area.update_icon()
-
-		CHECK_TICK
+	// Let SSicon_smooth handle the actual smoothing in the next tick
+	log_dungeon("Dungeon Generator: Queuing icon smoothing subsystem for Z-level [z_level]")
 
 	return atoms_initialized > 0
 
@@ -643,11 +645,13 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	var/turfs_updated = 0
 	var/areas_updated = 0
 
-	// Update all turfs immediately
+	// Update all turfs immediately, but skip problematic types
 	for(var/turf/iter_turf as anything in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
-		iter_turf.update_icon()
-		iter_turf.update_appearance()
-		turfs_updated++
+		// Skip effects and decals from smoothing
+		if(!istype(iter_turf, /obj/effect) && !istype(iter_turf, /obj/effect/decal))
+			iter_turf.update_icon()
+			iter_turf.update_appearance()
+			turfs_updated++
 
 		if(turfs_updated % 100 == 0)
 			CHECK_TICK
