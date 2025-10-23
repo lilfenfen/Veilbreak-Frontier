@@ -340,6 +340,11 @@ GLOBAL_LIST_INIT(message_modes_stat_limits, list(
 	if(speaker_is_signing) //Checks if speaker is using sign language
 		deaf_message = compose_message(speaker, message_language, raw_message, radio_freq, radio_freq_name, radio_freq_color, spans, message_mods, TRUE)
 
+		// play a custom sound on emotes
+		if(message_mods[MODE_CUSTOM_SAY_EMOTE])
+			playsound_local(src, 'modular_zzveilbreak/sound/effects/jingle.ogg', 25, FALSE, pressure_affected: FALSE)
+		// end
+
 		if(speaker != src)
 			if(!radio_freq) //I'm about 90% sure there's a way to make this less cluttered
 				deaf_type = MSG_VISUAL
@@ -366,6 +371,11 @@ GLOBAL_LIST_INIT(message_modes_stat_limits, list(
 			deaf_message = "[span_name("[speaker]")] [speaker.get_default_say_verb()] something but you cannot hear [speaker.p_them()]."
 			deaf_type = MSG_VISUAL
 	else
+		// play a sound for custom emotes, deaf
+		if(message_mods[MODE_CUSTOM_SAY_EMOTE])
+			playsound_local(src, 'modular_zzveilbreak/master_files/sound/effects/jingle.ogg', 25, FALSE, pressure_affected: FALSE)
+		// end
+
 		deaf_message = span_notice("You can't hear yourself!")
 		deaf_type = MSG_AUDIBLE // Since you should be able to hear yourself without looking
 
