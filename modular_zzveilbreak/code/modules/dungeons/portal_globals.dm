@@ -685,26 +685,20 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		dungeon_portal = new(gateway_turf)
 		log_dungeon("Dungeon Generator: Created new dungeon portal at [AREACOORD(dungeon_portal)]")
 
-	// Configure dungeon portal as always-powered
+	// Configure dungeon portal
 	dungeon_portal.use_power = NO_POWER_USE
-	dungeon_portal.active_power_usage = 0
-	dungeon_portal.idle_power_usage = 0
 	dungeon_portal.portal_possible = TRUE
 
 	// Generate bumper if needed
 	if(!dungeon_portal.bumper)
 		dungeon_portal.generate_bumper()
 
-	// CRITICAL: Create a proper return destination for the dungeon portal
-	var/datum/portal_destination/return_destination = new()
+	// CRITICAL FIX: Create a SIMPLE return destination that directly references the station portal's location
+	var/datum/portal_destination/simple/return_destination = new()
 	return_destination.name = "Return to Station"
-	return_destination.wait = 0
-	return_destination.enabled = TRUE
+	return_destination.return_portal = connected_portal // Direct reference to station portal
 
-	// Store reference to the station portal for return trips
-	return_destination.connected_portal = connected_portal
-
-	// Add to global destinations with unique ID
+	// Register return destination
 	var/return_id = "veilbreak_return_[dungeon_z_level]_[world.time]"
 	GLOB.portal_destinations[return_id] = return_destination
 
@@ -716,23 +710,34 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	log_dungeon("Dungeon Generator: Dungeon portal configured with return destination at [AREACOORD(dungeon_portal)]")
 
 	// Configure the station portal to target this dungeon
-	if(connected_portal)
+	if(connected_portal && connected_portal.destination == src) // Only if this is the correct destination
 		connected_portal.target = src
 		connected_portal.transport_active = TRUE
-
-		if(!connected_portal.bumper)
-			connected_portal.generate_bumper()
-
 		connected_portal.update_appearance()
 
-		log_dungeon("Dungeon Generator: Station portal at [AREACOORD(connected_portal)] configured to target dungeon at Z-level [dungeon_z_level]")
-
-		// Let the portal machinery handle the sounds - remove these lines:
-		// playsound(connected_portal, 'sound/machines/gateway/gateway_open.ogg', 140, TRUE, TRUE, PORTAL_SOUND_RANGE)
-		// playsound(dungeon_portal, 'sound/machines/gateway/gateway_open.ogg', 140, TRUE, TRUE, PORTAL_SOUND_RANGE)
-
-		log_dungeon("Dungeon Generator: Bidirectional portal connection ESTABLISHED between station and dungeon Z-level [dungeon_z_level]")
+		log_dungeon("Dungeon Generator: SUCCESS - Bidirectional connection established!")
+		log_dungeon("Dungeon Generator: Station -> Dungeon: [AREACOORD(connected_portal)] -> Z-level [dungeon_z_level]")
+		log_dungeon("Dungeon Generator: Dungeon -> Station: [AREACOORD(dungeon_portal)] -> [AREACOORD(connected_portal)]")
 		return TRUE
 
-	log_dungeon("Dungeon Generator: WARNING - No connected_portal found for bidirectional setup")
+	log_dungeon("Dungeon Generator: WARNING - Connection incomplete")
 	return FALSE
+
+
+// Simple destination that directly references a portal location
+/datum/portal_destination/simple
+	name = "Simple Destination"
+	var/obj/machinery/portal/return_portal
+
+/datum/portal_destination/simple/get_target_turf()
+	if(return_portal)
+		return get_turf(return_portal)
+	return null
+
+/datum/portal_destination/simple/is_available()
+	return return_portal && !QDELETED(return_portal)
+
+/datum/portal_destination/simple/get_available_reason()
+	if(!return_portal || QDELETED(return_portal))
+		return "Return portal not available"
+	return "Available for return"

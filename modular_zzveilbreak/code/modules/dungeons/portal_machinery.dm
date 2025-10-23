@@ -93,9 +93,12 @@
 	// Create our default Veilbreak destination
 	destination = new /datum/portal_destination/veilbreak()
 	destination.connected_portal = src
-	GLOB.portal_destinations += destination
 
-	log_portal("Initialized at [AREACOORD(src)] with destination [destination.name]")
+	// FIX: Properly add to global destinations with a unique key
+	var/destination_id = "veilbreak_[REF(src)]_[world.time]"
+	GLOB.portal_destinations[destination_id] = destination
+
+	log_portal("Initialized at [AREACOORD(src)] with destination [destination.name] (ID: [destination_id])")
 	update_appearance()
 
 /obj/machinery/portal/Destroy()
