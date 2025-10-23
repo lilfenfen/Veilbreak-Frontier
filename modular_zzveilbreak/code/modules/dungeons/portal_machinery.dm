@@ -1,12 +1,60 @@
 // modular_zzveilbreak/code/modules/dungeons/portal_machinery.dm
 
+/// Dimensional portal machinery for Veilbreak dungeons
+/// Handles portal creation, activation, and transfers between station and generated dungeons
+
+// ===== CONFIGURATION =====
+#define PORTAL_ACTIVE_POWER_USAGE (BASE_MACHINE_ACTIVE_CONSUMPTION * 8)
+#define PORTAL_SOUND_RANGE 7
+#define PORTAL_TRAVEL_SOUND_RANGE 3
+
+// ===== LOGGING =====
+/// Helper proc for portal machinery logging with consistent formatting
+/proc/log_portal(text, list/data)
+	log_game("PORTAL: [text]", data, LOG_GAME)
+
+// ===== PORTAL BUMPER =====
+/// Invisible collision object that handles portal transfers
+/obj/effect/portal_bumper
+	name = "portal energy field"
+	desc = "A shimmering energy field that transports matter between dimensions."
+	density = TRUE
+	invisibility = INVISIBILITY_ABSTRACT
+	anchored = TRUE
+	resistance_flags = INDESTRUCTIBLE | LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF
+
+	/// Reference to the parent portal machinery
+	var/obj/machinery/portal/parent_portal
+
+/obj/effect/portal_bumper/Initialize(mapload, obj/machinery/portal/parent)
+	. = ..()
+	if(!parent)
+		return INITIALIZE_HINT_QDEL
+	parent_portal = parent
+	log_portal("Bumper created at [AREACOORD(src)] for portal [AREACOORD(parent)]")
+
+/obj/effect/portal_bumper/Destroy()
+	parent_portal = null
+	log_portal("Bumper destroyed at [AREACOORD(src)]")
+	return ..()
+
+/obj/effect/portal_bumper/Bumped(atom/movable/arriving_object)
+	if(!parent_portal?.can_transfer(arriving_object))
+		return
+
+	if(get_dir(src, arriving_object) == parent_portal.dir)
+		log_portal("Transfer initiated for [arriving_object] at [AREACOORD(src)]")
+		playsound(src, 'sound/machines/gateway/gateway_travel.ogg', 70, TRUE, PORTAL_TRAVEL_SOUND_RANGE)
+		parent_portal.transfer(arriving_object)
+
+// ===== MAIN PORTAL MACHINERY =====
 /obj/machinery/portal
 	name = "dimensional portal"
 	desc = "A shimmering portal to unknown realms. This one seems to lead to dynamically generated Veilbreak dungeons."
 	icon = 'icons/obj/machines/gateway.dmi'
 	icon_state = "portal_frame"
-	resistance_flags = INDESTRUCTIBLE | LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF
 
+	// Positioning and collision
 	pixel_x = -32
 	pixel_y = -32
 	bound_height = 64
@@ -15,190 +63,280 @@
 	bound_y = 0
 	density = TRUE
 
-	active_power_usage = BASE_MACHINE_ACTIVE_CONSUMPTION * 8
+	// Power configuration
+	use_power = IDLE_POWER_USE
+	active_power_usage = PORTAL_ACTIVE_POWER_USAGE
+	idle_power_usage = BASE_MACHINE_IDLE_CONSUMPTION
 
-	// MAKE SURE THESE VARIABLES EXIST:
+	// Invulnerability
+	resistance_flags = INDESTRUCTIBLE | LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF
+
+	// Portal state management
+	/// Whether this portal has been calibrated for stable operation
 	var/calibrated = TRUE
+	/// The default Veilbreak destination this portal creates
 	var/datum/portal_destination/veilbreak/destination
-	var/datum/portal_destination/target  // THIS IS CRITICAL
-	var/obj/effect/portal_bumper/portal
+	/// The currently active destination for transfers
+	var/datum/portal_destination/target
+	/// The collision bumper that handles transfers
+	var/obj/effect/portal_bumper/bumper
+	/// Whether any valid destinations are available
 	var/portal_possible = FALSE
+	/// Whether the portal is actively transporting
 	var/transport_active = FALSE
-	var/list/generated_dungeon_data = null
-
-// Helper proc for portal machinery logging
-/proc/log_portal_machinery(text)
-	log_game(text, list(), LOG_GAME)
+	/// Data about the generated dungeon for UI/feedback
+	var/list/generated_dungeon_data
 
 /obj/machinery/portal/Initialize(mapload)
 	. = ..()
+
+	// Create our default Veilbreak destination
 	destination = new /datum/portal_destination/veilbreak()
 	destination.connected_portal = src
 	GLOB.portal_destinations += destination
-	log_portal_machinery("Portal Machinery: Initialized new portal at [AREACOORD(src)] with destination [destination.name]")
+
+	log_portal("Initialized at [AREACOORD(src)] with destination [destination.name]")
 	update_appearance()
 
 /obj/machinery/portal/Destroy()
-	log_portal_machinery("Portal Machinery: Destroying portal at [AREACOORD(src)]")
+	log_portal("Destroying portal at [AREACOORD(src)]")
+
+	// Clean up destination
 	if(destination)
 		GLOB.portal_destinations -= destination
 		QDEL_NULL(destination)
+
+	// Clean up active connection
 	if(target)
 		deactivate()
+
+	// Clean up bumper
+	QDEL_NULL(bumper)
+
 	return ..()
 
+/// Main processing - handles power state and destination availability
 /obj/machinery/portal/process()
-	if((machine_stat & (NOPOWER)) && use_power)
+	if(is_dungeon_portal())
+		handle_dungeon_portal_processing()
+	else
+		handle_station_portal_processing()
+
+/// Check if this portal is located in a dungeon (mining/away Z-level)
+/obj/machinery/portal/proc/is_dungeon_portal()
+	return z && (SSmapping.level_trait(z, ZTRAIT_AWAY) || SSmapping.level_trait(z, ZTRAIT_MINING))
+
+/// Processing logic for dungeon portals (always active, no power required)
+/obj/machinery/portal/proc/handle_dungeon_portal_processing()
+	portal_possible = TRUE
+	if(target && !transport_active)
+		transport_active = TRUE
+		update_appearance()
+
+/// Processing logic for station portals (power-dependent)
+/obj/machinery/portal/proc/handle_station_portal_processing()
+	// Check power state
+	if((machine_stat & NOPOWER) && use_power)
 		if(portal_possible)
-			log_portal_machinery("Portal Machinery: Portal lost power at [AREACOORD(src)]")
+			log_portal("Lost power at [AREACOORD(src)]")
 		portal_possible = FALSE
 		if(target)
 			deactivate()
 		return
 
-	// Update portal possibility based on destination generation status
+	// Check destination availability
 	var/was_possible = portal_possible
-	portal_possible = FALSE
-
-	for(var/datum/portal_destination/possible_destination in GLOB.portal_destinations)
-		if(!valid_destination(possible_destination) || !possible_destination.is_available())
-			continue
-		portal_possible = TRUE
-		break
+	portal_possible = check_destination_availability()
 
 	if(was_possible != portal_possible)
-		log_portal_machinery("Portal Machinery: Portal possibility changed to [portal_possible] at [AREACOORD(src)]")
+		log_portal("Destination availability changed to [portal_possible] at [AREACOORD(src)]")
 		update_appearance()
 
-/obj/machinery/portal/proc/valid_destination(datum/portal_destination/possible_destination)
-	if(possible_destination == destination)
-		return FALSE
-	return TRUE
+/// Check if any valid destinations are available
+/obj/machinery/portal/proc/check_destination_availability()
+	for(var/datum/portal_destination/possible_destination as anything in GLOB.portal_destinations)
+		if(valid_destination(possible_destination) && possible_destination.is_available())
+			return TRUE
+	return FALSE
 
+/// Check if a destination is valid for this portal
+/obj/machinery/portal/proc/valid_destination(datum/portal_destination/possible_destination)
+	return possible_destination != destination
+
+/// Update visual state based on portal status
 /obj/machinery/portal/update_overlays()
 	. = ..()
+
 	if(portal_possible)
 		. += "portal_light"
+
 	if(transport_active)
 		. += "portal_effect"
 
+/// Create the collision bumper for this portal
 /obj/machinery/portal/proc/generate_bumper()
-	portal = new(get_turf(src))
-	portal.parent_portal = src
-	log_portal_machinery("Portal Machinery: Generated portal bumper at [AREACOORD(portal)]")
+	if(bumper)
+		QDEL_NULL(bumper)
 
-/obj/machinery/portal/proc/activate(datum/portal_destination/D)
-	if(!powered())
-		log_portal_machinery("Portal Machinery: Activation failed - no power at [AREACOORD(src)]")
-		return
-	if(target)
-		log_portal_machinery("Portal Machinery: Activation failed - already active to [target.name] at [AREACOORD(src)]")
-		return
+	bumper = new(get_turf(src), src)
+	log_portal("Generated bumper at [AREACOORD(bumper)]")
 
-	target = D
+/// Activate the portal to a specific destination
+/obj/machinery/portal/proc/activate(datum/portal_destination/new_target)
+	if(!can_activate(new_target))
+		return FALSE
+
+	target = new_target
 	transport_active = TRUE
 
-	if(istype(D, /datum/portal_destination/veilbreak))
-		var/datum/portal_destination/veilbreak/veil_dest = D
-		if(!veil_dest.generated && !veil_dest.generating)
-			log_portal_machinery("Portal Machinery: Starting dungeon generation for [veil_dest.name] at [AREACOORD(src)]")
-			veil_dest.start_generation()
-			say("Initializing portal to [veil_dest.name]...")
-			// Don't fully activate until generation is complete
-			transport_active = FALSE
-			target = null
-			return
-		else if(veil_dest.generating)
-			log_portal_machinery("Portal Machinery: Activation delayed - [veil_dest.name] still generating at [AREACOORD(src)]")
-			say("Portal to [veil_dest.name] still stabilizing...")
-			transport_active = FALSE
-			target = null
-			return
-		else if(veil_dest.generated)
-			log_portal_machinery("Portal Machinery: Successfully activated portal to generated dungeon [veil_dest.name] at Z-level [veil_dest.dungeon_z_level]")
-			generated_dungeon_data = veil_dest.last_generation_data
+	// Handle Veilbreak-specific activation logic
+	if(istype(new_target, /datum/portal_destination/veilbreak))
+		handle_veilbreak_activation(new_target)
+		return TRUE
 
-	// Only play sounds and create bumper if we're actually activating
-	playsound(src, 'sound/machines/gateway/gateway_open.ogg', 140, TRUE, TRUE, SOUND_RANGE)
-	generate_bumper()
-	update_use_power(ACTIVE_POWER_USE)
-	update_appearance()
-	D.activate(src)
+	// Standard activation
+	complete_activation(new_target)
+	return TRUE
 
-/obj/machinery/portal/proc/deactivate()
-	if(!target)
-		log_portal_machinery("Portal Machinery: Deactivation attempted but no target set at [AREACOORD(src)]")
+/// Check if the portal can be activated
+/obj/machinery/portal/proc/can_activate(datum/portal_destination/new_target)
+	if(target)
+		log_portal("Activation failed - already active to [target.name] at [AREACOORD(src)]")
+		return FALSE
+
+	if(!is_dungeon_portal() && !powered())
+		log_portal("Activation failed - no power at [AREACOORD(src)]")
+		return FALSE
+
+	return TRUE
+
+/// Handle Veilbreak dungeon-specific activation logic
+/obj/machinery/portal/proc/handle_veilbreak_activation(datum/portal_destination/veilbreak/veil_dest)
+	if(!veil_dest.generated && !veil_dest.generating)
+		log_portal("Starting dungeon generation for [veil_dest.name] at [AREACOORD(src)]")
+		say("Initializing portal to [veil_dest.name]...")
+		veil_dest.start_generation()
+		reset_activation_state()
 		return
 
-	var/datum/portal_destination/dest = target
-	log_portal_machinery("Portal Machinery: Deactivating portal from [dest.name] at [AREACOORD(src)]")
+	if(veil_dest.generating)
+		log_portal("Activation delayed - [veil_dest.name] still generating at [AREACOORD(src)]")
+		say("Portal to [veil_dest.name] still stabilizing...")
+		reset_activation_state()
+		return
+
+	// Generation complete - proceed with activation
+	log_portal("Successfully activated to generated dungeon [veil_dest.name] at Z-level [veil_dest.dungeon_z_level]")
+	generated_dungeon_data = veil_dest.last_generation_data
+	complete_activation(veil_dest)
+
+/// Reset activation state after failed or delayed activation
+/obj/machinery/portal/proc/reset_activation_state()
+	transport_active = FALSE
+	target = null
+
+/// Complete the portal activation process
+/obj/machinery/portal/proc/complete_activation(datum/portal_destination/dest)
+	playsound(src, 'sound/machines/gateway/gateway_open.ogg', 140, TRUE, TRUE, PORTAL_SOUND_RANGE)
+	generate_bumper()
+
+	if(!is_dungeon_portal())
+		update_use_power(ACTIVE_POWER_USE)
+
+	update_appearance()
+	dest.activate(src)
+
+	log_portal("Activated to [dest.name] at [AREACOORD(src)]")
+
+/// Deactivate the portal
+/obj/machinery/portal/proc/deactivate()
+	if(!target)
+		log_portal("Deactivation attempted but no target set at [AREACOORD(src)]")
+		return
+
+	var/datum/portal_destination/old_target = target
+	log_portal("Deactivating portal from [old_target.name] at [AREACOORD(src)]")
+
 	target = null
 	transport_active = FALSE
 
-	playsound(src, 'sound/machines/gateway/gateway_close.ogg', 140, TRUE, TRUE, SOUND_RANGE)
-	dest.deactivate(src)
-	QDEL_NULL(portal)
-	update_use_power(IDLE_POWER_USE)
+	playsound(src, 'sound/machines/gateway/gateway_close.ogg', 140, TRUE, TRUE, PORTAL_SOUND_RANGE)
+	old_target.deactivate(src)
+
+	QDEL_NULL(bumper)
+
+	if(!is_dungeon_portal())
+		update_use_power(IDLE_POWER_USE)
+
 	update_appearance()
 
-/obj/machinery/portal/proc/Transfer(atom/movable/AM)
+/// Check if an object can be transferred through the portal
+/obj/machinery/portal/proc/can_transfer(atom/movable/transferring_object)
 	if(!target)
-		log_portal_machinery("Portal Machinery: Transfer failed - no target destination at [AREACOORD(src)]")
-		return
-	if(!target.incoming_pass_check(AM))
-		log_portal_machinery("Portal Machinery: Transfer failed - [AM] failed pass check at [AREACOORD(src)]")
-		return
+		log_portal("Transfer failed - no target destination at [AREACOORD(src)]")
+		return FALSE
+
+	if(!target.incoming_pass_check(transferring_object))
+		log_portal("Transfer failed - [transferring_object] failed pass check at [AREACOORD(src)]")
+		return FALSE
 
 	var/turf/target_turf = target.get_target_turf()
 	if(!target_turf)
-		log_portal_machinery("Portal Machinery: Transfer failed - invalid target turf for [target.name]")
+		log_portal("Transfer failed - invalid target turf for [target.name]")
 		say("Portal destination unstable. Transfer aborted.")
+		return FALSE
+
+	return TRUE
+
+/// Transfer an object through the portal
+/obj/machinery/portal/proc/transfer(atom/movable/transferring_object)
+	var/turf/target_turf = target.get_target_turf()
+
+	log_portal("Transferring [transferring_object] from [AREACOORD(transferring_object)] to [AREACOORD(target_turf)] via [target.name]")
+
+	transferring_object.forceMove(target_turf)
+	target.post_transfer(transferring_object)
+
+	provide_dungeon_feedback(transferring_object)
+
+/// Provide feedback about the dungeon to transferred objects
+/obj/machinery/portal/proc/provide_dungeon_feedback(atom/movable/transferred_object)
+	if(!istype(target, /datum/portal_destination/veilbreak) || !generated_dungeon_data)
 		return
 
-	log_portal_machinery("Portal Machinery: Transferring [AM] from [AREACOORD(AM)] to [AREACOORD(target_turf)] via [target.name]")
-	AM.forceMove(target_turf)
-	target.post_transfer(AM)
+	var/dungeon_name = generated_dungeon_data["map_name"] || "Unknown Dungeon"
+	var/width = generated_dungeon_data["dimensions"]?["width"] || "?"
+	var/height = generated_dungeon_data["dimensions"]?["height"] || "?"
+	var/rooms = generated_dungeon_data["statistics"]?["rooms"] || "?"
+	var/mobs = generated_dungeon_data["statistics"]?["mobs"] || "?"
 
-	// Announce dungeon info if available
-	if(istype(target, /datum/portal_destination/veilbreak) && generated_dungeon_data)
-		var/dungeon_name = generated_dungeon_data["map_name"] || "Unknown Dungeon"
-		to_chat(AM, span_notice("You enter the [dungeon_name]."))
-		to_chat(AM, span_info("Size: [generated_dungeon_data["dimensions"]["width"]]x[generated_dungeon_data["dimensions"]["height"]] | Rooms: [generated_dungeon_data["statistics"]["rooms"]] | Threats: [generated_dungeon_data["statistics"]["mobs"]]"))
+	to_chat(transferred_object, span_notice("You enter the [dungeon_name]."))
+	to_chat(transferred_object, span_info("Size: [width]x[height] | Rooms: [rooms] | Threats: [mobs]"))
 
+// ===== INTERACTION =====
 /obj/machinery/portal/attack_ghost(mob/user)
 	. = ..()
 	if(.)
 		return
 
-	var/turf/tar_turf = target?.get_target_turf()
-	if(isnull(tar_turf))
+	var/turf/target_turf = target?.get_target_turf()
+	if(!target_turf)
 		to_chat(user, span_warning("The portal destination is not yet stable..."))
 		return
 
-	log_portal_machinery("Portal Machinery: Ghost [key_name(user)] transferring through portal at [AREACOORD(src)]")
-	Transfer(user)
+	log_portal("Ghost [key_name(user)] transferring through portal at [AREACOORD(src)]")
+	transfer(user)
 
-/obj/machinery/portal/multitool_act(mob/living/user, obj/item/I)
+/obj/machinery/portal/multitool_act(mob/living/user, obj/item/tool)
+	. = ..()
+	if(.)
+		return TRUE
+
 	if(calibrated)
 		to_chat(user, span_alert("The portal is already calibrated, there is no work for you to do here."))
 	else
-		log_portal_machinery("Portal Machinery: [key_name(user)] calibrated portal at [AREACOORD(src)]")
+		log_portal("[key_name(user)] calibrated portal at [AREACOORD(src)]")
 		to_chat(user, span_boldnotice("Recalibration successful!") + " Portal systems have been fine tuned.")
 		calibrated = TRUE
+
 	return TRUE
-
-// Portal bumper for collision detection
-/obj/effect/portal_bumper
-	var/obj/machinery/portal/parent_portal
-	density = TRUE
-	invisibility = INVISIBILITY_ABSTRACT
-
-/obj/effect/portal_bumper/Bumped(atom/movable/AM)
-	if(get_dir(src, AM) == parent_portal?.dir)
-		log_portal_machinery("Portal Machinery: Bumper at [AREACOORD(src)] triggered by [AM]")
-		playsound(src, 'sound/machines/gateway/gateway_travel.ogg', 70, TRUE, SHORT_RANGE_SOUND_EXTRARANGE)
-		parent_portal.Transfer(AM)
-
-/obj/effect/portal_bumper/Destroy(force)
-	. = ..()
-	parent_portal = null

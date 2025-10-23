@@ -652,8 +652,8 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	dungeon_portal.portal_possible = TRUE
 	dungeon_portal.transport_active = TRUE
 
-	// CRITICAL: Generate the portal bumper
-	if(!dungeon_portal.portal)
+	// FIX: Use the correct variable name 'bumper' instead of 'portal'
+	if(!dungeon_portal.bumper)
 		dungeon_portal.generate_bumper()
 
 	dungeon_portal.update_appearance()
@@ -688,8 +688,8 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		connected_portal.portal_possible = TRUE
 		connected_portal.name = "Veilbreak Dungeon Gateway"
 
-		// CRITICAL: Activate the station portal and generate its bumper
-		if(!connected_portal.portal)
+		// FIX: Use the correct variable name 'bumper' instead of 'portal'
+		if(!connected_portal.bumper)
 			connected_portal.generate_bumper()
 		connected_portal.activate(src)
 
