@@ -24,7 +24,7 @@
 	underfloor_accessibility = UNDERFLOOR_VISIBLE
 
 	// Simple transparency control
-	alpha = 190
+	alpha = 220
 
 /turf/open/floor/void_tile/break_tile()
 	return //unbreakable
