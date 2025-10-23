@@ -23,7 +23,7 @@ GLOBAL_LIST_EMPTY(portal_destinations)
 	var/current_request_id = 0
 	var/list/active_requests = list()
 
-/datum/http_dungeon_generator/proc/generate_dungeon(datum/portal_destination/veilbreak/destination, width = 80, height = 80)
+/datum/http_dungeon_generator/proc/generate_dungeon(datum/portal_destination/veilbreak/destination, width = 250, height = 250)
 	// Check if RUSTG HTTP is available
 	var/datum/http_request/test_request = new()
 	if(!test_request)
