@@ -16,7 +16,7 @@ GLOBAL_LIST_EMPTY(portal_destinations)
 
 // Helper proc for dungeon generator logging that's compatible with our log_game
 /proc/log_dungeon(text)
-	log_game(text, list(), null)
+	log_game(text, list(), LOG_GAME)
 
 // HTTP request manager for dungeon generation
 /datum/http_dungeon_generator
@@ -172,6 +172,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 
 /datum/portal_destination/veilbreak/proc/start_generation()
 	if(generating)
+		log_dungeon("Dungeon Generator: Attempted to start generation while already generating")
 		return
 
 	// Verify mapping subsystem is ready
@@ -195,6 +196,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	if(!GLOB.dungeon_generator)
 		GLOB.dungeon_generator = new /datum/http_dungeon_generator()
 
+	log_dungeon("Dungeon Generator: Starting generation for portal destination [name]")
 	current_request_id = GLOB.dungeon_generator.generate_dungeon(src, 80, 80)
 
 	if(!current_request_id)
@@ -229,7 +231,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	generating = FALSE
 	last_generation_data = data
 
-	log_dungeon("Dungeon Generator: Received successful generation response")
+	log_dungeon("Dungeon Generator: Received successful generation response with [length(data["dmm_content"] || "")] bytes of DMM content")
 
 	// Access dmm_content from top level
 	if(data["dmm_content"])
@@ -247,6 +249,13 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	if(connected_portal)
 		connected_portal.say("Dungeon generation failed: [reason]")
 		connected_portal.generated_dungeon_data = null
+
+// Add interface method for portal control
+/datum/portal_destination/veilbreak/activate(obj/machinery/portal/activated)
+	log_dungeon("Dungeon Generator: Portal activated to [name] at Z-level [dungeon_z_level]")
+
+/datum/portal_destination/veilbreak/deactivate(obj/machinery/portal/deactivated)
+	log_dungeon("Dungeon Generator: Portal deactivated from [name]")
 
 // CORRECTED: Complete dungeon loading implementation with proper atom initialization
 /datum/portal_destination/veilbreak/proc/load_generated_dmm(dmm_content, list/metadata)
