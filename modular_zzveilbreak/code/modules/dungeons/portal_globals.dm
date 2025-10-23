@@ -312,6 +312,7 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 
 	// Initialize all required subsystems
 	initialize_dungeon_subsystems(dungeon_z_level)
+	initialize_dungeon_visuals(dungeon_z_level)
 
 	// Mark as complete
 	generated = TRUE
@@ -325,17 +326,6 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 	log_game("Dungeon Generator: Veilbreak dungeon fully initialized at Z-level [dungeon_z_level]", LOG_CATEGORY_DEBUG_MAPPING)
 	return TRUE
 
-// ADD THE MISSING SUBSYSTEM INITIALIZATION PROCS
-/datum/portal_destination/veilbreak/proc/initialize_dungeon_subsystems(z_level)
-	log_game("Dungeon Generator: Initializing subsystems for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
-
-	// 1. Initialize lighting using area-based approach
-	initialize_dungeon_lighting(z_level)
-
-	// 2. Initialize atmospherics machinery and pipenets
-	initialize_dungeon_atmospherics(z_level)
-
-	log_game("Dungeon Generator: All subsystems initialized for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
 
 /datum/portal_destination/veilbreak/proc/initialize_dungeon_lighting(z_level)
 	if(!SSlighting || !SSlighting.initialized)
@@ -429,3 +419,177 @@ GLOBAL_DATUM(dungeon_generator, /datum/http_dungeon_generator)
 		log_game("Dungeon Generator: WARNING - Dungeon Z-level [dungeon_z_level] exceeds world maxz [world.maxz]", LOG_CATEGORY_DEBUG_MAPPING)
 		return FALSE
 	return TRUE
+
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_subsystems(z_level)
+	log_game("Dungeon Generator: Starting subsystem initialization for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+
+	// Track initialization results
+	var/list/initialization_results = list()
+
+	// 1. CRITICAL: Initialize visual systems first (fixes red X's and darkness)
+	initialization_results["SSvisuals"] = initialize_dungeon_visuals(z_level)
+
+	// 2. CRITICAL: Initialize lighting (visibility)
+	initialization_results["SSlighting"] = initialize_dungeon_lighting(z_level)
+
+	// 3. CRITICAL: Initialize atmospherics (air, pipenets)
+	initialization_results["SSair"] = initialize_dungeon_atmospherics(z_level)
+
+	// 4. CRITICAL: Initialize power systems
+	initialization_results["SSpower"] = initialize_dungeon_power(z_level)
+
+	// 5. IMPORTANT: Initialize machinery processing
+	initialization_results["SSmachinery"] = initialize_dungeon_machinery(z_level)
+
+	// 6. IMPORTANT: Initialize area properties
+	initialization_results["SSareas"] = initialize_dungeon_areas(z_level)
+
+	// Log summary
+	var/success_count = 0
+	var/total_count = length(initialization_results)
+	for(var/subsystem in initialization_results)
+		if(initialization_results[subsystem])
+			success_count++
+
+	log_game("Dungeon Generator: Subsystem initialization complete - [success_count]/[total_count] successful for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+
+	return success_count >= 3 // Return TRUE if at least critical systems initialized
+
+// NEW: Visual system initialization (fixes red X's and wall connections)
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_visuals(z_level)
+	log_game("Dungeon Generator: Initializing visual systems for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+
+	// 1. Initialize icon smoothing (fixes red X's and wall connections)
+	initialize_icon_smoothing(z_level)
+
+	// 2. Initialize area appearance (fixes darkness and area colors)
+	initialize_area_appearance(z_level)
+
+	// 3. Initialize turf visuals
+	initialize_turf_visuals(z_level)
+
+	log_game("Dungeon Generator: Visual systems initialized for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+	return TRUE
+
+// NEW: Icon smoothing initialization
+/datum/portal_destination/veilbreak/proc/initialize_icon_smoothing(z_level)
+	log_game("Dungeon Generator: Initializing icon smoothing for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+
+	var/turfs_smoothed = 0
+
+	// Queue smoothing for all turfs on the Z-level
+	for(var/turf/iter_turf as anything in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
+		// Use standard BYOND smoothing
+		QUEUE_SMOOTH(iter_turf)
+		turfs_smoothed++
+
+		if(turfs_smoothed % 100 == 0) // Check tick every 100 turfs
+			CHECK_TICK
+
+	log_game("Dungeon Generator: Queued smoothing for [turfs_smoothed] turfs on Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+
+// NEW: Area appearance initialization
+/datum/portal_destination/veilbreak/proc/initialize_area_appearance(z_level)
+	log_game("Dungeon Generator: Initializing area appearance for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+
+	var/areas_processed = 0
+
+	for(var/area/iter_area as anything in GLOB.areas)
+		var/list/zlevel_turfs = iter_area.get_zlevel_turf_lists()
+		if(!zlevel_turfs || !zlevel_turfs["[z_level]"])
+			continue
+
+		areas_processed++
+
+		// Force area to update its appearance
+		iter_area.power_change() // This triggers visual updates
+
+		// Update all turfs in the area
+		for(var/turf/iter_turf as anything in zlevel_turfs["[z_level]"])
+			iter_turf.update_icon()
+			iter_turf.update_appearance()
+
+		CHECK_TICK
+
+	log_game("Dungeon Generator: Updated appearance for [areas_processed] areas on Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+
+// NEW: Turf visuals initialization
+/datum/portal_destination/veilbreak/proc/initialize_turf_visuals(z_level)
+	log_game("Dungeon Generator: Initializing turf visuals for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+
+	var/turfs_updated = 0
+
+	for(var/turf/iter_turf as anything in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
+		// Update turf visuals
+		iter_turf.update_icon()
+		iter_turf.update_appearance()
+
+		turfs_updated++
+
+		if(turfs_updated % 100 == 0) // Check tick every 100 turfs
+			CHECK_TICK
+
+	log_game("Dungeon Generator: Updated visuals for [turfs_updated] turfs on Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+
+// NEW: Power initialization
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_power(z_level)
+	log_game("Dungeon Generator: Initializing power systems for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+
+	var/areas_powered = 0
+
+	// Initialize area power (most critical for power distribution)
+	for(var/area/area as anything in GLOB.areas)
+		var/list/zlevel_turfs = area.get_zlevel_turf_lists()
+		if(zlevel_turfs && zlevel_turfs["[z_level]"] && length(zlevel_turfs["[z_level]"]) > 0)
+			// Trigger area power initialization
+			area.power_change()
+			areas_powered++
+
+		CHECK_TICK
+
+	log_game("Dungeon Generator: Initialized power for [areas_powered] areas on Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+	return areas_powered > 0
+
+// NEW: Machinery initialization
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_machinery(z_level)
+	log_game("Dungeon Generator: Initializing machinery for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+
+	var/machines_processed = 0
+
+	// Process all machinery on the new Z-level
+	for(var/obj/machinery/machine in world)
+		if(machine.z == z_level)
+			machines_processed++
+			// Ensure machinery is properly set up
+			if(machine.use_power)
+				machine.power_change()
+
+		if(machines_processed % 50 == 0) // Check tick every 50 machines
+			CHECK_TICK
+
+	log_game("Dungeon Generator: Processed [machines_processed] machines on Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+	return machines_processed > 0
+
+// NEW: Area initialization
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_areas(z_level)
+	log_game("Dungeon Generator: Initializing area properties for Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+
+	var/areas_initialized = 0
+
+	for(var/area/area as anything in GLOB.areas)
+		var/list/zlevel_turfs = area.get_zlevel_turf_lists()
+		if(zlevel_turfs && zlevel_turfs["[z_level]"] && length(zlevel_turfs["[z_level]"]) > 0)
+			areas_initialized++
+
+			// Ensure area power settings are properly initialized
+			area.power_equip = initial(area.power_equip)
+			area.power_light = initial(area.power_light)
+			area.power_environ = initial(area.power_environ)
+
+			// Trigger area power update
+			area.power_change()
+
+		CHECK_TICK
+
+	log_game("Dungeon Generator: Initialized [areas_initialized] areas on Z-level [z_level]", LOG_CATEGORY_DEBUG_MAPPING)
+	return areas_initialized > 0
