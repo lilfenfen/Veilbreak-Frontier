@@ -1678,7 +1678,7 @@
 	pixel_y = 0
 	},
 /obj/item/shell/server{
-	name = "venus-citadel server"; //VENUS EDIT - CHANGE NAME
+	name = "venus-citadel server";
 	desc = "Ye' ol' reliable server. 0 days without incidents!";
 	anchored = 1;
 	pixel_x = -8;
@@ -2918,7 +2918,7 @@
 	desc = "stop ooming please i want to play";
 	icon = 'icons/obj/machines/telecomms.dmi';
 	icon_state = "blackbox_b";
-	name = "venus-tg server"; //VENUS EDIT - CHANGE NAME
+	name = "venus-tg server";
 	density = 1;
 	pixel_y = 0;
 	uses_integrity = 0
@@ -3778,7 +3778,7 @@
 	desc = "Ye' ol' reliable server. 0 days without incidents!";
 	icon = 'icons/obj/machines/telecomms.dmi';
 	icon_state = "blackbox";
-	name = "venus-tg server"; //VENUS EDIT - CHANGE NAME
+	name = "venus-tg server";
 	density = 1;
 	pixel_y = 0;
 	uses_integrity = 0
@@ -3918,7 +3918,7 @@
 	desc = "Ye' ol' reliable server. 0 days without incidents!";
 	icon = 'icons/obj/machines/telecomms.dmi';
 	icon_state = "blackbox";
-	name = "venus-tg server"; //VENUS EDIT - CHANGE NAME
+	name = "venus-tg server";
 	density = 1;
 	pixel_y = 0;
 	uses_integrity = 0
@@ -7339,7 +7339,7 @@
 "QB" = (
 /obj/structure/railing,
 /obj/item/shell/bot{
-	name = "venus-citadel server"; //VENUS EDIT - CHANGE NAME
+	name = "venus-citadel server";
 	desc = "Ye' ol' reliable server. 0 days without incidents!";
 	anchored = 1;
 	pixel_x = 7;
@@ -7349,7 +7349,7 @@
 	desc = "Ye' ol' reliable server. 0 days without incidents!";
 	icon = 'icons/obj/machines/telecomms.dmi';
 	icon_state = "blackbox";
-	name = "venus-citadel server"; //VENUS EDIT - CHANGE NAME
+	name = "venus-citadel server";
 	density = 1;
 	pixel_y = 0;
 	uses_integrity = 0;

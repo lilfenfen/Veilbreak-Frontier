@@ -228,7 +228,7 @@
 		return data
 	data["custom_controls"]["clean_blood"] = janitor_mode_flags & CLEANBOT_CLEAN_BLOOD
 	data["custom_controls"]["clean_trash"] = janitor_mode_flags & CLEANBOT_CLEAN_TRASH
-	data["custom_controls"]["clean_graffiti"] = janitor_mode_flags & CLEANBOT_CLEAN_DRAWINGS
+	// data["custom_controls"]["clean_graffiti"] = janitor_mode_flags & CLEANBOT_CLEAN_DRAWINGS //VENUS REMOVAL - Avoid cleanbot cleaning graffiti
 	data["custom_controls"]["pest_control"] = janitor_mode_flags & CLEANBOT_CLEAN_PESTS
 	return data
 
@@ -246,8 +246,12 @@
 			janitor_mode_flags ^= CLEANBOT_CLEAN_PESTS
 		if("clean_trash")
 			janitor_mode_flags ^= CLEANBOT_CLEAN_TRASH
+		//VENUS REMOVAL START - Avoid cleanbot cleaning graffiti
+		/*
 		if("clean_graffiti")
 			janitor_mode_flags ^= CLEANBOT_CLEAN_DRAWINGS
+		*/
+		//VENUS REMOVAL END
 
 /mob/living/basic/bot/cleanbot/Destroy()
 	QDEL_NULL(build_bucket)

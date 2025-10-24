@@ -43,6 +43,12 @@
 	var/low_threshold_cleared
 
 	/// When set to false, this can't be used in surgeries and such - Honestly a terrible variable.
+	//VENUS ADDITION START - Persistent limbs/organs
+	/// Was this organ loaded from the map file? If TRUE, don't persist it (it's already in the map)
+	var/maploaded = FALSE
+	/// How many rounds has this organ persisted? Used for janitor examine text
+	var/rounds_persisted = 0
+	//VENUS ADDITION END - Persistent limbs/organs
 	var/useable = TRUE
 
 	/// Food reagents if the organ is edible
@@ -83,6 +89,7 @@
 INITIALIZE_IMMEDIATE(/obj/item/organ)
 
 /obj/item/organ/Initialize(mapload)
+	maploaded = mapload //VENUS ADDITION - Persistent limbs/organs
 	. = ..()
 	blood_dna_info = list("Unknown DNA" = get_blood_type(BLOOD_TYPE_O_PLUS))
 	if(organ_flags & ORGAN_EDIBLE)
@@ -243,6 +250,12 @@ INITIALIZE_IMMEDIATE(/obj/item/organ)
 /obj/item/organ/proc/apply_organ_damage(damage_amount, maximum = maxHealth, required_organ_flag = NONE) //use for damaging effects
 	if(!damage_amount) //Micro-optimization.
 		return FALSE
+
+	//VENUS ADDITION START - Prevent healing of persistent organs
+	if(rounds_persisted > 0 && damage_amount < 0)
+		return FALSE
+	//VENUS ADDITION END
+
 	maximum = clamp(maximum, 0, maxHealth) // the logical max is, our max
 	if(maximum < damage)
 		return FALSE
@@ -470,3 +483,56 @@ INITIALIZE_IMMEDIATE(/obj/item/organ)
 			all_organ_slots |= initial(an_organ.slot)
 
 	return all_organ_slots
+
+//VENUS ADDITION START - Persistent limbs/organs medical examine
+/// Override examine to add medical-specific text for persistent organs
+/obj/item/organ/examine(mob/user)
+	. = ..()
+
+	if(!rounds_persisted)
+		return
+
+	var/time_text
+	if(rounds_persisted <= 1)
+		time_text = "a shift or two"
+	else if(rounds_persisted <= 5)
+		time_text = "between one and five shifts"
+	else if(rounds_persisted <= 10)
+		time_text = "between five and ten shifts"
+	else if(rounds_persisted <= 20)
+		time_text = "between ten and twenty shifts"
+	else if(rounds_persisted <= 50)
+		time_text = "between twenty and fifty shifts"
+	else if(rounds_persisted <= 100)
+		time_text = "between fifty and a hundred shifts"
+	else
+		time_text = "more than a hundred shifts"
+
+	// General message for everyone
+	var/general_text
+	if(rounds_persisted <= 5)
+		general_text = "multiple shifts"
+	else if(rounds_persisted <= 20)
+		general_text = "many shifts"
+	else
+		general_text = "many, many shifts"
+
+	// Show specific details for medical personnel, generic text for everyone else
+	if(ishuman(user))
+		var/mob/living/carbon/human/human_user = user
+		var/datum/job/user_job = human_user.mind?.assigned_role
+		if(user_job)
+			// Check if user is in medical department
+			var/is_medical = FALSE
+			for(var/department in user_job.departments_list)
+				if(ispath(department, /datum/job_department/medical))
+					is_medical = TRUE
+					break
+
+			if(is_medical)
+				. += span_notice("Your experience in medicine tells you that this has been here for [time_text].")
+				. += span_notice("This organ is severely decayed and should be disposed of properly - try throwing it in maintenance or using the disposals system.")
+				return
+
+	. += span_notice("It looks like it has been here for [general_text]... A medical professional might be able to tell more.")
+//VENUS ADDITION END - Persistent limbs/organs medical examine

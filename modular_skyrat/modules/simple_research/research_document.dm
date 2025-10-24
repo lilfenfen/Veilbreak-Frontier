@@ -112,6 +112,21 @@
 	///has both glass and metal been used to build the item?
 	var/material_satisfied = list(FALSE, FALSE)
 
+//VENUS ADDITION START - Examine for research scrap
+/obj/item/research_scrap/examine(mob/user)
+	. = ..()
+	var/list/nice_list = list()
+	if(!material_satisfied[1])
+		nice_list += "1 glass sheet"
+	else
+		nice_list += span_green("1 glass sheet")
+	if(!material_satisfied[2])
+		nice_list += "1 iron sheet"
+	else
+		nice_list += span_green("1 iron sheet")
+	. += span_info("It requires [english_list(nice_list, "no more materials")].")
+//VENUS ADDITION END
+
 /obj/item/research_scrap/attackby(obj/item/attacking_item, mob/user, params)
 	if(istype(attacking_item, /obj/item/stack/sheet/iron))
 		research_use(attacking_item, user, 2)
