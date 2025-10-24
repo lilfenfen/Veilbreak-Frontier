@@ -42,6 +42,8 @@
 		// CORRECTED: Iterate through the associative list properly
 		for(var/destination_key in GLOB.portal_destinations)
 			var/datum/portal_destination/possible_destination = GLOB.portal_destinations[destination_key]
+			if(!istype(possible_destination)) // Safety check
+				continue
 			if(!linked_portal.valid_destination(possible_destination))
 				continue
 			destinations += list(possible_destination.get_ui_data())
@@ -58,16 +60,7 @@
 		.["generation_progress"] = 0
 		.["dungeon_data"] = null
 
-	// Generation status
-	if(linked_portal?.destination)
-		var/datum/portal_destination/veilbreak/veil_dest = linked_portal.destination
-		.["generation_status"] = veil_dest.generating ? "generating" : (veil_dest.generated ? "ready" : "idle")
-		.["generation_progress"] = veil_dest.generation_progress
-		.["dungeon_data"] = linked_portal.generated_dungeon_data
-	else
-		.["generation_status"] = "idle"
-		.["generation_progress"] = 0
-		.["dungeon_data"] = null
+	return .
 
 /obj/machinery/computer/portal_control/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
 	. = ..()
@@ -86,16 +79,21 @@
 				log_portal_control("Portal Control: Linkup failed - no portal found")
 			. = TRUE
 		if("activate")
-			var/datum/portal_destination/D = locate(params["destination"]) in GLOB.portal_destinations
+			var/destination_key = params["destination"]
+			var/datum/portal_destination/D = GLOB.portal_destinations[destination_key]
 			if(D)
 				log_portal_control("Portal Control: [key_name(user)] activating portal to [D.name] at [AREACOORD(src)]")
 				try_to_connect(D)
 			else
-				log_portal_control("Portal Control: [key_name(user)] attempted to activate invalid destination")
+				log_portal_control("Portal Control: [key_name(user)] attempted to activate invalid destination: [destination_key]")
 			. = TRUE
 		if("deactivate")
 			if(linked_portal?.target)
 				log_portal_control("Portal Control: [key_name(user)] deactivating portal from [linked_portal.target.name] at [AREACOORD(src)]")
+				// REFACTORED: Use the destination's own cleanup system
+				if(istype(linked_portal.target, /datum/portal_destination/veilbreak))
+					var/datum/portal_destination/veilbreak/veil_dest = linked_portal.target
+					cleanup_dungeon_with_corpse_dumping(veil_dest)
 				linked_portal.deactivate()
 			else
 				log_portal_control("Portal Control: [key_name(user)] attempted to deactivate inactive portal")
@@ -109,6 +107,8 @@
 			else
 				log_portal_control("Portal Control: [key_name(user)] attempted generation without valid portal destination")
 			. = TRUE
+
+	return TRUE
 
 /obj/machinery/computer/portal_control/proc/try_to_linkup()
 	linked_portal = locate(/obj/machinery/portal) in view(7, get_turf(src))
@@ -127,6 +127,82 @@
 	log_portal_control("Portal Control: Successfully connecting to [D.name]")
 	linked_portal.activate(D)
 
+/// Enhanced cleanup that dumps players safely before calling the destination's cleanup
+/obj/machinery/computer/portal_control/proc/cleanup_dungeon_with_corpse_dumping(datum/portal_destination/veilbreak/veil_dest)
+	if(!veil_dest.dungeon_z_level)
+		log_portal_control("Portal Control: No dungeon Z-level to clean up")
+		return
+
+	log_portal_control("Portal Control: Starting SAFE cleanup of dungeon Z-level [veil_dest.dungeon_z_level]")
+
+	// SAFETY: Use the enhanced safe dumping
+	dump_players_safely(veil_dest.dungeon_z_level)
+
+	// Now call the destination's own cleanup proc
+	veil_dest.cleanup_dungeon()
+
+	// Remove the destination from global list
+	for(var/key in GLOB.portal_destinations)
+		if(GLOB.portal_destinations[key] == veil_dest)
+			GLOB.portal_destinations -= key
+			log_portal_control("Portal Control: Removed destination [key] from global list")
+			break
+
+// Debug verb to test player detection
+/obj/machinery/computer/portal_control/verb/test_player_detection()
+	set name = "Test Player Detection"
+	set category = "Debug"
+	set src in view(1)
+
+	usr << "=== PLAYER DETECTION TEST ==="
+	var/test_z = usr.z // Current Z-level for testing
+
+	var/active_players = 0
+	var/ssd_players = 0
+	var/borgs = 0
+	var/corpses = 0
+	var/hostiles = 0
+	var/unknown = 0
+
+	for(var/mob/living/mob in GLOB.mob_list)
+		if(mob.z != test_z)
+			continue
+
+		if(is_definitely_hostile(mob))
+			hostiles++
+			usr << "HOSTILE: [mob] ([mob.type])"
+			continue
+
+		if(!is_player_related(mob))
+			unknown++
+			usr << "UNKNOWN: [mob] ([mob.type]) - ckey: [mob.ckey], client: [mob.client], mind: [mob.mind]"
+			continue
+
+		// Categorize player-related mobs
+		if(iscyborg(mob) || isAI(mob))
+			borgs++
+			usr << "BORG: [mob] ([mob.type]) - ckey: [mob.ckey]"
+		else if(mob.ckey && !mob.client)
+			ssd_players++
+			usr << "SSD: [mob] ([mob.type]) - ckey: [mob.ckey]"
+		else if(mob.client)
+			active_players++
+			usr << "ACTIVE: [mob] ([mob.type])"
+		else if(mob.stat == DEAD)
+			corpses++
+			usr << "CORPSE: [mob] ([mob.type]) - mind: [mob.mind]"
+		else
+			unknown++
+			usr << "PLAYER-RELATED: [mob] ([mob.type]) - ckey: [mob.ckey]"
+
+	usr << "=== SUMMARY ==="
+	usr << "Active Players: [active_players]"
+	usr << "SSD Players: [ssd_players]"
+	usr << "Cyborgs/AI: [borgs]"
+	usr << "Corpses: [corpses]"
+	usr << "Hostiles: [hostiles]"
+	usr << "Unknown: [unknown]"
+	usr << "Total on Z-level: [active_players + ssd_players + borgs + corpses + hostiles + unknown]"
 
 // Add to portal_control.dm for debugging
 /obj/machinery/computer/portal_control/verb/debug_portal_info()
@@ -149,16 +225,256 @@
 		count++
 	usr << "Total Destinations: [count]"
 
-// Add to portal_globals.dm for destination debugging
-/datum/portal_destination/veilbreak/verb/debug_dungeon_info()
-	set name = "Debug Dungeon Info"
-	set category = "Debug"
-	set src in view(1)
+// ===== PLAYER DETECTION AND SAFE DUMPING PROCS =====
 
-	usr << "=== DUNGEON DESTINATION DEBUG ==="
-	usr << "Name: [name]"
-	usr << "Generating: [generating]"
-	usr << "Generated: [generated]"
-	usr << "Z-Level: [dungeon_z_level]"
-	usr << "Connected Portal: [connected_portal ? AREACOORD(connected_portal) : "NONE"]"
-	usr << "Last Data: [last_generation_data ? "Present" : "None"]"
+/obj/machinery/computer/portal_control/proc/is_definitely_hostile(mob/living/mob)
+	// Explicit hostile type checks
+	if(istype(mob, /mob/living/simple_animal/hostile))
+		return TRUE
+
+	// Check for common hostile simple animals
+	if(istype(mob, /mob/living/simple_animal))
+		// Use faction checking for simple animals
+		if(mob.faction && mob.faction != "neutral" && mob.faction != "player" && mob.faction != "silicon")
+			return TRUE
+		// If no faction but has hostile behavior (check for attack procs)
+		if(mob.ckey) // Player controlled, not hostile
+			return FALSE
+		// NPC simple animals are generally hostile
+		return TRUE
+
+	// Xenomorphs and other obvious hostiles
+	if(istype(mob, /mob/living/carbon/alien))
+		return TRUE
+
+	// Syndicate mobs, wizards, etc.
+	if(mob.mind && mob.mind.has_antag_datum(/datum/antagonist))
+		// Most antags are hostile to station crew
+		return TRUE
+
+	// Mobs that are actively targeting players
+	if(mob.faction && mob.faction != "neutral" && mob.faction != "player" && mob.faction != "silicon")
+		return TRUE
+
+	// Additional safety: mobs without player control that aren't obviously friendly
+	if(!mob.ckey && !mob.client)
+		// Check if this is a type that's typically hostile
+		if(istype(mob, /mob/living/simple_animal))
+			return TRUE
+		if(istype(mob, /mob/living/carbon/alien))
+			return TRUE
+
+	return FALSE
+
+
+/obj/machinery/computer/portal_control/proc/is_player_related(mob/living/mob)
+	// Quick exclusion for obvious hostiles first
+	if(is_definitely_hostile(mob))
+		return FALSE
+
+	// 1. Active players with clients (most common case)
+	if(mob.client && !isobserver(mob))
+		return TRUE
+
+	// 2. SSD Players - they have ckeys but no client
+	if(mob.ckey && !mob.client && !isobserver(mob))
+		return TRUE
+
+	// 3. Player corpses (dead humans) - include SSD corpses
+	if(ishuman(mob) && mob.stat == DEAD)
+		// Extra safety: check if they ever had a player mind
+		if(mob.mind || mob.ckey)
+			return TRUE
+		// If no mind/ckey, it might be a spawned corpse - be more careful
+		return FALSE
+
+	// 4. Cyborgs and AIs - include SSD borgs
+	if(iscyborg(mob) || isAI(mob))
+		// Borgs always have players if they have ckeys or minds
+		if(mob.ckey || (mob.mind && mob.mind.key))
+			return TRUE
+		// Safety: exclude NPC borgs
+		return FALSE
+
+	// 5. Simple animals that are player-controlled (pets, etc.)
+	if(isanimal(mob))
+		// Only include if explicitly player-controlled
+		if(mob.ckey || mob.client || (mob.mind && mob.mind.key))
+			return TRUE
+		// Exclude wild animals
+		return FALSE
+
+	// 6. Mobs with player minds (covers edge cases)
+	if(mob.mind && mob.mind.key)
+		return TRUE
+
+	// 7. Final ckey check as safety net
+	if(mob.ckey)
+		return TRUE
+
+	return FALSE
+
+/// Get safe turfs around the portal for dumping (avoid walls, space, hazards)
+/obj/machinery/computer/portal_control/proc/get_safe_dump_turfs(turf/center_turf)
+	var/list/safe_turfs = list()
+	var/search_radius = 3 // How far from portal to search
+
+	// Search in expanding circles around the portal
+	for(var/turf/T in range(search_radius, center_turf))
+		// Skip the portal turf itself
+		if(T == center_turf)
+			continue
+
+		// Check if turf is safe for dumping
+		if(is_safe_dump_turf(T))
+			safe_turfs += T
+
+	// If no safe turfs found, try to find at least some open turfs
+	if(!length(safe_turfs))
+		for(var/turf/T in range(search_radius, center_turf))
+			if(T == center_turf)
+				continue
+			if(istype(T, /turf/open) && !T.density)
+				safe_turfs += T
+				log_portal_control("Portal Control: Using fallback turf at [AREACOORD(T)]")
+
+	return safe_turfs
+
+/// Check if a turf is safe for dumping players/corpses
+/obj/machinery/computer/portal_control/proc/is_safe_dump_turf(turf/T)
+	// Must be open and not dense
+	if(!istype(T, /turf/open) || T.density)
+		return FALSE
+
+	// Avoid space and lava
+	if(istype(T, /turf/open/space) || istype(T, /turf/open/lava))
+		return FALSE
+
+	// Avoid chasms and other hazards
+	if(istype(T, /turf/open/chasm))
+		return FALSE
+
+	// Check for dangerous atmos - FIXED: Use correct atmos checking
+	var/datum/gas_mixture/environment = T.return_air()
+	if(environment)
+		if(environment.temperature > 360 || environment.temperature < 260) // Too hot or too cold
+			return FALSE
+		if(environment.total_moles() < 10) // Near vacuum
+			return FALSE
+
+	// Avoid turfs with active fire
+	if(T.get_lumcount() > 5) // Very bright, might be fire
+		for(var/obj/effect/hotspot/hotspot in T)
+			return FALSE
+
+	// Avoid turfs with mobs already on them (to prevent stacking)
+	if(locate(/mob/living) in T)
+		return FALSE
+
+	// Avoid turfs with dangerous objects
+	for(var/obj/O in T)
+		if(O.density && !istype(O, /obj/structure/table) && !istype(O, /obj/structure/chair))
+			return FALSE
+		if(istype(O, /obj/machinery/porta_turret))
+			return FALSE
+		if(istype(O, /obj/structure/window) || istype(O, /obj/structure/grille))
+			return FALSE
+
+	return TRUE
+
+/// Enhanced dumping that provides better feedback for SSD players and borgs
+/obj/machinery/computer/portal_control/proc/dump_players_safely(dungeon_z)
+	if(!linked_portal)
+		return
+
+	var/turf/portal_turf = get_turf(linked_portal)
+	if(!portal_turf)
+		return
+
+	log_portal_control("Portal Control: Starting SAFE player dump from Z-level [dungeon_z]")
+
+	var/dumped_players = 0
+	var/dumped_ssd = 0
+	var/dumped_borgs = 0
+	var/dumped_corpses = 0
+	var/skipped_hostiles = 0
+
+	var/list/safe_turfs = get_safe_dump_turfs(portal_turf)
+
+	if(!length(safe_turfs))
+		log_portal_control("Portal Control: CRITICAL - No safe dump locations found!")
+		return
+
+	for(var/mob/living/mob in GLOB.mob_list)
+		if(mob.z != dungeon_z)
+			continue
+
+		// SAFETY FIRST: Explicitly skip hostile mobs
+		if(is_definitely_hostile(mob))
+			skipped_hostiles++
+			continue
+
+		// Only proceed if definitely player-related
+		if(!is_player_related(mob))
+			skipped_hostiles++
+			continue
+
+		var/turf/dump_turf = pick(safe_turfs)
+		if(dump_turf)
+			mob.forceMove(dump_turf)
+
+			// Categorize and handle different types
+			if(iscyborg(mob) || isAI(mob))
+				handle_borg_dump(mob)
+				dumped_borgs++
+			else if(mob.ckey && !mob.client) // SSD player
+				handle_ssd_dump(mob)
+				dumped_ssd++
+			else if(mob.client) // Active player
+				handle_active_player_dump(mob)
+				dumped_players++
+			else if(mob.stat == DEAD) // Corpse
+				handle_corpse_dump(mob)
+				dumped_corpses++
+			else // Fallback
+				handle_generic_dump(mob)
+				dumped_players++
+
+	// Provide summary feedback
+	var/feedback_msg = "Dungeon collapse complete: [dumped_players] active players, [dumped_ssd] SSD players, [dumped_borgs] cyborgs, and [dumped_corpses] corpses returned to safety."
+	if(linked_portal)
+		linked_portal.say(feedback_msg)
+	log_portal_control("Portal Control: SAFE DUMP COMPLETE - [feedback_msg] Hostiles deleted: [skipped_hostiles]")
+
+/// Handle SSD players specifically
+/obj/machinery/computer/portal_control/proc/handle_ssd_dump(mob/living/ssd_mob)
+	ssd_mob.Stun(5 SECONDS) // Longer stun for SSD players
+	// They'll see the message when they reconnect
+	ssd_mob.log_message("was ejected from collapsing dungeon while SSD", LOG_GAME)
+	playsound(ssd_mob, 'sound/effects/magic/teleport_app.ogg', 40, TRUE) // FIXED: Use existing sound
+
+/// Handle cyborgs specifically
+/obj/machinery/computer/portal_control/proc/handle_borg_dump(mob/living/silicon/borg)
+	borg.Stun(2 SECONDS) // Shorter stun for borgs
+	if(borg.client)
+		to_chat(borg, span_warning("Emergency teleport: Dungeon dimensional stability collapsing!"))
+	else
+		borg.log_message("was emergency teleported from collapsing dungeon", LOG_GAME)
+	playsound(borg, 'sound/machines/chime.ogg', 50, TRUE) // FIXED: Use existing sound
+
+/// Handle active players
+/obj/machinery/computer/portal_control/proc/handle_active_player_dump(mob/living/player)
+	player.Stun(3 SECONDS)
+	to_chat(player, span_warning("The dungeon collapses around you! You're ejected back to safety."))
+	playsound(player, 'sound/effects/magic/teleport_app.ogg', 50, TRUE) // FIXED: Use existing sound
+
+/// Handle corpses
+/obj/machinery/computer/portal_control/proc/handle_corpse_dump(mob/living/corpse)
+	corpse.visible_message(span_notice("[corpse] appears from a shimmering portal!"))
+	playsound(corpse, 'sound/effects/empulse.ogg', 30, TRUE)
+
+/// Generic handler for any edge cases
+/obj/machinery/computer/portal_control/proc/handle_generic_dump(mob/living/mob)
+	mob.Stun(3 SECONDS)
+	to_chat(mob, span_warning("You are violently ejected from the collapsing dungeon!"))
+	playsound(mob, 'sound/effects/magic/teleport_app.ogg', 50, TRUE) // FIXED: Use existing sound

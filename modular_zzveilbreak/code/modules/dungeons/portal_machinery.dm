@@ -101,7 +101,6 @@
 	log_portal("Initialized at [AREACOORD(src)] with destination [destination.name] (ID: [destination_id])")
 	update_appearance()
 
-
 /obj/machinery/portal/Destroy()
 	log_portal("Destroying portal at [AREACOORD(src)]")
 
@@ -129,6 +128,10 @@
 		handle_dungeon_portal_processing()
 	else
 		handle_station_portal_processing()
+
+	// FIX: Ensure bumper exists when portal is active
+	if(transport_active && !bumper)
+		generate_bumper()
 
 /// Check if this portal is located in a dungeon (mining/away Z-level)
 /obj/machinery/portal/proc/is_dungeon_portal()
@@ -160,6 +163,10 @@
 		log_portal("Destination availability changed to [portal_possible] at [AREACOORD(src)]")
 		update_appearance()
 
+	// FIX: Auto-activate station portal when destination becomes available
+	if(portal_possible && !target && !transport_active)
+		activate_to_available_destination()
+
 /// Check if any valid destinations are available
 /obj/machinery/portal/proc/check_destination_availability()
 	// FIX: Safely iterate through the associative list
@@ -171,6 +178,15 @@
 		if(valid_destination(possible_destination) && possible_destination.is_available())
 			return TRUE
 	return FALSE
+
+/obj/machinery/portal/proc/activate_to_available_destination()
+	for(var/destination_key in GLOB.portal_destinations)
+		var/datum/portal_destination/possible_destination = GLOB.portal_destinations[destination_key]
+		if(!istype(possible_destination))
+			continue
+		if(valid_destination(possible_destination) && possible_destination.is_available())
+			activate(possible_destination)
+			break
 
 /// Check if a destination is valid for this portal
 /obj/machinery/portal/proc/valid_destination(datum/portal_destination/possible_destination)
@@ -353,3 +369,60 @@
 		calibrated = TRUE
 
 	return TRUE
+
+
+// ===== DEBUG VERBS =====
+/obj/machinery/portal/verb/debug_portal_state()
+	set name = "Debug Portal State"
+	set category = "Debug"
+	set src in view(1)
+
+	usr << "=== PORTAL STATE DEBUG ==="
+	usr << "Location: [AREACOORD(src)]"
+	usr << "Powered: [powered()]"
+	usr << "Portal Possible: [portal_possible]"
+	usr << "Transport Active: [transport_active]"
+	usr << "Is Dungeon Portal: [is_dungeon_portal()]"
+	usr << "Calibrated: [calibrated]"
+	usr << "Bumper: [bumper ? "Present at [AREACOORD(bumper)]" : "None"]"
+
+	if(target)
+		usr << "Current Target: [target.name]"
+		usr << "Target Available: [target.is_available()]"
+		usr << "Target Reason: [target.get_available_reason()]"
+	else
+		usr << "Current Target: None"
+
+	if(destination)
+		usr << "Default Destination: [destination.name]"
+		usr << "Destination Generated: [destination.generated]"
+		usr << "Destination Generating: [destination.generating]"
+		usr << "Dungeon Z-Level: [destination.dungeon_z_level]"
+
+	usr << "=== DESTINATION COUNT ==="
+	var/count = 0
+	for(var/key in GLOB.portal_destinations)
+		count++
+	usr << "Total Global Destinations: [count]"
+
+/obj/machinery/portal/verb/test_auto_activation()
+	set name = "Test Auto Activation"
+	set category = "Debug"
+	set src in view(1)
+
+	usr << "Testing auto-activation..."
+	usr << "Portal Possible: [portal_possible]"
+	usr << "Current Target: [target ? target.name : "None"]"
+	usr << "Transport Active: [transport_active]"
+
+	if(portal_possible && !target && !transport_active)
+		usr << "Conditions met for auto-activation - attempting..."
+		activate_to_available_destination()
+	else
+		usr << "Auto-activation conditions not met:"
+		if(!portal_possible)
+			usr << "- Portal not possible"
+		if(target)
+			usr << "- Already has target: [target.name]"
+		if(transport_active)
+			usr << "- Transport already active"
