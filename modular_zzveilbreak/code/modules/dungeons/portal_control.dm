@@ -228,41 +228,25 @@
 // ===== PLAYER DETECTION AND SAFE DUMPING PROCS =====
 
 /obj/machinery/computer/portal_control/proc/is_definitely_hostile(mob/living/mob)
-	// Explicit hostile type checks
+	// Player-controlled entities are never hostile for dumping purposes
+	if(mob.ckey || mob.client)
+		return FALSE
+
+	// Explicit hostile types
 	if(istype(mob, /mob/living/simple_animal/hostile))
 		return TRUE
 
-	// Check for common hostile simple animals
-	if(istype(mob, /mob/living/simple_animal))
-		// Use faction checking for simple animals
-		if(mob.faction && mob.faction != "neutral" && mob.faction != "player" && mob.faction != "silicon")
-			return TRUE
-		// If no faction but has hostile behavior (check for attack procs)
-		if(mob.ckey) // Player controlled, not hostile
-			return FALSE
-		// NPC simple animals are generally hostile
-		return TRUE
-
-	// Xenomorphs and other obvious hostiles
+	// Xenomorphs
 	if(istype(mob, /mob/living/carbon/alien))
 		return TRUE
 
-	// Syndicate mobs, wizards, etc.
-	if(mob.mind && mob.mind.has_antag_datum(/datum/antagonist))
-		// Most antags are hostile to station crew
+	// NPC simple animals (most are hostile)
+	if(istype(mob, /mob/living/simple_animal) && !mob.ckey)
 		return TRUE
 
-	// Mobs that are actively targeting players
+	// Mobs with hostile factions
 	if(mob.faction && mob.faction != "neutral" && mob.faction != "player" && mob.faction != "silicon")
 		return TRUE
-
-	// Additional safety: mobs without player control that aren't obviously friendly
-	if(!mob.ckey && !mob.client)
-		// Check if this is a type that's typically hostile
-		if(istype(mob, /mob/living/simple_animal))
-			return TRUE
-		if(istype(mob, /mob/living/carbon/alien))
-			return TRUE
 
 	return FALSE
 
@@ -354,23 +338,6 @@
 	if(istype(T, /turf/open/chasm))
 		return FALSE
 
-	// Check for dangerous atmos - FIXED: Use correct atmos checking
-	var/datum/gas_mixture/environment = T.return_air()
-	if(environment)
-		if(environment.temperature > 360 || environment.temperature < 260) // Too hot or too cold
-			return FALSE
-		if(environment.total_moles() < 10) // Near vacuum
-			return FALSE
-
-	// Avoid turfs with active fire
-	if(T.get_lumcount() > 5) // Very bright, might be fire
-		for(var/obj/effect/hotspot/hotspot in T)
-			return FALSE
-
-	// Avoid turfs with mobs already on them (to prevent stacking)
-	if(locate(/mob/living) in T)
-		return FALSE
-
 	// Avoid turfs with dangerous objects
 	for(var/obj/O in T)
 		if(O.density && !istype(O, /obj/structure/table) && !istype(O, /obj/structure/chair))
@@ -391,12 +358,9 @@
 	if(!portal_turf)
 		return
 
-	log_portal_control("Portal Control: Starting SAFE player dump from Z-level [dungeon_z]")
+	log_portal_control("Portal Control: Starting simplified player dump from Z-level [dungeon_z]")
 
-	var/dumped_players = 0
-	var/dumped_ssd = 0
-	var/dumped_borgs = 0
-	var/dumped_corpses = 0
+	var/dumped_count = 0
 	var/skipped_hostiles = 0
 
 	var/list/safe_turfs = get_safe_dump_turfs(portal_turf)
@@ -409,13 +373,8 @@
 		if(mob.z != dungeon_z)
 			continue
 
-		// SAFETY FIRST: Explicitly skip hostile mobs
+		// Skip hostile mobs
 		if(is_definitely_hostile(mob))
-			skipped_hostiles++
-			continue
-
-		// Only proceed if definitely player-related
-		if(!is_player_related(mob))
 			skipped_hostiles++
 			continue
 
@@ -423,58 +382,19 @@
 		if(dump_turf)
 			mob.forceMove(dump_turf)
 
-			// Categorize and handle different types
-			if(iscyborg(mob) || isAI(mob))
-				handle_borg_dump(mob)
-				dumped_borgs++
-			else if(mob.ckey && !mob.client) // SSD player
-				handle_ssd_dump(mob)
-				dumped_ssd++
-			else if(mob.client) // Active player
-				handle_active_player_dump(mob)
-				dumped_players++
-			else if(mob.stat == DEAD) // Corpse
-				handle_corpse_dump(mob)
-				dumped_corpses++
-			else // Fallback
-				handle_generic_dump(mob)
-				dumped_players++
+			// Handle all non-hostile mobs the same way
+			if(mob.stat == CONSCIOUS)
+				mob.Stun(3 SECONDS)
+				to_chat(mob, span_warning("The dungeon collapses around you! You're ejected back to safety."))
+				playsound(mob, 'sound/effects/empulse.ogg', 50, TRUE)
+			else if(mob.stat == DEAD)
+				mob.visible_message(span_notice("[mob] appears from a shimmering portal!"))
+				playsound(mob, 'sound/effects/empulse.ogg', 30, TRUE)
 
-	// Provide summary feedback
-	var/feedback_msg = "Dungeon collapse complete: [dumped_players] active players, [dumped_ssd] SSD players, [dumped_borgs] cyborgs, and [dumped_corpses] corpses returned to safety."
+			dumped_count++
+
+	// Simplified feedback
+	var/feedback_msg = "Dungeon collapse complete: [dumped_count] entities returned to safety."
 	if(linked_portal)
 		linked_portal.say(feedback_msg)
-	log_portal_control("Portal Control: SAFE DUMP COMPLETE - [feedback_msg] Hostiles deleted: [skipped_hostiles]")
-
-/// Handle SSD players specifically
-/obj/machinery/computer/portal_control/proc/handle_ssd_dump(mob/living/ssd_mob)
-	ssd_mob.Stun(5 SECONDS) // Longer stun for SSD players
-	// They'll see the message when they reconnect
-	ssd_mob.log_message("was ejected from collapsing dungeon while SSD", LOG_GAME)
-	playsound(ssd_mob, 'sound/effects/magic/teleport_app.ogg', 40, TRUE) // FIXED: Use existing sound
-
-/// Handle cyborgs specifically
-/obj/machinery/computer/portal_control/proc/handle_borg_dump(mob/living/silicon/borg)
-	borg.Stun(2 SECONDS) // Shorter stun for borgs
-	if(borg.client)
-		to_chat(borg, span_warning("Emergency teleport: Dungeon dimensional stability collapsing!"))
-	else
-		borg.log_message("was emergency teleported from collapsing dungeon", LOG_GAME)
-	playsound(borg, 'sound/machines/chime.ogg', 50, TRUE) // FIXED: Use existing sound
-
-/// Handle active players
-/obj/machinery/computer/portal_control/proc/handle_active_player_dump(mob/living/player)
-	player.Stun(3 SECONDS)
-	to_chat(player, span_warning("The dungeon collapses around you! You're ejected back to safety."))
-	playsound(player, 'sound/effects/magic/teleport_app.ogg', 50, TRUE) // FIXED: Use existing sound
-
-/// Handle corpses
-/obj/machinery/computer/portal_control/proc/handle_corpse_dump(mob/living/corpse)
-	corpse.visible_message(span_notice("[corpse] appears from a shimmering portal!"))
-	playsound(corpse, 'sound/effects/empulse.ogg', 30, TRUE)
-
-/// Generic handler for any edge cases
-/obj/machinery/computer/portal_control/proc/handle_generic_dump(mob/living/mob)
-	mob.Stun(3 SECONDS)
-	to_chat(mob, span_warning("You are violently ejected from the collapsing dungeon!"))
-	playsound(mob, 'sound/effects/magic/teleport_app.ogg', 50, TRUE) // FIXED: Use existing sound
+	log_portal_control("Portal Control: SIMPLIFIED DUMP COMPLETE - [feedback_msg] Hostiles skipped: [skipped_hostiles]")
