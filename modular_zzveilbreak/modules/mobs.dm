@@ -22,7 +22,14 @@
 	dodging = TRUE
 	dodge_prob = 50
 
-	/datum/ai_controller/basic_controller/alien
+	// Use the new void-specific AI controller
+	ai_controller_type = /datum/ai_controller/basic_controller/void
+
+/datum/ai_controller/basic_controller/alien/Initialize(pawn)
+	. = ..()
+	if(pawn.faction.Find("Void"))
+		pawn.faction |= "Hostile"
+
 
 	death(message)
 		// Spawn loot before deletion
@@ -67,17 +74,18 @@
 	dodging = TRUE
 	dodge_prob = 30
 	ranged = 1
-	projectiletype = /obj/projectile/magic/voidbolt
 	var/last_summon = 0
+	projectiletype = /obj/projectile/magic/voidbolt // Keep projectile type here
 
 	/datum/ai_controller/basic_controller/alien
+	ai_controller_type = /datum/ai_controller/basic_controller/alien
 
 	Life()
 		. = ..()
 		if(target && world.time > last_summon + 10 SECONDS)
 			last_summon = world.time
 			var/mob/living/simple_animal/hostile/Voidling/new_voidling = new(loc)
-			new_voidling.faction = faction.Copy()
+			new_voidling.faction = faction.Copy() // Ensure summoned voidlings are also in the void faction
 
 	death(message)
 		// Spawn loot before deletion
@@ -94,7 +102,7 @@
 	icon = 'modular_zzveilbreak/icons/item_icons/voidring.dmi'
 	icon_state = "voidbolt"
 	damage = 20
-	damage_type = BURN
+	damage_type = BURN // Void bolts deal burn damage
 	range = 50
 	speed = 0.2
 	var/atom/target
@@ -123,7 +131,8 @@
 	dodging = FALSE
 	var/block_chance = 30
 
-	/datum/ai_controller/basic_controller/alien
+	// Use the new void-specific AI controller
+	ai_controller_type = /datum/ai_controller/basic_controller/void
 
 	take_damage(damage, damagetype, def_zone, blocked, forced, spread_damage, wound_bonus, bare_wound_bonus, sharpness, attack_direction, attacking_item)
 		if(prob(block_chance))
@@ -170,7 +179,8 @@
 	dodging = TRUE
 	dodge_prob = 70
 
-	/datum/ai_controller/basic_controller/simple
+	// Use the new void-specific AI controller
+	ai_controller_type = /datum/ai_controller/basic_controller/void
 
 	Life()
 		. = ..()
@@ -202,6 +212,3 @@
 		..()
 
 	del_on_death = TRUE
-
-
-

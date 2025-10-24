@@ -311,7 +311,7 @@
 	dangerous = TRUE
 	name = "Delirium"
 	gas_overlay = "delirium_2"
-	moles_visible = MOLES_GAS_VISIBLE * 10
+	moles_visible = MOLES_GAS_VISIBLE * 130
 	rarity = 1
 	fusion_power = 25
 	base_value = 5
