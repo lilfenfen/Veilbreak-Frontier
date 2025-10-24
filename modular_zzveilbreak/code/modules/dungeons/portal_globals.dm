@@ -296,20 +296,15 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 	if(!SSmapping.initialized)
 		return generation_failed("Mapping subsystem not initialized")
 
-	// Create new Z-level using mapping subsystem - FIXED: Use correct approach
-	var/datum/space_level/dungeon_level
-	try
-		dungeon_level = SSmapping.add_new_zlevel(
-			name = "Veilbreak Dungeon [rand(1000,9999)]",
-			traits = list(
-				ZTRAIT_AWAY = TRUE,
-				ZTRAIT_MINING = TRUE,
-				ZTRAIT_BASETURF = /turf/open/space/basic
-			)
+	// Create new Z-level using mapping subsystem - FIXED: Remove try without catch
+	var/datum/space_level/dungeon_level = SSmapping.add_new_zlevel(
+		name = "Veilbreak Dungeon [rand(1000,9999)]",
+		traits = list(
+			ZTRAIT_AWAY = TRUE,
+			ZTRAIT_MINING = TRUE,
+			ZTRAIT_BASETURF = /turf/open/space/basic
 		)
-	catch(var/exception/e)
-		log_dungeon("Dungeon Generator: Exception during Z-level creation: [e]")
-		return generation_failed("Failed to create new Z-level")
+	)
 
 	if(!dungeon_level)
 		return generation_failed("Failed to create new Z-level")
