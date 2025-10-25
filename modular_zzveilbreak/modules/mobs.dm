@@ -26,7 +26,7 @@
 	attack_verb_continuous = "slashes"
 	attack_verb_simple = "slash"
 	attack_sound = "modular_zzveilbreak/sound/weapons/voidling_attack.ogg"
-	faction = list("Void")
+	faction = list(FACTION_VOID)
 	environment_smash = ENVIRONMENT_SMASH_STRUCTURES
 	stat_attack = HARD_CRIT
 	robust_searching = TRUE
@@ -37,7 +37,7 @@
 
 /mob/living/simple_animal/hostile/Voidling/New()
 	. = ..()
-	faction |= "Hostile"
+	faction |= FACTION_HOSTILE
 
 /mob/living/simple_animal/hostile/Voidling/death(gibbed)
 	void_death("And the void reclaims.", voidling_loot_table)
@@ -64,7 +64,7 @@
 	attack_verb_continuous = "sends a bolt"
 	attack_verb_simple = "bolts"
 	attack_sound = "modular_zzveilbreak/sound/weapons/voidling_attack.ogg"
-	faction = list("Void")
+	faction = list(FACTION_VOID)
 	environment_smash = ENVIRONMENT_SMASH_STRUCTURES
 	stat_attack = HARD_CRIT
 	robust_searching = TRUE
@@ -78,7 +78,7 @@
 
 /mob/living/simple_animal/hostile/Consumed_Pathfinder/New()
 	. = ..()
-	faction |= "Hostile"
+	faction |= FACTION_HOSTILE
 
 /mob/living/simple_animal/hostile/Consumed_Pathfinder/Life()
 	. = ..()
@@ -116,7 +116,7 @@
 	attack_verb_continuous = "bites"
 	attack_verb_simple = "bite"
 	attack_sound = "modular_zzveilbreak/sound/weapons/voidling_attack.ogg"
-	faction = list("Void")
+	faction = list(FACTION_VOID)
 	environment_smash = ENVIRONMENT_SMASH_STRUCTURES
 	stat_attack = HARD_CRIT
 	robust_searching = TRUE
@@ -128,7 +128,7 @@
 
 /mob/living/simple_animal/hostile/Voidbug/New()
 	. = ..()
-	faction |= "Hostile"
+	faction |= FACTION_HOSTILE
 
 /mob/living/simple_animal/hostile/Voidbug/take_damage(damage, damagetype, def_zone, blocked, forced, spread_damage, wound_bonus, bare_wound_bonus, sharpness, attack_direction, attacking_item)
 	if(prob(block_chance))
@@ -161,7 +161,7 @@
 	melee_damage_upper = 0
 	attack_verb_continuous = "touches"
 	attack_verb_simple = "touch"
-	faction = list("Void")
+	faction = list(FACTION_VOID)
 	environment_smash = ENVIRONMENT_SMASH_NONE
 	stat_attack = CONSCIOUS
 	robust_searching = TRUE
@@ -173,7 +173,7 @@
 
 /mob/living/simple_animal/hostile/Void_Healer/New()
 	. = ..()
-	faction |= "Hostile"
+	faction |= FACTION_HOSTILE
 
 /mob/living/simple_animal/hostile/Void_Healer/death(gibbed)
 	void_death("[src] fades into nothingness.", void_healer_table)
