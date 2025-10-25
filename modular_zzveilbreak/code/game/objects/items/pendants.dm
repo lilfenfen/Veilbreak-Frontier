@@ -78,8 +78,6 @@
 		if(ismob(loc))
 			to_chat(loc, span_warning("The Aether Pendant's activation fades."))
 
-// NO CUSTOM build_worn_icon OVERRIDE
-
 /obj/item/clothing/neck/life_pendant
 	name = "Life Pendant"
 	desc = "A vibrant pendant that pulses with life energy. Heals the user."
@@ -156,6 +154,4 @@
 /obj/item/clothing/neck/life_pendant/proc/end_cooldown()
 	on_cooldown = FALSE
 	if(ismob(loc))
-		to_chat(loc, span_notice("The Life Pendant is ready to use again.")
-
-// NO CUSTOM build_worn_icon OVERRIDE
+		to_chat(loc, span_notice("The Life Pendant is ready to use again."))
