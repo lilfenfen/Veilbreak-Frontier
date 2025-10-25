@@ -9,11 +9,9 @@
 	w_class = WEIGHT_CLASS_SMALL
 	slot_flags = ITEM_SLOT_NECK
 
-	// Skyrat scaling integration
+	// Skyrat scaling integration - same as ashwalker necklace
 	supports_variations_flags = CLOTHING_DIGITIGRADE_VARIATION | CLOTHING_SNOUTED_VARIATION
-	worn_x_dimension = 32
-	worn_y_dimension = 32
-	// Remove base offset - we'll calculate everything in build_worn_icon
+	// NO custom scaling, NO custom build_worn_icon override
 
 	var/active = FALSE
 	var/on_cooldown = FALSE
@@ -80,49 +78,7 @@
 		if(ismob(loc))
 			to_chat(loc, span_warning("The Aether Pendant's activation fades."))
 
-// Calculated positioning based on sprite center and player height
-/obj/item/clothing/neck/aether_pendant/build_worn_icon(default_layer = 0, default_icon_file = null, isinhands = FALSE, female_uniform = NO_FEMALE_UNIFORM, override_state = null, override_file = null, mutant_styles = NONE)
-	var/mutable_appearance/standing = ..()
-
-	if(!isinhands && ishuman(loc))
-		var/mob/living/carbon/human/H = loc
-
-		// Calculate scaling based on height
-		var/scale_factor
-		var/vertical_offset
-
-		switch(H.mob_height)
-			if(HUMAN_HEIGHT_SHORTEST, HUMAN_HEIGHT_DWARF)
-				scale_factor = 0.5
-				vertical_offset = -8  // Short characters - pendant hangs lower relative to neck
-			if(HUMAN_HEIGHT_SHORT)
-				scale_factor = 0.6
-				vertical_offset = -6   // Short characters
-			if(HUMAN_HEIGHT_MEDIUM)
-				scale_factor = 0.7
-				vertical_offset = -4   // Average height
-			if(HUMAN_HEIGHT_TALL)
-				scale_factor = 0.8
-				vertical_offset = -2   // Tall characters
-			if(HUMAN_HEIGHT_TALLER, HUMAN_HEIGHT_TALLEST)
-				scale_factor = 0.9
-				vertical_offset = 0    // Tallest characters - pendant sits at natural neck position
-
-		// Apply scaling
-		standing.transform = standing.transform.Scale(scale_factor, scale_factor)
-
-		// Calculate final position:
-		// - The pendant sprite is centered in 32x32
-		// - We want the "neck attachment point" (top center of pendant) to align with the character's neck
-		// - After scaling, the pendant's height becomes 32 * scale_factor
-		// - We need to offset it so the top center aligns with neck position
-		var/scaled_height = 32 * scale_factor
-		var/center_to_top_offset = scaled_height / 2  // Distance from center to top
-
-		// Final positioning: center the pendant's top at the neck position + vertical_offset
-		standing.pixel_y = vertical_offset - center_to_top_offset
-
-	return standing
+// NO CUSTOM build_worn_icon OVERRIDE
 
 /obj/item/clothing/neck/life_pendant
 	name = "Life Pendant"
@@ -135,11 +91,9 @@
 	w_class = WEIGHT_CLASS_SMALL
 	slot_flags = ITEM_SLOT_NECK
 
-	// Skyrat scaling integration
+	// Skyrat scaling integration - same as ashwalker necklace
 	supports_variations_flags = CLOTHING_DIGITIGRADE_VARIATION | CLOTHING_SNOUTED_VARIATION
-	worn_x_dimension = 32
-	worn_y_dimension = 32
-	// Remove base offset - we'll calculate everything in build_worn_icon
+	// NO custom scaling, NO custom build_worn_icon override
 
 	var/on_cooldown = FALSE
 	var/cooldown_time = 35 SECONDS
@@ -202,48 +156,6 @@
 /obj/item/clothing/neck/life_pendant/proc/end_cooldown()
 	on_cooldown = FALSE
 	if(ismob(loc))
-		to_chat(loc, span_notice("The Life Pendant is ready to use again."))
+		to_chat(loc, span_notice("The Life Pendant is ready to use again.")
 
-// Calculated positioning based on sprite center and player height
-/obj/item/clothing/neck/life_pendant/build_worn_icon(default_layer = 0, default_icon_file = null, isinhands = FALSE, female_uniform = NO_FEMALE_UNIFORM, override_state = null, override_file = null, mutant_styles = NONE)
-	var/mutable_appearance/standing = ..()
-
-	if(!isinhands && ishuman(loc))
-		var/mob/living/carbon/human/H = loc
-
-		// Calculate scaling based on height
-		var/scale_factor
-		var/vertical_offset
-
-		switch(H.mob_height)
-			if(HUMAN_HEIGHT_SHORTEST, HUMAN_HEIGHT_DWARF)
-				scale_factor = 0.5
-				vertical_offset = -8  // Short characters - pendant hangs lower relative to neck
-			if(HUMAN_HEIGHT_SHORT)
-				scale_factor = 0.6
-				vertical_offset = -6   // Short characters
-			if(HUMAN_HEIGHT_MEDIUM)
-				scale_factor = 0.7
-				vertical_offset = -4   // Average height
-			if(HUMAN_HEIGHT_TALL)
-				scale_factor = 0.8
-				vertical_offset = -2   // Tall characters
-			if(HUMAN_HEIGHT_TALLER, HUMAN_HEIGHT_TALLEST)
-				scale_factor = 0.9
-				vertical_offset = 0    // Tallest characters - pendant sits at natural neck position
-
-		// Apply scaling
-		standing.transform = standing.transform.Scale(scale_factor, scale_factor)
-
-		// Calculate final position:
-		// - The pendant sprite is centered in 32x32
-		// - We want the "neck attachment point" (top center of pendant) to align with the character's neck
-		// - After scaling, the pendant's height becomes 32 * scale_factor
-		// - We need to offset it so the top center aligns with neck position
-		var/scaled_height = 32 * scale_factor
-		var/center_to_top_offset = scaled_height / 2  // Distance from center to top
-
-		// Final positioning: center the pendant's top at the neck position + vertical_offset
-		standing.pixel_y = vertical_offset - center_to_top_offset
-
-	return standing
+// NO CUSTOM build_worn_icon OVERRIDE
