@@ -9,13 +9,16 @@
 	w_class = WEIGHT_CLASS_SMALL
 	slot_flags = ITEM_SLOT_NECK
 
-	var/active = FALSE  // For active ability
+	// Skyrat scaling integration
+	supports_variations_flags = CLOTHING_DIGITIGRADE_VARIATION | CLOTHING_SNOUTED_VARIATION
+	worn_y_offset = 2 // Adjust vertical position if needed
+
+	var/active = FALSE
 	var/on_cooldown = FALSE
 	var/cooldown_time = 20 SECONDS
 
 /obj/item/clothing/neck/aether_pendant/Initialize()
 	. = ..()
-	// Removed action grant here
 
 /obj/item/clothing/neck/aether_pendant/equipped(mob/user, slot)
 	. = ..()
@@ -56,8 +59,8 @@
 
 /obj/item/clothing/neck/aether_pendant/proc/on_damage(datum/source, damage, damagetype, def_zone, blocked, forced)
 	SIGNAL_HANDLER
-	if(prob(1) || active)  // 1% chance or active
-		damage = 0  // Nullify damage
+	if(prob(1) || active)
+		damage = 0
 		if(active)
 			active = FALSE
 			to_chat(source, span_notice("The void fully blocks the damage!"))
@@ -75,15 +78,6 @@
 		if(ismob(loc))
 			to_chat(loc, span_warning("The Aether Pendant's activation fades."))
 
-/obj/item/clothing/neck/aether_pendant/build_worn_icon(default_layer = 0, default_icon_file = null, isinhands = FALSE, femaleuniform = NO_FEMALE_UNIFORM, override_state = null, override_file = null)
-	var/mutable_appearance/result = ..()
-	if(result && ishuman(loc))
-		var/mob/living/carbon/human/H = loc
-		var/scale = (H.dna.features["body_size"] || 1) * 0.2  // Make pendants smaller
-		pixel_x = 4
-		result.transform = result.transform.Scale(scale)
-	return result
-
 /obj/item/clothing/neck/life_pendant
 	name = "Life Pendant"
 	desc = "A vibrant pendant that pulses with life energy. Heals the user."
@@ -95,25 +89,27 @@
 	w_class = WEIGHT_CLASS_SMALL
 	slot_flags = ITEM_SLOT_NECK
 
+	// Skyrat scaling integration
+	supports_variations_flags = CLOTHING_DIGITIGRADE_VARIATION | CLOTHING_SNOUTED_VARIATION
+	worn_y_offset = 2 // Adjust vertical position if needed
 
 	var/on_cooldown = FALSE
 	var/cooldown_time = 35 SECONDS
 
 /obj/item/clothing/neck/life_pendant/Initialize()
 	. = ..()
-	// Removed action grant here
 
 /obj/item/clothing/neck/life_pendant/equipped(mob/user, slot)
 	. = ..()
 	if(slot == ITEM_SLOT_NECK)
-		START_PROCESSING(SSobj, src)  // Start passive healing
+		START_PROCESSING(SSobj, src)
 		if(!locate(/datum/action/item_action/life_heal) in user.actions)
 			var/datum/action/item_action/life_heal/action = new(src)
 			action.Grant(user)
 
 /obj/item/clothing/neck/life_pendant/dropped(mob/user)
 	. = ..()
-	STOP_PROCESSING(SSobj, src)  // Stop passive healing
+	STOP_PROCESSING(SSobj, src)
 	var/datum/action/item_action/life_heal/action = locate() in user.actions
 	if(action)
 		action.Remove(user)
@@ -150,7 +146,7 @@
 		return
 	var/mob/living/user = loc
 	if(user.health < user.maxHealth)
-		user.adjustBruteLoss(-0.5 * seconds_per_tick)  // Heal 1 per second, scaled by tick
+		user.adjustBruteLoss(-0.5 * seconds_per_tick)
 		user.adjustFireLoss(-0.5 * seconds_per_tick)
 		user.adjustToxLoss(-0.5 * seconds_per_tick)
 		user.adjustOxyLoss(-0.5 * seconds_per_tick)
@@ -159,13 +155,3 @@
 	on_cooldown = FALSE
 	if(ismob(loc))
 		to_chat(loc, span_notice("The Life Pendant is ready to use again."))
-
-/obj/item/clothing/neck/life_pendant/build_worn_icon(default_layer = 0, default_icon_file = null, isinhands = FALSE, femaleuniform = NO_FEMALE_UNIFORM, override_state = null, override_file = null)
-	var/mutable_appearance/result = ..()
-	if(result && ishuman(loc))
-		var/mob/living/carbon/human/H = loc
-		var/scale = (H.dna.features["body_size"] || 1) * 0.2 // Make pendants smaller
-		pixel_x = 4
-		result.transform = result.transform.Scale(scale)
-	return result
-
