@@ -1,7 +1,7 @@
 /mob/living/simple_animal/hostile/megafauna/melos_vecare
 	name = "Melos Vecare"
 	desc = "A siren corrupted by the void, her song now weaves destruction and chaos."
-	icon = 'modular_zzveilbreak/icons/bosses/melos_vecare.dmi'
+	icon = 'modular_zzveilbreak/icons/bosses/melos.dmi'
 	icon_state = "melos_vecare"
 	icon_living = "melos_vecare"
 	pixel_x = -16
