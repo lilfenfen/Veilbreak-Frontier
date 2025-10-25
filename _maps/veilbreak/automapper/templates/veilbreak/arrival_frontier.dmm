@@ -3,8 +3,7 @@
 "f" = (/obj/structure/chair/sofa/bench/left{dir = 4},/obj/machinery/light/directional/west,/turf/open/floor/iron/shuttle/arrivals{icon_state = "sign_1"},/area/shuttle/arrival)
 "i" = (/obj/effect/spawner/structure/window/reinforced/plasma/plastitanium,/turf/open/floor/iron/dark,/area/shuttle/arrival)
 "j" = (/obj/structure/chair/sofa/bench/right{dir = 4},/turf/open/floor/iron/shuttle/arrivals{icon_state = "sign_1"},/area/shuttle/arrival)
-"l" = (/obj/machinery/door/airlock/titanium{name = "Arrivals Shuttle Airlock"},/obj/docking_port/mobile/arrivals{shuttle_id = "arrival_stationary"},/turf/open/floor/iron/dark,/area/shuttle/arrival)
-"p" = (/obj/machinery/computer/shuttle/arrivals,/turf/open/floor/iron/shuttle/arrivals{icon_state = "sign_1"},/area/shuttle/arrival)
+"l" = (/obj/machinery/door/airlock/titanium{name = "Arrivals Shuttle Airlock"},/obj/docking_port/mobile/arrivals,/turf/open/floor/iron/dark,/area/shuttle/arrival)
 "F" = (/turf/open/floor/iron/shuttle/arrivals{icon_state = "sign_2"; dir = 4},/area/shuttle/arrival)
 "G" = (/obj/machinery/power/shuttle_engine/heater,/turf/closed/wall/mineral/plastitanium,/area/shuttle/arrival)
 "H" = (/obj/machinery/light/directional/east,/turf/open/floor/iron/shuttle/arrivals{icon_state = "sign_3"},/area/shuttle/arrival)
@@ -20,7 +19,7 @@
 
 (1,1,1) = {"
 aiiia
-iRpRi
+iRRRi
 iJRSi
 acROa
 ZQRFl
