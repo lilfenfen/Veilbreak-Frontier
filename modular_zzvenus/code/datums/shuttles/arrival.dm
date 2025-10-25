@@ -14,3 +14,9 @@
 	prefix = "_maps/shuttles/zzvenus/"
 	suffix = "kilo_venus"
 	name = "arrival shuttle (Kilo)"
+
+//This is the interlink ferry, but modified to work as an arrival shuttle.
+/datum/map_template/shuttle/arrival/arrival_ssfrontier
+	prefix = "_maps/shuttles/zzvenus/"
+	suffix = "arrival_ssfrontier"
+	name = "arrival shuttle (SSFrontier)"
