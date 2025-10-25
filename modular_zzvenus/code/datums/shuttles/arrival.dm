@@ -18,5 +18,5 @@
 //This is the interlink ferry, but modified to work as an arrival shuttle.
 /datum/map_template/shuttle/arrival/arrival_ssfrontier
 	prefix = "_maps/shuttles/zzvenus/"
-	suffix = "arrival_ssfrontier"
+	suffix = "ssfrontier"
 	name = "arrival shuttle (SSFrontier)"
