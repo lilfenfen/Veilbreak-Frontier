@@ -888,7 +888,7 @@ coordinates = [85, 150, 1]
 trait_name = "Station"
 
 #Veilbreak
-[templates.arrival_frontier.dmm]
+[templates.arrival_frontier]
 map_files = ["arrival_frontier.dmm"]
 directory = "_maps/veilbreak/automapper/templates/veilbreak"
 required_map = "ssfrontier.dmm"
