@@ -3306,7 +3306,7 @@
 "xVf" = (/obj/machinery/chem_dispenser/drinks/beer{dir = 8},/obj/structure/table/wood,/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,/obj/effect/turf_decal/tile/bar{dir = 1},/obj/effect/turf_decal/tile/bar,/turf/open/floor/iron/dark,/area/station/service/bar)
 "xVl" = (/obj/effect/landmark/start/paramedic,/obj/structure/cable,/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2{dir = 8},/turf/open/floor/iron/white,/area/station/medical/medbay/lobby)
 "xVv" = (/obj/structure/sign/poster/contraband/grey_tide/directional/south,/obj/structure/cable,/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2{dir = 8},/turf/open/floor/iron/dark,/area/station/hallway/secondary/service)
-"xVG" = (/obj/docking_port/stationary{dir = 8; dwidth = 1; height = 13; shuttle_id = "arrivals_shuttle"; name = "arrivals"; width = 5},/turf/open/space/basic,/area/station/hallway/secondary/entry)
+"xVG" = (/obj/docking_port/mobile/arrivals{height = 10; width = 5; shuttle_id = "arrival_stationary"},/turf/open/space/basic,/area/station/hallway/secondary/entry)
 "xWC" = (/obj/machinery/chem_dispenser/drinks{dir = 8},/obj/structure/table,/obj/item/storage/box/drinkingglasses{pixel_x = -16; pixel_y = 11},/obj/item/storage/box/beakers{pixel_x = -16; pixel_y = 8},/obj/structure/cable,/turf/open/floor/iron/dark,/area/station/security/prison)
 "xWI" = (/turf/open/floor/iron/dark,/area/station/engineering/atmos)
 "xXg" = (/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,/turf/closed/wall/mineral/plastitanium,/area/station/service/bar)
