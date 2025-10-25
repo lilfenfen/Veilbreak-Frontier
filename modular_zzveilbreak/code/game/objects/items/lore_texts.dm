@@ -5,11 +5,13 @@
  */
 /obj/item/paper/lore
 	name = "ancient document"
-	icon_state = "paper_torn"
+	icon = 'icons/obj/bureaucracy.dmi'
+	icon_state = "paper"
 
 /obj/item/paper/lore/melos_story
 	name = "water-stained note"
 	desc = "A piece of parchment, stained and worn by water and time. The ink has bled in places, but the elegant script is still legible."
+	icon_state = "paper"
 
 /obj/item/paper/lore/melos_story/Initialize(mapload)
 	. = ..()
@@ -18,13 +20,14 @@
 	<br><br>
 	But the void answered instead. It found her in her loneliest moment and twisted that beautiful song of love into a dirge of sorrow. The ocean's heart within her turned black with cosmic tears.
 	<br><br>
-	I fled. May the stars forgive me.
+	I fled. May the stars forgive me, for i couldnt do anything for her.
 	"})
 	update_appearance()
 
 /obj/item/paper/lore/advertisement
 	name = "Electronic Mail"
 	desc = "This paper feels like it's filled with static charge."
+	icon_state = "paper"
 
 /obj/item/paper/lore/advertisement/Initialize(mapload)
 	. = ..()
@@ -40,11 +43,12 @@
 /obj/item/paper/lore/whispers
 	name = "hastily scribbled note"
 	desc = "A piece of paper covered in frantic, barely legible writing. It looks like it was torn from a larger page."
+	icon_state = "paper_torn"
 
 /obj/item/paper/lore/whispers/Initialize(mapload)
 	. = ..()
 	add_raw_text({"
-	The whispers... they don't stop. They promise power, but it's a lie. It's a cage. I found a way, a crack in the non-reality. A pattern. Its all about-
+	The whispers... they don't stop. They promise power, but it's Ә ˆӘ𝖡˘, Ә ı´Ә” ıæ ±¢ϐı ˆæɲϐ¢›˘ ≤æ¢´ ϐæ¢¿
 	<br><br>
 	The rest of the note is torn away.
 	"})

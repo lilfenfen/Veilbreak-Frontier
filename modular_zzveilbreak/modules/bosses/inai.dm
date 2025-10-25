@@ -1,7 +1,7 @@
 /mob/living/simple_animal/hostile/megafauna/inai
 	name = "Inai"
 	desc = "Spirit of the Void, enduring the mortal indignities of the coil."
-	icon = 'modular_zzveilbreak/icons/bosses/inai.dmi'
+	icon = 'modular_zzveilbreak/icons/bosses/inai_model.dmi'
 	icon_state = "inai"
 	pixel_x = -16
 	pixel_y = -16
@@ -47,7 +47,7 @@
 		"Behind you.",
 		"You're already too late.",
 		"I'm everywhere and nowhere.",
-
+		"I cannot let you live."
 	)
 
 	// List of resonant pulse messages
@@ -108,7 +108,7 @@
 		if(loot)
 			new loot(loc)
 		var/msg = pick(death_messages)
-		visible_message("<span style='color:#8a2be2; font-style:italic; font-size: 1.2em; '>[msg]</span>")
+		visible_message("<span style='color:#8a2be2; font-style:italic; '>[msg]</span>")
 		..()
 
 // Astral Step ability
