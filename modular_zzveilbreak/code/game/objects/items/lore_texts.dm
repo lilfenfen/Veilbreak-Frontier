@@ -5,13 +5,13 @@
  */
 /obj/item/paper/lore
 	name = "ancient document"
-	icon = 'icons/obj/bureaucracy.dmi'
-	icon_state = "paper"
+	icon = 'icons/obj/scrolls.dmi'
+	icon_state = "scroll"
 
 /obj/item/paper/lore/melos_story
 	name = "water-stained note"
 	desc = "A piece of parchment, stained and worn by water and time. The ink has bled in places, but the elegant script is still legible."
-	icon_state = "paper"
+	icon_state = "scroll"
 
 /obj/item/paper/lore/melos_story/Initialize(mapload)
 	. = ..()
@@ -43,7 +43,7 @@
 /obj/item/paper/lore/whispers
 	name = "hastily scribbled note"
 	desc = "A piece of paper covered in frantic, barely legible writing. It looks like it was torn from a larger page."
-	icon_state = "paper_torn"
+	icon_state = "scroll-ancient"
 
 /obj/item/paper/lore/whispers/Initialize(mapload)
 	. = ..()
