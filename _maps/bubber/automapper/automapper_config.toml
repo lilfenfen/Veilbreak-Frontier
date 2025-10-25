@@ -887,9 +887,8 @@ required_map = "VoidRaptor.dmm"
 coordinates = [85, 150, 1]
 trait_name = "Station"
 
-
 #Veilbreak
-[templates.frontier_arrivals.dmm]
+[templates.ssfrontier_arrivals.dmm]
 map_files = ["ssfrontier_arrivals.dmm"]
 directory = "_maps/veilbreak/automapper/veilbreak/"
 required_map = "ssfrontier.dmm"
