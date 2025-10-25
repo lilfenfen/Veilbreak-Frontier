@@ -35,10 +35,13 @@
 	if(!length(targets))
 		return
 	var/mob/living/target = pick(targets)
+
+	// Direct projectile firing without preparePixelProjectile
 	var/obj/projectile/magic/voidbolt/bolt = new(get_turf(user))
+	bolt.original = target
 	bolt.firer = user
-	bolt.target = target
-	bolt.angle = get_angle(user, target)
+	bolt.yo = target.y - user.y
+	bolt.xo = target.x - user.x
 	bolt.fire()
 
 /obj/item/clothing/gloves/ring/voidring/build_worn_icon(default_layer = 0, default_icon_file = null, isinhands = FALSE, femaleuniform = NO_FEMALE_UNIFORM, override_state = null, override_file = null)

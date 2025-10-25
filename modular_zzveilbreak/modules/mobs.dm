@@ -1,3 +1,14 @@
+/mob/living/simple_animal/hostile
+	// Shared death proc for all void creatures
+	proc/void_death(message, loot_table)
+		if(loot_table)
+			var/loot = pick_loot_from_table(loot_table)
+			if(loot)
+				new loot(loc)
+		if(message)
+			visible_message(span_danger("[message]"))
+		qdel(src)
+
 /mob/living/simple_animal/hostile/Voidling
 	name = "Voidling"
 	desc = "You struggle to comprehend the details of this creature, it keeps shifting and changing constantly."
@@ -22,25 +33,14 @@
 	dodging = TRUE
 	dodge_prob = 50
 
-	// Use the new void-specific AI controller
-	ai_controller_type = /datum/ai_controller/basic_controller/void
-
-/datum/ai_controller/basic_controller/alien/Initialize(pawn)
-	. = ..()
-	if(pawn.faction.Find("Void"))
-		pawn.faction |= "Hostile"
-
-/mob/living/simple_animal/hostile/Voidling/death(message)
-	// Spawn loot before deletion
-	var/loot = pick_loot_from_table(voidling_loot_table)
-	if(loot)
-		new loot(loc)
-	visible_message(span_danger("And the void reclaims."))
-	..()
+	ai_controller = /datum/ai_controller/basic_controller/voidling
 
 /mob/living/simple_animal/hostile/Voidling/New()
 	. = ..()
-	//addtimer(CALLBACK(src, PROC_REF(qdel)), 30 SECONDS )
+	faction |= "Hostile"
+
+/mob/living/simple_animal/hostile/Voidling/death(gibbed)
+	void_death("And the void reclaims.", voidling_loot_table)
 
 /mob/living/simple_animal/hostile/Voidling/Move()
 	. = ..()
@@ -72,34 +72,32 @@
 	dodge_prob = 30
 	ranged = 1
 	var/last_summon = 0
-	projectiletype = /obj/projectile/magic/voidbolt // Keep projectile type here
+	projectiletype = /obj/projectile/magic/voidbolt
 
-	ai_controller_type = /datum/ai_controller/basic_controller/alien
+	ai_controller = /datum/ai_controller/basic_controller/void_pathfinder
+
+/mob/living/simple_animal/hostile/Consumed_Pathfinder/New()
+	. = ..()
+	faction |= "Hostile"
 
 /mob/living/simple_animal/hostile/Consumed_Pathfinder/Life()
 	. = ..()
 	if(target && world.time > last_summon + 10 SECONDS)
 		last_summon = world.time
 		var/mob/living/simple_animal/hostile/Voidling/new_voidling = new(loc)
-		new_voidling.faction = faction.Copy() // Ensure summoned voidlings are also in the void faction
+		new_voidling.faction = faction.Copy()
 
-/mob/living/simple_animal/hostile/Consumed_Pathfinder/death(message)
-	// Spawn loot before deletion
-	var/loot = pick_loot_from_table(consumed_pathfinder_drops)
-	if(loot)
-		new loot(loc)
-	visible_message(span_danger("[src] shatters into nothingness."))
-	..()
+/mob/living/simple_animal/hostile/Consumed_Pathfinder/death(gibbed)
+	void_death("[src] shatters into nothingness.", consumed_pathfinder_drops)
 
 /obj/projectile/magic/voidbolt
 	name = "void bolt"
 	icon = 'modular_zzveilbreak/icons/item_icons/voidring.dmi'
 	icon_state = "voidbolt"
 	damage = 20
-	damage_type = BURN // Void bolts deal burn damage
+	damage_type = BURN
 	range = 50
 	speed = 0.2
-	var/atom/target
 
 /mob/living/simple_animal/hostile/Voidbug
 	name = "Voidbug"
@@ -124,9 +122,13 @@
 	robust_searching = TRUE
 	dodging = FALSE
 	var/block_chance = 30
+	var/last_pack_call = 0
 
-	// Use the new void-specific AI controller
-	ai_controller_type = /datum/ai_controller/basic_controller/void
+	ai_controller = /datum/ai_controller/basic_controller/voidbug
+
+/mob/living/simple_animal/hostile/Voidbug/New()
+	. = ..()
+	faction |= "Hostile"
 
 /mob/living/simple_animal/hostile/Voidbug/take_damage(damage, damagetype, def_zone, blocked, forced, spread_damage, wound_bonus, bare_wound_bonus, sharpness, attack_direction, attacking_item)
 	if(prob(block_chance))
@@ -140,13 +142,8 @@
 		return BULLET_ACT_BLOCK
 	. = ..()
 
-/mob/living/simple_animal/hostile/Voidbug/death(message)
-	// Spawn loot before deletion
-	var/loot = pick_loot_from_table(voidbug_loot_table)
-	if(loot)
-		new loot(loc)
-	visible_message(span_danger("[src] crumbles into void dust."))
-	..()
+/mob/living/simple_animal/hostile/Voidbug/death(gibbed)
+	void_death("[src] crumbles into void dust.", voidbug_loot_table)
 
 /mob/living/simple_animal/hostile/Void_Healer
 	name = "Void Healer"
@@ -156,7 +153,7 @@
 	icon_living = "void_healer"
 	speak_chance = 0
 	turns_per_move = 5
-	speed = 0.9 // Faster to run away
+	speed = 0.9
 	maxHealth = 50
 	health = 50
 	harm_intent_damage = 0
@@ -170,35 +167,13 @@
 	robust_searching = TRUE
 	dodging = TRUE
 	dodge_prob = 70
+	var/last_heal = 0
 
-	// Use the new void-specific AI controller
-	ai_controller_type = /datum/ai_controller/basic_controller/void
+	ai_controller = /datum/ai_controller/basic_controller/void_healer
 
-/mob/living/simple_animal/hostile/Void_Healer/Life()
+/mob/living/simple_animal/hostile/Void_Healer/New()
 	. = ..()
-	// Heal nearby allies
-	for(var/mob/living/L in range(3, src))
-		if(L.faction == faction && L.health < L.maxHealth)
-			L.adjustBruteLoss(-5)
-			visible_message(span_notice("[src] heals [L] with void energy."))
-			break // Heal one per tick
+	faction |= "Hostile"
 
-	// Run away from enemies
-	var/closest_enemy = null
-	var/closest_dist = 10
-	for(var/mob/living/hostile in view(7, src))
-		if(hostile.faction != faction && !hostile.stat)
-			var/dist = get_dist(src, hostile)
-			if(dist < closest_dist)
-				closest_dist = dist
-				closest_enemy = hostile
-	if(closest_enemy)
-		var/dir_away = get_dir(closest_enemy, src)
-		step(src, dir_away)
-
-/mob/living/simple_animal/hostile/Void_Healer/death(message)
-	var/loot = pick_loot_from_table(void_healer_table)
-	if(loot)
-		new loot(loc)
-	visible_message(span_danger("[src] fades into nothingness."))
-	..()
+/mob/living/simple_animal/hostile/Void_Healer/death(gibbed)
+	void_death("[src] fades into nothingness.", void_healer_table)
