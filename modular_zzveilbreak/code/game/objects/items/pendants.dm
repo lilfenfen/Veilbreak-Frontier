@@ -11,7 +11,9 @@
 
 	// Skyrat scaling integration
 	supports_variations_flags = CLOTHING_DIGITIGRADE_VARIATION | CLOTHING_SNOUTED_VARIATION
-	worn_y_offset = 2 // Adjust vertical position if needed
+	worn_x_dimension = 32
+	worn_y_dimension = 32
+	worn_y_offset = 8 // Better positioning for neck items
 
 	var/active = FALSE
 	var/on_cooldown = FALSE
@@ -78,6 +80,32 @@
 		if(ismob(loc))
 			to_chat(loc, span_warning("The Aether Pendant's activation fades."))
 
+// Custom build_worn_icon for proper neck item scaling - MUCH more aggressive scaling
+/obj/item/clothing/neck/aether_pendant/build_worn_icon(default_layer = 0, default_icon_file = null, isinhands = FALSE, female_uniform = NO_FEMALE_UNIFORM, override_state = null, override_file = null, mutant_styles = NONE)
+	var/mutable_appearance/standing = ..()
+
+	if(!isinhands && ishuman(loc))
+		var/mob/living/carbon/human/H = loc
+		// Much more aggressive scaling for neck items - they need to be small
+		switch(H.mob_height)
+			if(HUMAN_HEIGHT_SHORTEST, HUMAN_HEIGHT_DWARF)
+				standing.transform = standing.transform.Scale(0.5, 0.5)  // Very small for shortest characters
+				standing.pixel_y += 4
+			if(HUMAN_HEIGHT_SHORT)
+				standing.transform = standing.transform.Scale(0.6, 0.6)  // Small for short characters
+				standing.pixel_y += 3
+			if(HUMAN_HEIGHT_MEDIUM)
+				standing.transform = standing.transform.Scale(0.7, 0.7)  // Medium scaling for average height
+				standing.pixel_y += 2
+			if(HUMAN_HEIGHT_TALL)
+				standing.transform = standing.transform.Scale(0.8, 0.8)  // Slightly larger for tall
+				standing.pixel_y += 1
+			if(HUMAN_HEIGHT_TALLER, HUMAN_HEIGHT_TALLEST)
+				standing.transform = standing.transform.Scale(0.9, 0.9)  // Largest but still scaled down
+				// No pixel_y adjustment for tallest
+
+	return standing
+
 /obj/item/clothing/neck/life_pendant
 	name = "Life Pendant"
 	desc = "A vibrant pendant that pulses with life energy. Heals the user."
@@ -91,7 +119,9 @@
 
 	// Skyrat scaling integration
 	supports_variations_flags = CLOTHING_DIGITIGRADE_VARIATION | CLOTHING_SNOUTED_VARIATION
-	worn_y_offset = 2 // Adjust vertical position if needed
+	worn_x_dimension = 32
+	worn_y_dimension = 32
+	worn_y_offset = 8 // Better positioning for neck items
 
 	var/on_cooldown = FALSE
 	var/cooldown_time = 35 SECONDS
@@ -155,3 +185,29 @@
 	on_cooldown = FALSE
 	if(ismob(loc))
 		to_chat(loc, span_notice("The Life Pendant is ready to use again."))
+
+// Custom build_worn_icon for proper neck item scaling - MUCH more aggressive scaling
+/obj/item/clothing/neck/life_pendant/build_worn_icon(default_layer = 0, default_icon_file = null, isinhands = FALSE, female_uniform = NO_FEMALE_UNIFORM, override_state = null, override_file = null, mutant_styles = NONE)
+	var/mutable_appearance/standing = ..()
+
+	if(!isinhands && ishuman(loc))
+		var/mob/living/carbon/human/H = loc
+		// Much more aggressive scaling for neck items - they need to be small
+		switch(H.mob_height)
+			if(HUMAN_HEIGHT_SHORTEST, HUMAN_HEIGHT_DWARF)
+				standing.transform = standing.transform.Scale(0.5, 0.5)  // Very small for shortest characters
+				standing.pixel_y += 4
+			if(HUMAN_HEIGHT_SHORT)
+				standing.transform = standing.transform.Scale(0.6, 0.6)  // Small for short characters
+				standing.pixel_y += 3
+			if(HUMAN_HEIGHT_MEDIUM)
+				standing.transform = standing.transform.Scale(0.7, 0.7)  // Medium scaling for average height
+				standing.pixel_y += 2
+			if(HUMAN_HEIGHT_TALL)
+				standing.transform = standing.transform.Scale(0.8, 0.8)  // Slightly larger for tall
+				standing.pixel_y += 1
+			if(HUMAN_HEIGHT_TALLER, HUMAN_HEIGHT_TALLEST)
+				standing.transform = standing.transform.Scale(0.9, 0.9)  // Largest but still scaled down
+				// No pixel_y adjustment for tallest
+
+	return standing
