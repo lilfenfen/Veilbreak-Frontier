@@ -42,3 +42,10 @@
 	prefix = "_maps/shuttles/zzvenus/"
 	suffix = "ssfrontier"
 	name = "arrival shuttle (SSFrontier)"
+
+/datum/map_template/shuttle/arrival/arrival_ssfrontier
+	name = "Arrivals Shuttle (SSFrontier)"
+	desc = "The arrivals shuttle for SSFrontier."
+	prefix = "_maps/veilbreak/shuttles/"
+	suffix = "arrival_ssfrontier"
+	port_id = "arrival"
