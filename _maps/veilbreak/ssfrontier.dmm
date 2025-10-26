@@ -25949,18 +25949,6 @@
 	},
 /turf/open/floor/iron/dark,
 /area/station/hallway/secondary/entry)
-"xVB" = (
-/obj/docking_port/stationary{
-	dir = 8;
-	dwidth = 1;
-	height = 10;
-	name = "arrivals";
-	roundstart_template = /datum/map_template/shuttle/arrival/arrival_ssfrontier;
-	shuttle_id = "arrival";
-	width = 5
-	},
-/turf/open/floor/plating,
-/area/station/hallway/secondary/entry)
 "xWe" = (
 /obj/structure/chair/comfy/brown{
 	dir = 1
