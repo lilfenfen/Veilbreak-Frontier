@@ -21,5 +21,3 @@
     suffix = "arrival_frontier"
     name = "arrival shuttle (SSFrontier)"
     port_id = "arrival"
-    who_can_purchase = null
-    can_be_bought = FALSE
