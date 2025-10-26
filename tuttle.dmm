@@ -1,0 +1,17 @@
+"a" = (/turf/open/floor/iron/colony,/area/shuttle/arrival)
+"b" = (/obj/effect/spawner/structure/window/reinforced/plasma/plastitanium,/turf/open/space/basic,/area/shuttle/arrival)
+"h" = (/turf/closed/wall/mineral/plastitanium,/area/shuttle/arrival)
+"l" = (/obj/machinery/door/airlock/external,/obj/docking_port/mobile/arrivals,/turf/open/space/basic,/area/shuttle/arrival)
+
+(1,1,1) = {"
+hhhhh
+haaah
+haaah
+baaab
+haaal
+haaah
+haaah
+haaah
+haaah
+hhhhh
+"}

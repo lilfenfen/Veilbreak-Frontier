@@ -1,31 +1,15 @@
-"a" = (/turf/closed/wall/mineral/plastitanium,/area/shuttle/arrival)
-"c" = (/obj/machinery/light/directional/west,/obj/structure/chair/sofa/bench/right{dir = 4},/turf/open/floor/iron/shuttle/arrivals{icon_state = "sign_1"},/area/shuttle/arrival)
-"f" = (/obj/structure/chair/sofa/bench/left{dir = 4},/obj/machinery/light/directional/west,/turf/open/floor/iron/shuttle/arrivals{icon_state = "sign_1"},/area/shuttle/arrival)
-"i" = (/obj/effect/spawner/structure/window/reinforced/plasma/plastitanium,/turf/open/floor/iron/dark,/area/shuttle/arrival)
-"j" = (/obj/structure/chair/sofa/bench/right{dir = 4},/turf/open/floor/iron/shuttle/arrivals{icon_state = "sign_1"},/area/shuttle/arrival)
-"l" = (/obj/machinery/door/airlock/titanium{name = "Arrivals Shuttle Airlock"},/obj/docking_port/mobile/arrivals,/turf/open/floor/iron/dark,/area/shuttle/arrival)
-"F" = (/turf/open/floor/iron/shuttle/arrivals{icon_state = "sign_2"; dir = 4},/area/shuttle/arrival)
-"G" = (/obj/machinery/power/shuttle_engine/heater,/turf/closed/wall/mineral/plastitanium,/area/shuttle/arrival)
-"H" = (/obj/machinery/light/directional/east,/turf/open/floor/iron/shuttle/arrivals{icon_state = "sign_3"},/area/shuttle/arrival)
-"J" = (/obj/structure/chair/sofa/bench/left{dir = 4},/turf/open/floor/iron/shuttle/arrivals{icon_state = "sign_1"},/area/shuttle/arrival)
-"N" = (/obj/machinery/power/shuttle_engine/propulsion,/turf/closed/wall/mineral/plastitanium,/area/shuttle/arrival)
-"O" = (/obj/machinery/light/directional/east,/obj/structure/chair/sofa/bench/left{dir = 8},/turf/open/floor/iron/shuttle/arrivals{icon_state = "sign_1"},/area/shuttle/arrival)
-"Q" = (/turf/open/floor/iron/shuttle/arrivals{icon_state = "sign_2"; dir = 8},/area/shuttle/arrival)
-"R" = (/turf/open/floor/iron/shuttle/arrivals,/area/shuttle/arrival)
-"S" = (/obj/structure/chair/sofa/bench/right{dir = 8},/turf/open/floor/iron/shuttle/arrivals{icon_state = "sign_1"},/area/shuttle/arrival)
-"T" = (/obj/structure/chair/sofa/bench/left{dir = 8},/turf/open/floor/iron/shuttle/arrivals{icon_state = "sign_1"},/area/shuttle/arrival)
-"U" = (/obj/structure/chair/sofa/bench{dir = 4},/turf/open/floor/iron/shuttle/arrivals{icon_state = "sign_1"},/area/shuttle/arrival)
-"Z" = (/obj/machinery/door/airlock/titanium{name = "Arrivals Shuttle Airlock"},/turf/open/floor/iron/dark,/area/shuttle/arrival)
+"l" = (/obj/docking_port/stationary{dir = 8; dwidth = 1; height = 10; name = "arrivals"; roundstart_template = /datum/map_template/shuttle/arrival/arrival_ssfrontier; shuttle_id = "arrival"; width = 5},/turf/open/space/basic,/area/shuttle/arrival)
+"S" = (/turf/open/space/basic,/area/shuttle/arrival)
 
 (1,1,1) = {"
-aiiia
-iRRRi
-iJRSi
-acROa
-ZQRFl
-afRHa
-iURSi
-ijRTi
-GGGGG
-NNNNN
+SSSSS
+SSSSS
+SSSSS
+SSSSS
+SSSSl
+SSSSS
+SSSSS
+SSSSS
+SSSSS
+SSSSS
 "}
