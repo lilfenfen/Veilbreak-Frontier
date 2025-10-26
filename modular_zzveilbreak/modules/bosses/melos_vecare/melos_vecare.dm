@@ -2,8 +2,8 @@
 	name = "Melos Vecare"
 	desc = "A siren corrupted by the void, her song now weaves destruction and chaos."
 	icon = 'modular_zzveilbreak/icons/bosses/melos.dmi'
-	icon_state = "melos_vecare"
-	icon_living = "melos_vecare"
+	icon_state = "idle"
+	icon_living = "idle"
 	pixel_x = -16
 	pixel_y = -16
 	bound_width = 64
@@ -31,6 +31,12 @@
 	var/lyric_index = 1
 
 	anchored = TRUE
+	var/boss_music = 'modular_zzveilbreak/sound/music/melos_theme.ogg'
+	var/datum/component/ambient_sound/boss_music_component
+
+	Initialize()
+		. = ..()
+		boss_music_component = AddComponent(/datum/component/ambient_sound, sound = boss_music, range = 40, volume = 85)
 
 /mob/living/simple_animal/hostile/megafauna/melos_vecare/Life()
 	. = ..()
@@ -50,7 +56,8 @@
 			if(lyric_index <= length(GLOB.melos_lyrics))
 				var/lyric = GLOB.melos_lyrics[lyric_index]
 				// Using a similar style to other void entities for consistency.
-				visible_message("<span style='color:#8a2be2; font-style:italic; font-size: 1.2em;'>[src] sings, \"[lyric]\"</span>")
+				visible_message("<span style='color:#8a2be2; font-style:italic;'>[src] sings, \"[lyric]\"</span>")
+				flick("singing", src)
 				lyric_index++
 
 		ability_cooldown = world.time + 6 SECONDS

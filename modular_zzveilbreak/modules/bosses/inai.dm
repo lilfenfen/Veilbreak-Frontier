@@ -3,8 +3,8 @@
 	desc = "Spirit of the Void, enduring the mortal indignities of the coil."
 	icon = 'modular_zzveilbreak/icons/bosses/inai_model.dmi'
 	icon_state = "inai"
-	pixel_x = -16
-	pixel_y = -16
+	pixel_x = 0
+	pixel_y = 0
 	bound_width = 64
 	bound_height = 64
 	maxHealth = 3000
@@ -157,7 +157,7 @@
 				if(L != inai)  // Exclude Inai from the mark
 					L.apply_status_effect(/datum/status_effect/astral_mark)
 	var/msg = pick(inai.astral_messages)
-	inai.visible_message("<span style='color:#8a2be2; font-style:italic; font-size: 1.2em; '>[msg]</span>")
+	inai.visible_message("<span style='color:#8a2be2; font-style:italic; '>[msg]</span>")
 	StartCooldown()
 
 // Inai Wave ability
@@ -197,7 +197,7 @@
 	// After channeling
 	inai.visible_message(span_danger("[inai] finishes channeling the resonant wave!"))
 	var/msg = pick(inai.pulse_messages)
-	inai.visible_message("<span style='color:#8a2be2; font-style:italic; font-size: 1.2em; '>[msg]</span>")
+	inai.visible_message("<span style='color:#8a2be2; font-style:italic; '>[msg]</span>")
 	inai.channeling = FALSE  // Reset flag
 	StartCooldown()
 
