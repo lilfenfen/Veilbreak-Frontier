@@ -17,6 +17,9 @@
 
 //This is the interlink ferry, but modified to work as an arrival shuttle.
 /datum/map_template/shuttle/arrival/ssfrontier
-        prefix = "_maps/shuttles/zzvenus/"
-        suffix = "frontier"
-        name = "arrival shuttle (SSFrontier)"
+    prefix = "_maps/veilbreak/shuttles/"
+    suffix = "arrival_frontier"
+    name = "arrival shuttle (SSFrontier)"
+    port_id = "arrival"
+    who_can_purchase = null
+    can_be_bought = FALSE

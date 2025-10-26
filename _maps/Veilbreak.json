@@ -1,20 +1,21 @@
 {
-	"version": 1,
-	"map_name": "Veilbreak",
-	"map_path": "map_files/veilbreak",
-	"map_file": "ssfrontier.dmm",
-	"shuttles": {
-		"emergency": "emergency_box",
-		"ferry": "ferry_fancy",
-		"cargo": "cargo_skyrat",
-		"whiteship": "whiteship_box",
-		"arrivals" : "arrival_frontier"
-	},
-	"job_changes": {
-		"prisoner": {
-			"total_positions": 4,
-			"spawn_positions": 4
-		}
-		}
-	}
-
+    "version": 1,
+    "map_name": "Veilbreak",
+    "map_path": "map_files/veilbreak",
+    "map_file": "ssfrontier.dmm",
+    "shuttle_size": 25,
+    "shuttle_min_size": 20,
+    "shuttles": {
+        "emergency": "emergency_box",
+        "ferry": "ferry_fancy",
+        "cargo": "cargo_skyrat",
+        "whiteship": "whiteship_box",
+        "arrivals": "arrival_ssfrontier"  // Changed from "arrival_frontier"
+    },
+    "job_changes": {
+        "prisoner": {
+            "total_positions": 4,
+            "spawn_positions": 4
+        }
+    }
+}
