@@ -43,8 +43,8 @@
 	suffix = "ssfrontier"
 	name = "arrival shuttle (SSFrontier)"
 
-/datum/map_template/shuttle/arrival/arrival_ssfrontier
+/datum/map_template/shuttle/arrival/arrival_frontier
 	name = "Arrivals Shuttle (SSFrontier)"
 	prefix = "_maps/veilbreak/shuttles/"
-	suffix = "arrival_ssfrontier"
+	suffix = "arrival_frontier"
 	port_id = "arrival"

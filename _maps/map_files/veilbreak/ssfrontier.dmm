@@ -25955,7 +25955,7 @@
 	dwidth = 1;
 	height = 10;
 	name = "arrivals";
-	roundstart_template = /datum/map_template/shuttle/arrival/arrival_ssfrontier;
+	roundstart_template = /datum/map_template/shuttle/arrival/arrival_frontier;
 	shuttle_id = "arrival";
 	width = 5
 	},
