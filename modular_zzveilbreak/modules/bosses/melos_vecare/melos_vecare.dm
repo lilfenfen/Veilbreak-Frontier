@@ -31,15 +31,25 @@
 	var/lyric_index = 1
 
 	anchored = TRUE
+	/// The music file to play.
 	var/boss_music = 'modular_zzveilbreak/sound/music/melos_theme.ogg'
-	var/datum/component/ambient_sound/boss_music_component
+	/// The sound channel for the music.
+	var/sound_channel
 
 	Initialize()
 		. = ..()
-		boss_music_component = AddComponent(/datum/component/ambient_sound, sound = boss_music, range = 40, volume = 85)
+		sound_channel = SSsounds.reserve_sound_channel(src)
+
+	Destroy()
+		if(sound_channel)
+			stop_sound_channel(sound_channel)
+			SSsounds.free_sound_channel(sound_channel)
+		return ..()
 
 /mob/living/simple_animal/hostile/megafauna/melos_vecare/Life()
 	. = ..()
+	if(sound_channel)
+		playsound(src, sound(boss_music, repeat = TRUE, wait = FALSE, channel = sound_channel, volume = 85), 85, FALSE, 40)
 	if(world.time > ability_cooldown)
 		var/has_target = FALSE
 		for(var/mob/living/L in range(spell_range, src))
