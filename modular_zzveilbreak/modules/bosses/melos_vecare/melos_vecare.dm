@@ -6,8 +6,8 @@
 	icon_living = "idle"
 	pixel_x = -16
 	pixel_y = -16
-	bound_width = 64
-	bound_height = 64
+	bound_width = 32
+	bound_height = 32
 	speak_chance = 0
 	turns_per_move = 0
 	speed = 0
@@ -43,11 +43,18 @@
 			playsound(src, sound(boss_music, repeat = TRUE, wait = FALSE, channel = sound_channel, volume = 85), 85, FALSE, 40)
 
 	Destroy()
+		stop_music()
+		return ..()
+
+	Die()
+		stop_music()
+		return ..()
+
+	proc/stop_music()
 		if(sound_channel)
 			stop_sound_channel(sound_channel)
 			SSsounds.free_sound_channel(sound_channel)
 			sound_channel = null
-		return ..()
 
 /mob/living/simple_animal/hostile/megafauna/melos_vecare/Life()
 	. = ..()
@@ -101,6 +108,8 @@
 
 /mob/living/simple_animal/hostile/megafauna/melos_vecare/proc/melos_vecare_apply_effect(turf/T, effect_type)
 	for(var/mob/living/L in T)
+		if(L == src)
+			continue
 		if(effect_type == "water")
 			L.adjustBruteLoss(25)
 			new /obj/effect/temp_visual/water_torrent(T)
