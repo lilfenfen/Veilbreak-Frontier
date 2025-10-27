@@ -46,10 +46,6 @@
 		stop_music()
 		return ..()
 
-	Die()
-		stop_music()
-		return ..()
-
 	proc/stop_music()
 		if(sound_channel)
 			stop_sound_channel(sound_channel)
