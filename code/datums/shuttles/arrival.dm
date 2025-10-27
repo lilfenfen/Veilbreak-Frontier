@@ -41,5 +41,5 @@
 /datum/map_template/shuttle/arrival/arrival_ssfrontier
     name = "Arrivals Shuttle (SSFrontier)"
     prefix = "_maps/veilbreak/shuttles/"
-    suffix = "arrival_ssfrontier"
+    suffix = "ssfrontier"
     port_id = "arrival"

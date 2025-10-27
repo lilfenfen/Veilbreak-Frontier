@@ -18,6 +18,6 @@
 //This is the interlink ferry, but modified to work as an arrival shuttle.
 /datum/map_template/shuttle/arrival/ssfrontier
     prefix = "_maps/veilbreak/shuttles/"
-    suffix = "arrival_frontier"
+    suffix = "frontier"
     name = "arrival shuttle (SSFrontier)"
     port_id = "arrival"
