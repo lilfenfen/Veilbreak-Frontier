@@ -41,13 +41,11 @@
 		if(sound_channel)
 			playsound(src, sound(boss_music, repeat = TRUE, wait = FALSE, channel = sound_channel, volume = 85), 85, FALSE, 40)
 
-	Destroy()
-		stop_music()
-		return ..()
 	var/list/death_messages = list(
 		"Maybe in death, i'll find lover...",
 		"I die alone.",
-		"I will find my lover, not even will stop me.")
+		"I will find my lover, not even death will stop me.")
+
 	death(message)
 		var/loot = pick_loot_from_table(melos_vecare_drops)
 		if(loot)
