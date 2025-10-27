@@ -15,44 +15,6 @@
             "Xeno Ruins": true
         },
         {
-            "Station": 2,
-            "Linkage": "Cross"
-        },
-        {
-            "Station": 3,
-            "Linkage": "Cross"
-        },
-        {
-            "Station": 4,
-            "Linkage": "Cross"
-        },
-        {
-            "Station": 5,
-            "Linkage": "Cross"
-        },
-        {
-            "Station": 6,
-            "Linkage": "Cross"
-        },
-        {
-            "Station": 7,
-            "Linkage": "Cross"
-        },
-        {
-            "Station": 8,
-            "Linkage": "Cross"
-        },
-        {
-            "Station": 9,
-            "Linkage": "Cross"
-        },
-        {
-            "Trait": "Reserved/Transport",
-            "Station": -1,
-            "Linkage": "Crosslink",
-            "Baseturf": "/turf/open/space"
-        },
-        {
             "Trait": "Reserved/Transport",
             "Station": -1,
             "Linkage": "Crosslink",
@@ -75,22 +37,5 @@
         }
     },
 
-    "overmap": {
-        "settings": {
-            "random_sublevel_chance": 25,
-            "max_sublevel_amount": 3
-        }
-    },
-
-    "minetype": "lavaland",
-
-    "map_storage": "veilbreak.dmm",
-
-    "allow_custom_shuttles": true,
-
-    "environment_traits": [
-        {
-            "Trait": "Station"
-        }
-    ]
+    "minetype": "lavaland"
 }
