@@ -27,7 +27,7 @@
         "ferry": "ferry_fancy",
         "cargo": "cargo_skyrat",
         "whiteship": "whiteship_box",
-        "arrivals": "arrival_ssfrontier"
+        "arrivals": "arrival_frontier"
     },
 
     "job_changes": {
@@ -36,6 +36,4 @@
             "spawn_positions": 4
         }
     },
-
-    "minetype": "lavaland"
 }
