@@ -5,17 +5,92 @@
     "map_file": "ssfrontier.dmm",
     "shuttle_size": 25,
     "shuttle_min_size": 20,
+
+    "traits": [
+        {
+            "Station": 1,
+            "Linkage": "Self",
+            "Mining": true,
+            "Space Ruins": true,
+            "Xeno Ruins": true
+        },
+        {
+            "Station": 2,
+            "Linkage": "Cross"
+        },
+        {
+            "Station": 3,
+            "Linkage": "Cross"
+        },
+        {
+            "Station": 4,
+            "Linkage": "Cross"
+        },
+        {
+            "Station": 5,
+            "Linkage": "Cross"
+        },
+        {
+            "Station": 6,
+            "Linkage": "Cross"
+        },
+        {
+            "Station": 7,
+            "Linkage": "Cross"
+        },
+        {
+            "Station": 8,
+            "Linkage": "Cross"
+        },
+        {
+            "Station": 9,
+            "Linkage": "Cross"
+        },
+        {
+            "Trait": "Reserved/Transport",
+            "Station": -1,
+            "Linkage": "Crosslink",
+            "Baseturf": "/turf/open/space"
+        },
+        {
+            "Trait": "Reserved/Transport",
+            "Station": -1,
+            "Linkage": "Crosslink",
+            "Baseturf": "/turf/open/space"
+        }
+    ],
+
     "shuttles": {
         "emergency": "emergency_box",
         "ferry": "ferry_fancy",
         "cargo": "cargo_skyrat",
         "whiteship": "whiteship_box",
-        "arrivals": "arrival_ssfrontier"  // Changed from "arrival_frontier"
+        "arrivals": "arrival_ssfrontier"
     },
+
     "job_changes": {
         "prisoner": {
             "total_positions": 4,
             "spawn_positions": 4
         }
-    }
+    },
+
+    "overmap": {
+        "settings": {
+            "random_sublevel_chance": 25,
+            "max_sublevel_amount": 3
+        }
+    },
+
+    "minetype": "lavaland",
+
+    "map_storage": "veilbreak.dmm",
+
+    "allow_custom_shuttles": true,
+
+    "environment_traits": [
+        {
+            "Trait": "Station"
+        }
+    ]
 }
