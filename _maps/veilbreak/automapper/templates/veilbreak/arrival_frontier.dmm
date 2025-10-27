@@ -1,15 +1,77 @@
-"l" = (/obj/docking_port/stationary{dir = 8; dwidth = 1; height = 10; name = "arrivals"; roundstart_template = /datum/map_template/shuttle/arrival/arrival_ssfrontier; shuttle_id = "arrival"; width = 5},/turf/open/space/basic,/area/shuttle/arrival)
-"S" = (/turf/open/space/basic,/area/shuttle/arrival)
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"l" = (
+/obj/docking_port/stationary{
+	dir = 8;
+	dwidth = 1;
+	height = 10;
+	name = "arrivals";
+	roundstart_template = /datum/map_template/shuttle/arrival/arrival_frontier;
+	shuttle_id = "arrival";
+	width = 5
+	},
+/turf/open/space/basic,
+/area/shuttle/arrival)
+"S" = (
+/turf/open/space/basic,
+/area/shuttle/arrival)
 
 (1,1,1) = {"
-SSSSS
-SSSSS
-SSSSS
-SSSSS
-SSSSl
-SSSSS
-SSSSS
-SSSSS
-SSSSS
-SSSSS
+S
+S
+S
+S
+S
+S
+S
+S
+S
+S
+"}
+(2,1,1) = {"
+S
+S
+S
+S
+S
+S
+S
+S
+S
+S
+"}
+(3,1,1) = {"
+S
+S
+S
+S
+S
+S
+S
+S
+S
+S
+"}
+(4,1,1) = {"
+S
+S
+S
+S
+S
+S
+S
+S
+S
+S
+"}
+(5,1,1) = {"
+S
+S
+S
+S
+l
+S
+S
+S
+S
+S
 "}

@@ -35,13 +35,15 @@
 /area/shuttle/arrival)
 "k" = (
 /obj/machinery/door/airlock/titanium{
-	name = "Arrivals Shuttle Airlock"
-	},
+    name = "Arrivals Shuttle Airlock"
+    },
 /obj/docking_port/mobile/arrivals{
-	dir = WEST;
-	port_direction = EAST;
-	preferred_direction = WEST
-	},
+    dir = WEST;
+    port_direction = EAST;
+    preferred_direction = WEST;
+    shuttle_id = "arrival";
+    name = "arrivals shuttle"
+    },
 /turf/open/floor/iron/dark,
 /area/shuttle/arrival)
 "o" = (

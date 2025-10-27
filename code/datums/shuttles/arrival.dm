@@ -38,13 +38,8 @@
 	suffix = "nebula"
 	name = "arrival shuttle (Nebula)"
 
-/datum/map_template/shuttle/arrival/ssfrontier
-	prefix = "_maps/shuttles/zzvenus/"
-	suffix = "ssfrontier"
-	name = "arrival shuttle (SSFrontier)"
-
 /datum/map_template/shuttle/arrival/arrival_ssfrontier
-	name = "Arrivals Shuttle (SSFrontier)"
-	prefix = "_maps/veilbreak/shuttles/"
-	suffix = "arrival_ssfrontier"
-	port_id = "arrival"
+    name = "Arrivals Shuttle (SSFrontier)"
+    prefix = "_maps/veilbreak/shuttles/"
+    suffix = "ssfrontier"
+    port_id = "arrival"
