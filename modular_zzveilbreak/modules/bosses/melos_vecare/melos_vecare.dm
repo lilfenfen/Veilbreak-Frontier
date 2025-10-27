@@ -17,7 +17,6 @@
 	melee_damage_lower = 7
 	melee_damage_upper = 13
 	attack_verb_continuous = "blasts"
-	loot = /obj/item/voidshard
 	attack_verb_simple = "blast"
 	attack_sound = 'modular_zzveilbreak/sound/weapons/voidling_attack.ogg'
 	faction = list("Void")
@@ -45,6 +44,18 @@
 	Destroy()
 		stop_music()
 		return ..()
+	var/list/death_messages = list(
+		"Maybe in death, i'll find lover...",
+		"I die alone.",
+		"I will find my lover, not even will stop me.")
+	death(message)
+		var/loot = pick_loot_from_table(melos_vecare_drops)
+		if(loot)
+			new loot(loc)
+		var/msg = pick(death_messages)
+		visible_message("<span style='color:#8a2be2; font-style:italic; '>[msg]</span>")
+		..()
+
 
 	proc/stop_music()
 		if(sound_channel)
