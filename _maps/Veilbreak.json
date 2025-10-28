@@ -11,7 +11,7 @@
         "ferry": "ferry_fancy",
         "cargo": "cargo_skyrat",
         "whiteship": "whiteship_box",
-        "arrival": "arrival_frontier"
+        "arrival": "arrival_ssfrontier"
     },
 
     "job_changes": {

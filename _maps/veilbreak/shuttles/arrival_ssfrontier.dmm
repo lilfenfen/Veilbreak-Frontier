@@ -37,12 +37,15 @@
 /obj/machinery/door/airlock/titanium{
     name = "Arrivals Shuttle Airlock"
     },
-/obj/docking_port/mobile/arrivals{
+/obj/docking_port/mobile/arrival{  // Changed from /arrivals to /arrival
     dir = WEST;
     port_direction = EAST;
     preferred_direction = WEST;
     shuttle_id = "arrival";
-    name = "arrivals shuttle"
+    name = "arrivals shuttle";
+    width = 5;     // Must match stationary port
+    height = 10;   // Must match stationary port
+    dwidth = 1;    // Must match stationary port
     },
 /turf/open/floor/iron/dark,
 /area/shuttle/arrival)
