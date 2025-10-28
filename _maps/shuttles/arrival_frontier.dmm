@@ -34,8 +34,9 @@
 	},
 /area/shuttle/arrival)
 "k" = (
-/obj/machinery/door/airlock/titanium/glass,
-/obj/structure/fans/tiny/invisible,
+/obj/machinery/door/airlock/shuttle{
+	name = "Arrival Shuttle Airlock"
+	},
 /turf/open/floor/iron/dark,
 /area/shuttle/arrival)
 "o" = (
@@ -146,7 +147,7 @@ V
 B
 "}
 (3,1,1) = {"
-M
+k
 o
 o
 o
