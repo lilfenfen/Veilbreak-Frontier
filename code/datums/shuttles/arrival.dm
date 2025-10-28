@@ -42,3 +42,4 @@
 	prefix = "_maps/veilbreak/shuttles/"
 	suffix = "arrival_ssfrontier"
 	name = "arrival shuttle (SS Frontier)"
+	port_id = "arrival"
