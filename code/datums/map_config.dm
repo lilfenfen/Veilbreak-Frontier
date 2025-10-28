@@ -20,7 +20,6 @@
 	var/mapping_url
 
 	// Config actually from the JSON - should default to Meta
-	var/map_name = "Veilbreak"
 	var/map_path = "veilbreak"
 	var/map_file = "ssfrontier.dmm"
 

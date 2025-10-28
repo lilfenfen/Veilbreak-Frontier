@@ -15,9 +15,3 @@
 	suffix = "kilo_venus"
 	name = "arrival shuttle (Kilo)"
 
-//This is the interlink ferry, but modified to work as an arrival shuttle.
-/datum/map_template/shuttle/arrival/ssfrontier
-    prefix = "_maps/veilbreak/shuttles/"
-    suffix = "frontier"
-    name = "arrival shuttle (SSFrontier)"
-    port_id = "arrival"
