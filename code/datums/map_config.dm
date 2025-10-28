@@ -22,7 +22,7 @@
 	// Config actually from the JSON - should default to Meta
 	var/map_path = "veilbreak"
 	var/map_file = "ssfrontier.dmm"
-
+	var/map_name
 	var/traits = null
 	var/space_ruin_levels = DEFAULT_SPACE_RUIN_LEVELS
 	var/space_empty_levels = DEFAULT_SPACE_EMPTY_LEVELS
