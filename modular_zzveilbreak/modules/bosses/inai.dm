@@ -5,8 +5,8 @@
 	icon_state = "inai"
 	pixel_x = 0
 	pixel_y = 0
-	bound_width = 64
-	bound_height = 64
+	bound_width = 48
+	bound_height = 48
 	maxHealth = 3000
 	health = 3000
 	attack_verb_continuous = "slashes"

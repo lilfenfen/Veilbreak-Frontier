@@ -6,8 +6,8 @@
 	icon_living = "idle"
 	pixel_x = -16
 	pixel_y = -16
-	bound_width = 32
-	bound_height = 32
+	bound_width = 48
+	bound_height = 48
 	speak_chance = 0
 	turns_per_move = 0
 	speed = 0
