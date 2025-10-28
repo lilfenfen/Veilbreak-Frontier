@@ -8,8 +8,7 @@
         "emergency": "emergency_box",
         "ferry": "ferry_fancy",
         "cargo": "cargo_skyrat",
-        "whiteship": "whiteship_box",
-        "arrival": "frontier"
+        "whiteship": "whiteship_box"
     },
 
     "job_changes": {
@@ -17,5 +16,5 @@
             "total_positions": 4,
             "spawn_positions": 4
         }
-    },
+    }
 }

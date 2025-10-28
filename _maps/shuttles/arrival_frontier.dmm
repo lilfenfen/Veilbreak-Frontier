@@ -34,11 +34,8 @@
 	},
 /area/shuttle/arrival)
 "k" = (
-/obj/docking_port/mobile/arrivals{
-	width = 5;
-	height = 10
-	},
 /obj/machinery/door/airlock/titanium/glass,
+/obj/structure/fans/tiny/invisible,
 /turf/open/floor/iron/dark,
 /area/shuttle/arrival)
 "o" = (
@@ -83,8 +80,12 @@
 	},
 /area/shuttle/arrival)
 "F" = (
-/obj/machinery/door/airlock/titanium/glass,
-/turf/open/floor/iron/dark,
+/obj/machinery/power/shuttle_engine/propulsion,
+/obj/docking_port/mobile/arrivals{
+	width = 5;
+	height = 10
+	},
+/turf/closed/wall/mineral/plastitanium,
 /area/shuttle/arrival)
 "I" = (
 /obj/machinery/light/directional/west,
@@ -125,7 +126,7 @@ K
 M
 M
 K
-F
+k
 K
 M
 M
@@ -154,7 +155,7 @@ o
 o
 o
 V
-B
+F
 "}
 (4,1,1) = {"
 M

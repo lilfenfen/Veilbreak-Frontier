@@ -1246,6 +1246,14 @@
 /obj/structure/cable,
 /turf/open/floor/iron/smooth_large,
 /area/station/engineering/main)
+"aVi" = (
+/obj/docking_port/stationary/random{
+	dir = 8;
+	name = "lavaland";
+	shuttle_id = "pod_2_lavaland"
+	},
+/turf/open/space/basic,
+/area/station/hallway/secondary/entry)
 "aVO" = (
 /obj/structure/plasticflaps,
 /obj/machinery/conveyor{
@@ -1293,6 +1301,7 @@
 /obj/machinery/door/airlock/public/glass{
 	name = "Arrivals"
 	},
+/obj/structure/fans/tiny/invisible,
 /turf/open/floor/iron/dark,
 /area/station/hallway/secondary/entry)
 "aYX" = (
@@ -58959,6 +58968,7 @@ eiW
 oyo
 uAD
 ciK
+aVi
 amc
 amc
 amc
@@ -58967,8 +58977,7 @@ amc
 amc
 amc
 amc
-amc
-amc
+xVB
 ciK
 swI
 tqO
@@ -59477,7 +59486,7 @@ amc
 amc
 amc
 amc
-xVB
+amc
 amc
 amc
 amc

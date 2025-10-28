@@ -273,7 +273,7 @@ GLOBAL_LIST_EMPTY(delirium_summons)
 		GLOB.delirium_summons -= sm
 
 /datum/sm_gas/delirium/extra_effects(obj/machinery/power/supermatter_crystal/sm)
-	if(sm.gas_percentage[/datum/gas/delirium] > 0.01)
+	if(sm.gas_percentage[/datum/gas/delirium] > 0.2)
 		if(!GLOB.delirium_warnings[sm])
 			for(var/mob/M in range(10, sm))
 				to_chat(M, span_warning("The Void starts to claim reality around the supermatter! Mobs will be summoned for the next two minutes."))
@@ -289,6 +289,7 @@ GLOBAL_LIST_EMPTY(delirium_summons)
 				continue
 			if(!istype(floor, /turf/open/floor/void_tile) && world.time - (GLOB.void_tile_cooldowns[floor] || 0) > 60 SECONDS)
 				floor.ChangeTurf(/turf/open/floor/void_tile, flags = CHANGETURF_INHERIT_AIR)
+				sleep(15 SECONDS)
 				GLOB.void_tile_cooldowns[floor] = world.time
 		visible_hallucination_pulse_delirium(sm, 150, 50 SECONDS)
 	else
