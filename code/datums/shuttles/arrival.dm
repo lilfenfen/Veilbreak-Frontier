@@ -1,5 +1,5 @@
 /datum/map_template/shuttle/arrival
-	port_id = "arrivals"
+	port_id = "arrival"
 	who_can_purchase = null
 
 /datum/map_template/shuttle/arrival/box
