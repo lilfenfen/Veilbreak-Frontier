@@ -6,28 +6,12 @@
     "shuttle_size": 25,
     "shuttle_min_size": 20,
 
-    "traits": [
-        {
-            "Station": 1,
-            "Linkage": "Self",
-            "Mining": true,
-            "Space Ruins": true,
-            "Xeno Ruins": true
-        },
-        {
-            "Trait": "Reserved/Transport",
-            "Station": -1,
-            "Linkage": "Crosslink",
-            "Baseturf": "/turf/open/space"
-        }
-    ],
-
     "shuttles": {
         "emergency": "emergency_box",
         "ferry": "ferry_fancy",
         "cargo": "cargo_skyrat",
         "whiteship": "whiteship_box",
-        "arrivals": "frontier"
+        "arrival": "ssfrontier"
     },
 
     "job_changes": {
