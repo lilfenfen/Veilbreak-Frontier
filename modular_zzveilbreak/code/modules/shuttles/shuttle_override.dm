@@ -1,2 +1,2 @@
 /obj/docking_port/stationary/arrivals
-	shuttle_map = "_maps/shuttle/arrival_frontier.dmm"
+	roundstart_template = /datum/map_template/shuttle/arrival_frontier

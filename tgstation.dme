@@ -10495,6 +10495,7 @@
 #include "modular_zzveilbreak\code\modules\dungeons\portal_debug.dm"
 #include "modular_zzveilbreak\code\modules\dungeons\portal_globals.dm"
 #include "modular_zzveilbreak\code\modules\dungeons\portal_machinery.dm"
+#include "modular_zzveilbreak\code\modules\shuttles\arrival_frontier_template.dm"
 #include "modular_zzveilbreak\code\modules\shuttles\shuttle_override.dm"
 #include "modular_zzveilbreak\modules\mobs.dm"
 #include "modular_zzveilbreak\modules\bosses\inai.dm"
