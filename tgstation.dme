@@ -10495,6 +10495,7 @@
 #include "modular_zzveilbreak\code\modules\dungeons\portal_debug.dm"
 #include "modular_zzveilbreak\code\modules\dungeons\portal_globals.dm"
 #include "modular_zzveilbreak\code\modules\dungeons\portal_machinery.dm"
+#include "modular_zzveilbreak\maps\veilbreak_shuttles.dm"
 #include "modular_zzveilbreak\modules\mobs.dm"
 #include "modular_zzveilbreak\modules\bosses\inai.dm"
 #include "modular_zzveilbreak\modules\bosses\inai_ai.dm"
