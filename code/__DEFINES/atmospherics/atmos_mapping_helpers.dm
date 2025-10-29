@@ -27,8 +27,6 @@
 #define SPACE_TEMP_NOBLIUM GAS_HYPER_NOBLIUM + "=7500;TEMP=2.7"
 ///Xenobio slime containment turf
 #define XENOBIO_BZ GAS_BZ + "=100;TEMP=293.15"
-// Void tile turf
-#define VOID_ATMOS GAS_O2 + "=22;" + GAS_DELIRIUM + "=22;" + GAS_N2 + "=60;TEMP=293.15"
 
 //ATMOSPHERICS DEPARTMENT GAS TANK TURFS
 #define ATMOS_TANK_N2O GAS_N2O + "=6000;TEMP=293.15"

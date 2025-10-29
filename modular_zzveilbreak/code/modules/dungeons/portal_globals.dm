@@ -7,10 +7,6 @@
 // Proc forward declarations
 /proc/IS_LIST_OF_ATOMS(list/L)
 
-#define DUNGEON_GENERATOR_URL "http://127.0.0.1:8000"
-#define DUNGEON_GENERATE_ENDPOINT "/generate_dungeon"
-#define DUNGEON_GENERATOR_TIMEOUT 300 // 30 seconds
-
 // Global list for portal destinations (separate from gateways)
 GLOBAL_LIST_EMPTY(portal_destinations)
 
@@ -127,7 +123,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 /datum/portal_destination/proc/get_ui_data()
 	. = list()
 	.["name"] = name
-	.["description"] = "Dimensional portal destination" // Fixed: Use a string instead of undefined var
+	.["description"] = "Dimensional portal destination"
 	.["key"] = get_global_key()
 	.["available"] = is_available()
 	.["available_reason"] = get_available_reason()
@@ -147,6 +143,8 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 	var/current_request_id = 0
 	var/generation_progress = 0
 	var/last_progress_update = 0
+	/// Reference to the control computer for callbacks
+	var/obj/machinery/computer/portal_control/connected_control_computer
 
 /datum/portal_destination/veilbreak/is_available()
 	return ..() && generated && !generating
@@ -260,6 +258,11 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 	else
 		generation_failed("No DMM content in response")
 
+	// NEW: Notify control computer of completion
+	if(connected_control_computer)
+		connected_control_computer.on_generation_completed()
+		connected_control_computer = null // Clear reference
+
 /datum/portal_destination/veilbreak/proc/generation_failed(reason)
 	generating = FALSE
 	generated = FALSE
@@ -270,6 +273,11 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 	if(connected_portal)
 		connected_portal.say("Dungeon generation failed: [reason]")
 		connected_portal.generated_dungeon_data = null
+
+	// NEW: Notify control computer of failure
+	if(connected_control_computer)
+		connected_control_computer.on_generation_failed(reason)
+		connected_control_computer = null // Clear reference
 
 // Add interface method for portal control
 /datum/portal_destination/veilbreak/activate(obj/machinery/portal/activated)
@@ -1010,6 +1018,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 			qdel(object)
 			objects_cleaned++
 
+	// FIXED: Added missing closing parenthesis
 	log_dungeon("Dungeon Generator: Cleaned up [mobs_cleaned] mobs and [objects_cleaned] objects from Z-level [z_level]")
 
 /// Check if an object should be preserved during cleanup

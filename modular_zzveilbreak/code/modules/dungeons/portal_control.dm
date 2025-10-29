@@ -6,6 +6,12 @@
 	icon_screen = "gateway"
 	icon_keyboard = "teleport_key"
 	var/obj/machinery/portal/linked_portal
+	/// Cooldown to prevent spam
+	var/next_generate_attempt = 0
+	/// Time between generate attempts in seconds
+	var/generate_cooldown = 30
+	/// Track if we're currently generating to prevent double-starts
+	var/generation_in_progress = FALSE
 
 // Helper proc for portal control logging
 /proc/log_portal_control(text)
@@ -29,17 +35,15 @@
 	// Basic portal info
 	.["portal_present"] = !!linked_portal
 	.["portal_status"] = linked_portal ? linked_portal.powered() : FALSE
+	.["portal_active"] = linked_portal?.transport_active ? TRUE : FALSE
 
 	// Current target info
 	if(linked_portal?.target)
 		.["current_target"] = linked_portal.target.get_ui_data()
-	else
-		.["current_target"] = null
 
-	// FIX: This is the problem - GLOB.portal_destinations is an associative list, not a flat list
+	// Available destinations
 	var/list/destinations = list()
 	if(linked_portal)
-		// CORRECTED: Iterate through the associative list properly
 		for(var/destination_key in GLOB.portal_destinations)
 			var/datum/portal_destination/possible_destination = GLOB.portal_destinations[destination_key]
 			if(!istype(possible_destination)) // Safety check
@@ -49,16 +53,29 @@
 			destinations += list(possible_destination.get_ui_data())
 	.["destinations"] = destinations
 
-	// Generation status
+	// Generation status and cooldown
+	var/can_generate = FALSE
+	var/generation_status = "idle"
+	var/generation_progress = 0
+	var/dungeon_data = null
+
 	if(linked_portal?.destination)
 		var/datum/portal_destination/veilbreak/veil_dest = linked_portal.destination
-		.["generation_status"] = veil_dest.generating ? "generating" : (veil_dest.generated ? "ready" : "idle")
-		.["generation_progress"] = veil_dest.generation_progress
-		.["dungeon_data"] = linked_portal.generated_dungeon_data
-	else
-		.["generation_status"] = "idle"
-		.["generation_progress"] = 0
-		.["dungeon_data"] = null
+		generation_status = veil_dest.generating ? "generating" : (veil_dest.generated ? "ready" : "idle")
+		generation_progress = veil_dest.generation_progress
+		dungeon_data = linked_portal.generated_dungeon_data
+
+		// Check if we can generate
+		if(!generation_in_progress && !veil_dest.generating && world.time >= next_generate_attempt)
+			can_generate = TRUE
+
+	.["generation_status"] = generation_status
+	.["generation_progress"] = generation_progress
+	.["dungeon_data"] = dungeon_data
+	.["can_generate"] = can_generate
+	.["generation_cooldown"] = max(0, next_generate_attempt - world.time) / 10 // Convert to seconds for UI
+	.["generate_cooldown"] = generate_cooldown
+	.["generation_in_progress"] = generation_in_progress
 
 	return .
 
@@ -75,8 +92,6 @@
 			try_to_linkup()
 			if(linked_portal)
 				log_portal_control("Portal Control: Successfully linked to portal at [AREACOORD(linked_portal)]")
-			else
-				log_portal_control("Portal Control: Linkup failed - no portal found")
 			. = TRUE
 		if("activate")
 			var/destination_key = params["destination"]
@@ -84,8 +99,6 @@
 			if(D)
 				log_portal_control("Portal Control: [key_name(user)] activating portal to [D.name] at [AREACOORD(src)]")
 				try_to_connect(D)
-			else
-				log_portal_control("Portal Control: [key_name(user)] attempted to activate invalid destination: [destination_key]")
 			. = TRUE
 		if("deactivate")
 			if(linked_portal?.target)
@@ -95,17 +108,59 @@
 					var/datum/portal_destination/veilbreak/veil_dest = linked_portal.target
 					cleanup_dungeon_with_corpse_dumping(veil_dest)
 				linked_portal.deactivate()
-			else
-				log_portal_control("Portal Control: [key_name(user)] attempted to deactivate inactive portal")
 			. = TRUE
 		if("generate_new")
 			if(linked_portal?.destination)
 				var/datum/portal_destination/veilbreak/veil_dest = linked_portal.destination
+
+				// ENHANCED: Triple-check to prevent any generation conflicts
+				if(generation_in_progress)
+					to_chat(user, span_warning("Dungeon generation is already being processed!"))
+					log_portal_control("Portal Control: Generation blocked - already in progress (local)")
+					return TRUE
+
+				if(veil_dest.generating)
+					to_chat(user, span_warning("Dungeon generation is already in progress!"))
+					log_portal_control("Portal Control: Generation blocked - already in progress (destination)")
+					return TRUE
+
+				if(world.time < next_generate_attempt)
+					to_chat(user, span_warning("Please wait [round((next_generate_attempt - world.time) / 10)] seconds before generating another dungeon."))
+					return TRUE
+
 				log_portal_control("Portal Control: [key_name(user)] initiating new dungeon generation at [AREACOORD(src)]")
-				veil_dest.start_generation()
-				linked_portal.say("Initiating new dungeon generation...")
+
+				// Set states BEFORE starting generation
+				generation_in_progress = TRUE
+				next_generate_attempt = world.time + (generate_cooldown * 10) // Set cooldown
+
+				// Start generation - wrap in try/catch for safety
+				var/start_success = FALSE
+				try
+					veil_dest.start_generation()
+					start_success = TRUE
+				catch(var/exception/e)
+					log_portal_control("Portal Control: Exception during generation start: [e]")
+					generation_in_progress = FALSE
+					next_generate_attempt = 0 // Reset cooldown on failure
+					to_chat(user, span_danger("Dungeon generation failed to start due to an error."))
+					return TRUE
+
+				if(!veil_dest.generating && start_success)
+					// Generation failed to start properly
+					generation_in_progress = FALSE
+					next_generate_attempt = 0 // Reset cooldown on failure
+					to_chat(user, span_warning("Dungeon generation failed to start."))
+					log_portal_control("Portal Control: Generation failed to start properly")
+				else
+					linked_portal.say("Initiating new dungeon generation...")
+					log_portal_control("Portal Control: Generation started successfully")
+
+					// Register for generation completion callbacks
+					register_generation_callbacks(veil_dest)
 			else
 				log_portal_control("Portal Control: [key_name(user)] attempted generation without valid portal destination")
+				to_chat(user, span_warning("No valid portal destination configured!"))
 			. = TRUE
 
 	return TRUE
@@ -148,82 +203,31 @@
 			log_portal_control("Portal Control: Removed destination [key] from global list")
 			break
 
-// Debug verb to test player detection
-/obj/machinery/computer/portal_control/verb/test_player_detection()
-	set name = "Test Player Detection"
-	set category = "Debug"
-	set src in view(1)
+// ===== GENERATION CALLBACK SYSTEM =====
 
-	usr << "=== PLAYER DETECTION TEST ==="
-	var/test_z = usr.z // Current Z-level for testing
+/// Register callbacks with the destination to track generation completion
+/obj/machinery/computer/portal_control/proc/register_generation_callbacks(datum/portal_destination/veilbreak/veil_dest)
+	// Store a reference to this computer in the destination for callbacks
+	veil_dest.connected_control_computer = src
 
-	var/active_players = 0
-	var/ssd_players = 0
-	var/borgs = 0
-	var/corpses = 0
-	var/hostiles = 0
-	var/unknown = 0
+/// Called when generation completes successfully
+/obj/machinery/computer/portal_control/proc/on_generation_completed()
+	generation_in_progress = FALSE
+	log_portal_control("Portal Control: Generation completed successfully")
 
-	for(var/mob/living/mob in GLOB.mob_list)
-		if(mob.z != test_z)
-			continue
+	// Provide user feedback
+	if(linked_portal)
+		linked_portal.say("Dungeon generation complete. Portal stabilized.")
 
-		if(is_definitely_hostile(mob))
-			hostiles++
-			usr << "HOSTILE: [mob] ([mob.type])"
-			continue
+/// Called when generation fails
+/obj/machinery/computer/portal_control/proc/on_generation_failed(reason)
+	generation_in_progress = FALSE
+	// Don't reset cooldown on failure - user should still wait before retry
+	log_portal_control("Portal Control: Generation failed - [reason]")
 
-		if(!is_player_related(mob))
-			unknown++
-			usr << "UNKNOWN: [mob] ([mob.type]) - ckey: [mob.ckey], client: [mob.client], mind: [mob.mind]"
-			continue
-
-		// Categorize player-related mobs
-		if(iscyborg(mob) || isAI(mob))
-			borgs++
-			usr << "BORG: [mob] ([mob.type]) - ckey: [mob.ckey]"
-		else if(mob.ckey && !mob.client)
-			ssd_players++
-			usr << "SSD: [mob] ([mob.type]) - ckey: [mob.ckey]"
-		else if(mob.client)
-			active_players++
-			usr << "ACTIVE: [mob] ([mob.type])"
-		else if(mob.stat == DEAD)
-			corpses++
-			usr << "CORPSE: [mob] ([mob.type]) - mind: [mob.mind]"
-		else
-			unknown++
-			usr << "PLAYER-RELATED: [mob] ([mob.type]) - ckey: [mob.ckey]"
-
-	usr << "=== SUMMARY ==="
-	usr << "Active Players: [active_players]"
-	usr << "SSD Players: [ssd_players]"
-	usr << "Cyborgs/AI: [borgs]"
-	usr << "Corpses: [corpses]"
-	usr << "Hostiles: [hostiles]"
-	usr << "Unknown: [unknown]"
-	usr << "Total on Z-level: [active_players + ssd_players + borgs + corpses + hostiles + unknown]"
-
-// Add to portal_control.dm for debugging
-/obj/machinery/computer/portal_control/verb/debug_portal_info()
-	set name = "Debug Portal Info"
-	set category = "Debug"
-	set src in view(1)
-
-	usr << "=== PORTAL DEBUG INFO ==="
-	usr << "Linked Portal: [linked_portal ? AREACOORD(linked_portal) : "NONE"]"
-	usr << "Portal Powered: [linked_portal ? linked_portal.powered() : "N/A"]"
-	usr << "Portal Possible: [linked_portal ? linked_portal.portal_possible : "N/A"]"
-	usr << "Transport Active: [linked_portal ? linked_portal.transport_active : "N/A"]"
-	usr << "Current Target: [linked_portal?.target ? linked_portal.target.name : "NONE"]"
-
-	usr << "=== GLOBAL DESTINATIONS ==="
-	var/count = 0
-	for(var/key in GLOB.portal_destinations)
-		var/datum/portal_destination/D = GLOB.portal_destinations[key]
-		usr << "[key]: [D.name] - Available: [D.is_available()] - Reason: [D.get_available_reason()]"
-		count++
-	usr << "Total Destinations: [count]"
+	// Provide user feedback
+	if(linked_portal)
+		linked_portal.say("Dungeon generation failed: [reason]")
 
 // ===== PLAYER DETECTION AND SAFE DUMPING PROCS =====
 
@@ -249,7 +253,6 @@
 		return TRUE
 
 	return FALSE
-
 
 /obj/machinery/computer/portal_control/proc/is_player_related(mob/living/mob)
 	// Quick exclusion for obvious hostiles first
@@ -398,3 +401,82 @@
 	if(linked_portal)
 		linked_portal.say(feedback_msg)
 	log_portal_control("Portal Control: SIMPLIFIED DUMP COMPLETE - [feedback_msg] Hostiles skipped: [skipped_hostiles]")
+
+// Debug verb to test player detection
+/obj/machinery/computer/portal_control/verb/test_player_detection()
+	set name = "Test Player Detection"
+	set category = "Debug"
+	set src in view(1)
+
+	usr << "=== PLAYER DETECTION TEST ==="
+	var/test_z = usr.z // Current Z-level for testing
+
+	var/active_players = 0
+	var/ssd_players = 0
+	var/borgs = 0
+	var/corpses = 0
+	var/hostiles = 0
+	var/unknown = 0
+
+	for(var/mob/living/mob in GLOB.mob_list)
+		if(mob.z != test_z)
+			continue
+
+		if(is_definitely_hostile(mob))
+			hostiles++
+			usr << "HOSTILE: [mob] ([mob.type])"
+			continue
+
+		if(!is_player_related(mob))
+			unknown++
+			usr << "UNKNOWN: [mob] ([mob.type]) - ckey: [mob.ckey], client: [mob.client], mind: [mob.mind]"
+			continue
+
+		// Categorize player-related mobs
+		if(iscyborg(mob) || isAI(mob))
+			borgs++
+			usr << "BORG: [mob] ([mob.type]) - ckey: [mob.ckey]"
+		else if(mob.ckey && !mob.client)
+			ssd_players++
+			usr << "SSD: [mob] ([mob.type]) - ckey: [mob.ckey]"
+		else if(mob.client)
+			active_players++
+			usr << "ACTIVE: [mob] ([mob.type])"
+		else if(mob.stat == DEAD)
+			corpses++
+			usr << "CORPSE: [mob] ([mob.type]) - mind: [mob.mind]"
+		else
+			unknown++
+			usr << "PLAYER-RELATED: [mob] ([mob.type]) - ckey: [mob.ckey]"
+
+	usr << "=== SUMMARY ==="
+	usr << "Active Players: [active_players]"
+	usr << "SSD Players: [ssd_players]"
+	usr << "Cyborgs/AI: [borgs]"
+	usr << "Corpses: [corpses]"
+	usr << "Hostiles: [hostiles]"
+	usr << "Unknown: [unknown]"
+	usr << "Total on Z-level: [active_players + ssd_players + borgs + corpses + hostiles + unknown]"
+
+// Debug verb for portal info
+/obj/machinery/computer/portal_control/verb/debug_portal_info()
+	set name = "Debug Portal Info"
+	set category = "Debug"
+	set src in view(1)
+
+	usr << "=== PORTAL DEBUG INFO ==="
+	usr << "Linked Portal: [linked_portal ? AREACOORD(linked_portal) : "NONE"]"
+	usr << "Portal Powered: [linked_portal ? linked_portal.powered() : "N/A"]"
+	usr << "Portal Possible: [linked_portal ? linked_portal.portal_possible : "N/A"]"
+	usr << "Transport Active: [linked_portal ? linked_portal.transport_active : "N/A"]"
+	usr << "Current Target: [linked_portal?.target ? linked_portal.target.name : "NONE"]"
+	usr << "Generation In Progress: [generation_in_progress]"
+	usr << "Next Generate Attempt: [next_generate_attempt] (current: [world.time])"
+
+	usr << "=== GLOBAL DESTINATIONS ==="
+	var/count = 0
+	for(var/key in GLOB.portal_destinations)
+		var/datum/portal_destination/D = GLOB.portal_destinations[key]
+		usr << "[key]: [D.name] - Available: [D.is_available()] - Reason: [D.get_available_reason()]"
+		count++
+	usr << "Total Destinations: [count]"

@@ -390,8 +390,7 @@
 		usr << "Current Target: [target.name]"
 		usr << "Target Available: [target.is_available()]"
 		usr << "Target Reason: [target.get_available_reason()]"
-	else
-		usr << "Current Target: None"
+	// No else needed
 
 	if(destination)
 		usr << "Default Destination: [destination.name]"
