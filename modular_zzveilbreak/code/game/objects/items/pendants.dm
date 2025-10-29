@@ -4,7 +4,7 @@
 	icon = 'modular_zzveilbreak/icons/item_icons/pendants.dmi'
 	worn_icon = 'modular_zzveilbreak/icons/item_icons/pendants.dmi'
 	post_init_icon_state = "aether_pendant"
-	worn_icon_state = "aether_pendant"
+	worn_icon_state = "aether_worn"
 	icon_state = "aether_pendant"
 	w_class = WEIGHT_CLASS_SMALL
 	slot_flags = ITEM_SLOT_NECK
