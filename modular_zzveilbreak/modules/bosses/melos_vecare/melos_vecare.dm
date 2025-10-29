@@ -23,6 +23,7 @@
 	environment_smash = ENVIRONMENT_SMASH_NONE
 	stat_attack = CONSCIOUS
 	robust_searching = TRUE
+	del_on_death = TRUE
 	dodging = FALSE
 	var/ability_cooldown = 0
 	var/spell_range = 20

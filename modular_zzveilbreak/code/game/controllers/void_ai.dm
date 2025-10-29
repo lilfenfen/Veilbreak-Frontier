@@ -11,17 +11,35 @@
 
 // ===== BASE VOID CONTROLLER =====
 /datum/ai_controller/basic_controller/void
+	/// The range at which this AI will aggro onto targets.
+	var/aggro_range = 8
+
 	planning_subtrees = list(
-		/datum/ai_planning_subtree/simple_find_target,
+		/datum/ai_planning_subtree/void_aggressive_find_target,
 		/datum/ai_planning_subtree/attack_obstacle_in_path,
 		/datum/ai_planning_subtree/basic_melee_attack_subtree,
 	)
 	ai_movement = /datum/ai_movement/basic_avoidance
 
+	/// Registers a signal to retaliate when attacked.
+	Initialize(pawn)
+		. = ..()
+		if(pawn)
+			RegisterSignal(pawn, COMSIG_MOB_ATTACKED, PROC_REF(on_attacked))
+
+/// Sets the attacker as the current target.
+/datum/ai_controller/basic_controller/void/proc/on_attacked(datum/source, mob/attacker)
+	SIGNAL_HANDLER
+	if(attacker && !blackboard_key_exists(BB_BASIC_MOB_CURRENT_TARGET))
+		var/mob/living/pawn_mob = pawn
+		if(pawn_mob)
+			pawn_mob.GiveTarget(attacker)
+
 // ===== VOIDLING CONTROLLER (Basic attacker) =====
 /datum/ai_controller/basic_controller/voidling
+	aggro_range = 7
 	planning_subtrees = list(
-		/datum/ai_planning_subtree/simple_find_target,
+		/datum/ai_planning_subtree/void_aggressive_find_target,
 		/datum/ai_planning_subtree/attack_obstacle_in_path,
 		/datum/ai_planning_subtree/basic_melee_attack_subtree,
 	)
@@ -29,9 +47,10 @@
 
 // ===== VOIDBUG CONTROLLER (Pack caller) =====
 /datum/ai_controller/basic_controller/voidbug
+	aggro_range = 7
 	planning_subtrees = list(
 		/datum/ai_planning_subtree/voidbug_pack_call,
-		/datum/ai_planning_subtree/simple_find_target,
+		/datum/ai_planning_subtree/void_aggressive_find_target,
 		/datum/ai_planning_subtree/attack_obstacle_in_path,
 		/datum/ai_planning_subtree/basic_melee_attack_subtree,
 	)
@@ -83,6 +102,35 @@
 
 	controller.blackboard[BB_VOIDBUG_LAST_PACK_CALL] = world.time
 	return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_SUCCEEDED
+
+// ===== AGGRESSIVE FIND TARGET SUBTREE =====
+/datum/ai_planning_subtree/void_aggressive_find_target/SelectBehaviors(datum/ai_controller/controller, seconds_per_tick)
+	if(controller.blackboard_key_exists(BB_BASIC_MOB_CURRENT_TARGET))
+		return
+
+	var/mob/living/pawn_mob = controller.pawn
+	if(!pawn_mob)
+		return
+
+	var/datum/ai_controller/basic_controller/void/void_controller = controller
+	var/aggro_range = 7
+	if(istype(void_controller))
+		aggro_range = void_controller.aggro_range
+
+	var/mob/living/target
+	var/min_dist = INFINITY
+
+	for(var/mob/living/L in range(aggro_range, pawn_mob))
+		if(L.stat == DEAD || (pawn_mob.faction & L.faction).len)
+			continue
+
+		var/dist = get_dist(pawn_mob, L)
+		if(dist < min_dist)
+			min_dist = dist
+			target = L
+
+	if(target)
+		pawn_mob.GiveTarget(target)
 
 // ===== VOID HEALER CONTROLLER (Support) =====
 /datum/ai_controller/basic_controller/void_healer
@@ -145,10 +193,9 @@
 
 	// Create simple visual effect
 	var/obj/effect/temp_visual/heal_effect = new(get_turf(target))
-	heal_effect.icon = 'icons/effects/effects.dmi'
-	heal_effect.icon_state = "shield"
-	heal_effect.color = "#8A2BE2" // Purple color for void theme
-	QDEL_IN(heal_effect, 1 SECONDS)
+	heal_effect.icon = 'modular_zzveilbreak/icons/mob/effects.dmi'
+	heal_effect.icon_state = "heal"
+	QDEL_IN(heal_effect, 60)
 
 	controller.blackboard[BB_VOID_HEALER_LAST_HEAL] = world.time
 	controller.blackboard[BB_VOID_HEALER_CURRENT_TARGET] = null
@@ -198,7 +245,7 @@
 // ===== CONSUMED PATHFINDER CONTROLLER (Brute tank) =====
 /datum/ai_controller/basic_controller/void_pathfinder
 	planning_subtrees = list(
-		/datum/ai_planning_subtree/simple_find_target,
+		/datum/ai_planning_subtree/void_aggressive_find_target,
 		/datum/ai_planning_subtree/attack_obstacle_in_path,
 		/datum/ai_planning_subtree/basic_ranged_attack_subtree,
 		/datum/ai_planning_subtree/void_pathfinder_pursue,
