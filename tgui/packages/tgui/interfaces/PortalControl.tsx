@@ -35,19 +35,9 @@ interface PortalControlData {
   generate_cooldown: number;
   can_generate: boolean;
   generation_in_progress: boolean;
-  dungeon_data?: {
+  portal_data?: {
     map_name?: string;
-    z_level?: number;
     technical_name?: string;
-    seed?: number;
-    dimensions?: {
-      width: number;
-      height: number;
-    };
-    statistics?: {
-      rooms?: number;
-      mobs?: number;
-    };
   };
 }
 
@@ -66,7 +56,7 @@ export const PortalControl = (props, context) => {
     generate_cooldown,
     can_generate,
     generation_in_progress,
-    dungeon_data,
+    portal_data,
   } = data;
 
   const getGenerationColor = () => {
@@ -85,11 +75,11 @@ export const PortalControl = (props, context) => {
   const getGenerationText = () => {
     switch (generation_status) {
       case 'generating':
-        return `Generating... ${Math.round(generation_progress)}%`;
+        return `Stabilizing Portal... ${Math.round(generation_progress)}%`;
       case 'ready':
-        return 'Ready';
+        return 'Portal Stabilized';
       case 'error':
-        return 'Error';
+        return 'Destabilization Error';
       default:
         return 'Idle';
     }
@@ -98,28 +88,18 @@ export const PortalControl = (props, context) => {
   const getGenerateTooltip = () => {
     if (!can_generate) {
       if (generation_in_progress) {
-        return 'Generation in progress...';
+        return 'Portal stabilization in progress...';
       }
       if (generation_cooldown > 0) {
         return `Cooldown: ${Math.round(generation_cooldown)}s remaining`;
       }
       return 'Cannot generate at this time';
     }
-    return 'Generate new dungeon';
-  };
-
-  const getDestinationTooltip = (destination: (typeof destinations)[0]) => {
-    if (!destination.available) {
-      return destination.available_reason;
-    }
-    if (portal_active) {
-      return 'Deactivate current portal first';
-    }
-    return `Activate portal to ${destination.name}`;
+    return 'Generate new portal destination';
   };
 
   return (
-    <Window width={500} height={600} theme="admin">
+    <Window width={500} height={500} theme="admin">
       <Window.Content scrollable>
         <Section title="Portal Control Console">
           <LabeledList>
@@ -139,7 +119,7 @@ export const PortalControl = (props, context) => {
               </Box>
             </LabeledList.Item>
             {current_target && (
-              <LabeledList.Item label="Current Target">
+              <LabeledList.Item label="Current Destination">
                 <Box color="blue">{current_target.name}</Box>
               </LabeledList.Item>
             )}
@@ -154,7 +134,7 @@ export const PortalControl = (props, context) => {
           )}
         </Section>
 
-        <Section title="Dungeon Generation">
+        <Section title="Portal Generation">
           <Stack vertical>
             <Stack.Item>
               <ProgressBar
@@ -175,7 +155,7 @@ export const PortalControl = (props, context) => {
                 tooltip={getGenerateTooltip()}
                 onClick={() => act('generate_new')}
               >
-                Generate New Dungeon
+                Generate New Portal
               </Button>
             </Stack.Item>
 
@@ -188,39 +168,16 @@ export const PortalControl = (props, context) => {
               </Stack.Item>
             )}
 
-            {dungeon_data && (
+            {portal_data && portal_data.map_name && (
               <Stack.Item>
-                <Section title="Current Dungeon">
+                <Section title="Active Portal Destination">
                   <LabeledList>
-                    <LabeledList.Item label="Name">
-                      {dungeon_data.map_name || 'Unknown Dungeon'}
+                    <LabeledList.Item label="Destination">
+                      {portal_data.map_name}
                     </LabeledList.Item>
-                    <LabeledList.Item label="Z-Level">
-                      {dungeon_data.z_level || 'Not loaded'}
-                    </LabeledList.Item>
-                    {dungeon_data.dimensions && (
-                      <LabeledList.Item label="Size">
-                        {dungeon_data.dimensions.width} ×{' '}
-                        {dungeon_data.dimensions.height}
-                      </LabeledList.Item>
-                    )}
-                    {dungeon_data.statistics && (
-                      <>
-                        {dungeon_data.statistics.rooms && (
-                          <LabeledList.Item label="Rooms">
-                            {dungeon_data.statistics.rooms}
-                          </LabeledList.Item>
-                        )}
-                        {dungeon_data.statistics.mobs && (
-                          <LabeledList.Item label="Threats">
-                            {dungeon_data.statistics.mobs}
-                          </LabeledList.Item>
-                        )}
-                      </>
-                    )}
-                    {dungeon_data.seed && (
-                      <LabeledList.Item label="Seed">
-                        {dungeon_data.seed}
+                    {portal_data.technical_name && (
+                      <LabeledList.Item label="Coordinates">
+                        {portal_data.technical_name}
                       </LabeledList.Item>
                     )}
                   </LabeledList>
@@ -228,97 +185,6 @@ export const PortalControl = (props, context) => {
               </Stack.Item>
             )}
           </Stack>
-        </Section>
-
-        <Section title="Available Destinations">
-          {destinations.length === 0 ? (
-            <Box color="label" textAlign="center">
-              No destinations available
-            </Box>
-          ) : (
-            destinations.map((destination) => (
-              <Box
-                key={destination.key}
-                mb={1}
-                p={1}
-                backgroundColor="rgba(0,0,0,0.1)"
-                style={{
-                  border:
-                    current_target?.key === destination.key
-                      ? '2px solid #00ff00'
-                      : '1px solid #555',
-                }}
-              >
-                <Stack align="center">
-                  <Stack.Item grow>
-                    <Box>
-                      <Stack vertical>
-                        <Stack.Item>
-                          <Box
-                            bold
-                            color={
-                              current_target?.key === destination.key
-                                ? 'good'
-                                : destination.available
-                                  ? 'white'
-                                  : 'gray'
-                            }
-                          >
-                            {destination.name}
-                          </Box>
-                        </Stack.Item>
-                        <Stack.Item>
-                          <Box color="label">{destination.description}</Box>
-                        </Stack.Item>
-                        {!destination.available && (
-                          <Stack.Item>
-                            <Box color="average" mt={0.5}>
-                              {destination.available_reason}
-                            </Box>
-                          </Stack.Item>
-                        )}
-                        {destination.timeout !== undefined &&
-                          destination.timeout > 0 && (
-                            <Stack.Item>
-                              <ProgressBar
-                                value={destination.timeout}
-                                minValue={0}
-                                maxValue={1}
-                                color="blue"
-                                mt={0.5}
-                              >
-                                Calibrating...
-                              </ProgressBar>
-                            </Stack.Item>
-                          )}
-                      </Stack>
-                    </Box>
-                  </Stack.Item>
-                  <Stack.Item>
-                    <Button
-                      icon="power-off"
-                      color={
-                        current_target?.key === destination.key
-                          ? 'good'
-                          : 'default'
-                      }
-                      disabled={!destination.available || portal_active}
-                      tooltip={getDestinationTooltip(destination)}
-                      onClick={() =>
-                        act('activate', {
-                          destination: destination.key,
-                        })
-                      }
-                    >
-                      {current_target?.key === destination.key
-                        ? 'Active'
-                        : 'Activate'}
-                    </Button>
-                  </Stack.Item>
-                </Stack>
-              </Box>
-            ))
-          )}
         </Section>
 
         {current_target && (
