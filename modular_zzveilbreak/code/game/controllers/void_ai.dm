@@ -3,6 +3,8 @@
 // ===== BLACKBOARD KEYS =====
 // Voidbug
 #define BB_VOIDBUG_LAST_PACK_CALL "voidbug_last_pack_call"
+#define COMSIG_MOB_ATTACKED "mob_attacked"
+#define COMSIG_MOB_GIVE_TARGET "mob_give_target"
 
 // Void Healer
 #define BB_VOID_HEALER_LAST_HEAL "void_healer_last_heal"
@@ -21,22 +23,17 @@
 	)
 	ai_movement = /datum/ai_movement/basic_avoidance
 
-	/// Registers a signal to retaliate when attacked.
-	Initialize(pawn)
-		. = ..()
-		if(pawn)
-			RegisterSignal(pawn, COMSIG_MOB_ATTACKED, PROC_REF(on_attacked))
 
 /// Sets the attacker as the current target.
 /datum/ai_controller/basic_controller/void/proc/on_attacked(datum/source, mob/attacker)
 	SIGNAL_HANDLER
-	if(attacker && !blackboard_key_exists(BB_BASIC_MOB_CURRENT_TARGET))
-		var/mob/living/pawn_mob = pawn
+	if(attacker && !blackboard_key_exists(BB_BASIC_MOB_CURRENT_TARGET)) //Don't switch targets if we already have one.
+		var/mob/living/simple_animal/hostile/pawn_mob = pawn
 		if(pawn_mob)
 			pawn_mob.GiveTarget(attacker)
 
 // ===== VOIDLING CONTROLLER (Basic attacker) =====
-/datum/ai_controller/basic_controller/voidling
+/datum/ai_controller/basic_controller/void/voidling
 	aggro_range = 7
 	planning_subtrees = list(
 		/datum/ai_planning_subtree/void_aggressive_find_target,
@@ -46,8 +43,7 @@
 	ai_movement = /datum/ai_movement/basic_avoidance
 
 // ===== VOIDBUG CONTROLLER (Pack caller) =====
-/datum/ai_controller/basic_controller/voidbug
-	aggro_range = 7
+/datum/ai_controller/basic_controller/void/voidbug
 	planning_subtrees = list(
 		/datum/ai_planning_subtree/voidbug_pack_call,
 		/datum/ai_planning_subtree/void_aggressive_find_target,
@@ -130,7 +126,7 @@
 			target = L
 
 	if(target)
-		pawn_mob.GiveTarget(target)
+		SEND_SIGNAL(pawn_mob, COMSIG_MOB_GIVE_TARGET, target)
 
 // ===== VOID HEALER CONTROLLER (Support) =====
 /datum/ai_controller/basic_controller/void_healer

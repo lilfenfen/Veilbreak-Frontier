@@ -33,7 +33,7 @@
 	dodging = TRUE
 	dodge_prob = 50
 
-	ai_controller = /datum/ai_controller/basic_controller/voidling
+	ai_controller = /datum/ai_controller/basic_controller/void/voidling
 
 /mob/living/simple_animal/hostile/Voidling/New()
 	. = ..()
@@ -124,7 +124,7 @@
 	var/block_chance = 30
 	var/last_pack_call = 0
 
-	ai_controller = /datum/ai_controller/basic_controller/voidbug
+	ai_controller = /datum/ai_controller/basic_controller/void/voidbug
 
 /mob/living/simple_animal/hostile/Voidbug/New()
 	. = ..()
