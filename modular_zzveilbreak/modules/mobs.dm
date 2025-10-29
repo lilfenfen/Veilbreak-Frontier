@@ -1,3 +1,8 @@
+// Define constants first
+#define HARD_CRIT 2
+#define BB_VOID_SUMMON_COOLDOWN "void_summon_cooldown"
+#define BB_VOID_HEAL_COOLDOWN "void_heal_cooldown"
+
 /mob/living/simple_animal/hostile
 	// Shared death proc for all void creatures
 	proc/void_death(message, loot_table)
@@ -28,7 +33,6 @@
 	attack_sound = "modular_zzveilbreak/sound/weapons/voidling_attack.ogg"
 	faction = list(FACTION_VOID)
 	environment_smash = ENVIRONMENT_SMASH_STRUCTURES
-	stat_attack = HARD_CRIT
 	robust_searching = TRUE
 	dodging = TRUE
 	dodge_prob = 50
@@ -66,7 +70,6 @@
 	attack_sound = "modular_zzveilbreak/sound/weapons/voidling_attack.ogg"
 	faction = list(FACTION_VOID)
 	environment_smash = ENVIRONMENT_SMASH_STRUCTURES
-	stat_attack = HARD_CRIT
 	robust_searching = TRUE
 	dodging = TRUE
 	dodge_prob = 30
@@ -118,7 +121,6 @@
 	attack_sound = "modular_zzveilbreak/sound/weapons/voidling_attack.ogg"
 	faction = list(FACTION_VOID)
 	environment_smash = ENVIRONMENT_SMASH_STRUCTURES
-	stat_attack = HARD_CRIT
 	robust_searching = TRUE
 	dodging = FALSE
 	var/block_chance = 30
@@ -163,7 +165,6 @@
 	attack_verb_simple = "touch"
 	faction = list(FACTION_VOID)
 	environment_smash = ENVIRONMENT_SMASH_NONE
-	stat_attack = CONSCIOUS
 	robust_searching = TRUE
 	dodging = TRUE
 	dodge_prob = 70
@@ -177,3 +178,143 @@
 
 /mob/living/simple_animal/hostile/Void_Healer/death(gibbed)
 	void_death("[src] fades into nothingness.", void_healer_table)
+
+// Define the targeting strategy for void creatures - remove stat_attack
+/datum/targeting_strategy/basic/void
+
+// Basic void AI controller
+/datum/ai_controller/basic_controller/void
+	blackboard = list(
+		BB_TARGETING_STRATEGY = /datum/targeting_strategy/basic/void,
+		BB_TARGET_MINIMUM_STAT = HARD_CRIT,
+	)
+
+	ai_movement = /datum/ai_movement/basic_avoidance
+	idle_behavior = /datum/idle_behavior/idle_random_walk
+	planning_subtrees = list(
+		/datum/ai_planning_subtree/target_retaliate,
+		/datum/ai_planning_subtree/simple_find_target,
+		/datum/ai_planning_subtree/basic_melee_attack_subtree,
+	)
+
+// Voidling specific AI
+/datum/ai_controller/basic_controller/void/voidling
+	planning_subtrees = list(
+		/datum/ai_planning_subtree/target_retaliate,
+		/datum/ai_planning_subtree/simple_find_target,
+		/datum/ai_planning_subtree/basic_melee_attack_subtree,
+	)
+
+// Voidbug specific AI - more defensive
+/datum/ai_controller/basic_controller/void/voidbug
+	planning_subtrees = list(
+		/datum/ai_planning_subtree/target_retaliate,
+		/datum/ai_planning_subtree/simple_find_target,
+		/datum/ai_planning_subtree/basic_melee_attack_subtree,
+	)
+
+// Consumed Pathfinder AI - ranged attacker with summoning
+/datum/ai_controller/basic_controller/void_pathfinder
+	blackboard = list(
+		BB_TARGETING_STRATEGY = /datum/targeting_strategy/basic/void,
+		BB_TARGET_MINIMUM_STAT = HARD_CRIT,
+	)
+
+	ai_movement = /datum/ai_movement/basic_avoidance
+	idle_behavior = /datum/idle_behavior/idle_random_walk
+	planning_subtrees = list(
+		/datum/ai_planning_subtree/target_retaliate,
+		/datum/ai_planning_subtree/simple_find_target,
+		/datum/ai_planning_subtree/void_pathfinder_summon,
+		/datum/ai_planning_subtree/basic_ranged_attack_subtree,
+	)
+
+// Void Healer AI - flees and heals allies
+/datum/ai_controller/basic_controller/void_healer
+	blackboard = list(
+		BB_TARGETING_STRATEGY = /datum/targeting_strategy/basic/void,
+	)
+
+	ai_movement = /datum/ai_movement/basic_avoidance
+	idle_behavior = /datum/idle_behavior/idle_random_walk
+	planning_subtrees = list(
+		/datum/ai_planning_subtree/target_retaliate,
+		/datum/ai_planning_subtree/simple_find_target,
+		/datum/ai_planning_subtree/void_healer_heal,
+		/datum/ai_planning_subtree/flee_target,
+	)
+
+// Custom planning subtrees for void creatures
+/datum/ai_planning_subtree/void_pathfinder_summon
+	operational_datums = list(/datum/component/ai_target_timer)
+
+/datum/ai_planning_subtree/void_pathfinder_summon/SelectBehaviors(datum/ai_controller/controller, seconds_per_tick)
+	var/mob/living/simple_animal/hostile/Consumed_Pathfinder/pathfinder = controller.pawn
+	if(!istype(pathfinder))
+		return
+
+	var/mob/living/target = controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET]
+	if(!target)
+		return
+
+	// Check if we can summon
+	if(world.time > (controller.blackboard[BB_VOID_SUMMON_COOLDOWN] || 0))
+		controller.queue_behavior(/datum/ai_behavior/void_summon, BB_BASIC_MOB_CURRENT_TARGET)
+		return SUBTREE_RETURN_FINISH_PLANNING
+
+/datum/ai_behavior/void_summon
+	action_cooldown = 10 SECONDS
+	behavior_flags = AI_BEHAVIOR_REQUIRE_MOVEMENT
+
+/datum/ai_behavior/void_summon/setup(datum/ai_controller/controller, target_key)
+	. = ..()
+	var/mob/living/target = controller.blackboard[target_key]
+	if(QDELETED(target))
+		return FALSE
+	set_movement_target(controller, target)
+
+/datum/ai_behavior/void_summon/perform(seconds_per_tick, datum/ai_controller/controller, target_key)
+	var/mob/living/simple_animal/hostile/Consumed_Pathfinder/pathfinder = controller.pawn
+	if(!istype(pathfinder))
+		return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_FAILED
+
+	// Summon a voidling
+	var/mob/living/simple_animal/hostile/Voidling/new_voidling = new(pathfinder.loc)
+	new_voidling.faction = pathfinder.faction.Copy()
+
+	// Set cooldown
+	controller.set_blackboard_key(BB_VOID_SUMMON_COOLDOWN, world.time + 10 SECONDS)
+
+	return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_SUCCEEDED
+
+/datum/ai_planning_subtree/void_healer_heal
+
+/datum/ai_planning_subtree/void_healer_heal/SelectBehaviors(datum/ai_controller/controller, seconds_per_tick)
+	var/mob/living/simple_animal/hostile/Void_Healer/healer = controller.pawn
+	if(!istype(healer))
+		return
+
+	// Check if we can heal
+	if(world.time > (controller.blackboard[BB_VOID_HEAL_COOLDOWN] || 0))
+		controller.queue_behavior(/datum/ai_behavior/void_heal)
+		return SUBTREE_RETURN_FINISH_PLANNING
+
+/datum/ai_behavior/void_heal
+	action_cooldown = 5 SECONDS
+
+/datum/ai_behavior/void_heal/perform(seconds_per_tick, datum/ai_controller/controller)
+	var/mob/living/simple_animal/hostile/Void_Healer/healer = controller.pawn
+	if(!istype(healer))
+		return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_FAILED
+
+	// Look for injured allies nearby
+	for(var/mob/living/simple_animal/hostile/ally in view(7, healer))
+		if(ally.faction != healer.faction || ally.health >= ally.maxHealth)
+			continue
+
+		// Heal the ally
+		ally.adjustHealth(-20)
+		controller.set_blackboard_key(BB_VOID_HEAL_COOLDOWN, world.time + 5 SECONDS)
+		return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_SUCCEEDED
+
+	return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_FAILED

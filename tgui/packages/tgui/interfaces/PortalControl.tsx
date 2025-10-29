@@ -20,25 +20,13 @@ interface PortalControlData {
     key: string;
     description?: string;
   };
-  destinations: Array<{
-    name: string;
-    description: string;
-    key: string;
-    available: boolean;
-    available_reason: string;
-    timeout?: number;
-    connected?: boolean;
-  }>;
   generation_status: string;
   generation_progress: number;
   generation_cooldown: number;
   generate_cooldown: number;
   can_generate: boolean;
   generation_in_progress: boolean;
-  portal_data?: {
-    map_name?: string;
-    technical_name?: string;
-  };
+  portal_name?: string;
 }
 
 export const PortalControl = (props, context) => {
@@ -49,14 +37,13 @@ export const PortalControl = (props, context) => {
     portal_status,
     portal_active,
     current_target,
-    destinations,
     generation_status,
     generation_progress,
     generation_cooldown,
     generate_cooldown,
     can_generate,
     generation_in_progress,
-    portal_data,
+    portal_name,
   } = data;
 
   const getGenerationColor = () => {
@@ -86,20 +73,30 @@ export const PortalControl = (props, context) => {
   };
 
   const getGenerateTooltip = () => {
+    if (portal_active) {
+      return 'Deactivate current portal before generating a new one';
+    }
+    if (generation_in_progress) {
+      return 'Portal stabilization in progress...';
+    }
+    if (generation_status === 'ready') {
+      return 'Portal already stabilized and ready';
+    }
     if (!can_generate) {
-      if (generation_in_progress) {
-        return 'Portal stabilization in progress...';
-      }
-      if (generation_cooldown > 0) {
-        return `Cooldown: ${Math.round(generation_cooldown)}s remaining`;
-      }
       return 'Cannot generate at this time';
     }
     return 'Generate new portal destination';
   };
 
+  // Button is disabled if portal is active, generation is in progress, or portal is already ready
+  const generateDisabled =
+    portal_active ||
+    generation_in_progress ||
+    generation_status === 'ready' ||
+    !can_generate;
+
   return (
-    <Window width={500} height={500} theme="admin">
+    <Window width={500} height={400} theme="admin">
       <Window.Content scrollable>
         <Section title="Portal Control Console">
           <LabeledList>
@@ -151,11 +148,13 @@ export const PortalControl = (props, context) => {
               <Button
                 icon="bolt"
                 fluid
-                disabled={!can_generate}
+                disabled={generateDisabled}
                 tooltip={getGenerateTooltip()}
                 onClick={() => act('generate_new')}
               >
-                Generate New Portal
+                {generation_status === 'ready'
+                  ? 'Portal Ready'
+                  : 'Generate New Portal'}
               </Button>
             </Stack.Item>
 
@@ -168,19 +167,12 @@ export const PortalControl = (props, context) => {
               </Stack.Item>
             )}
 
-            {portal_data && portal_data.map_name && (
+            {portal_name && (
               <Stack.Item>
                 <Section title="Active Portal Destination">
-                  <LabeledList>
-                    <LabeledList.Item label="Destination">
-                      {portal_data.map_name}
-                    </LabeledList.Item>
-                    {portal_data.technical_name && (
-                      <LabeledList.Item label="Coordinates">
-                        {portal_data.technical_name}
-                      </LabeledList.Item>
-                    )}
-                  </LabeledList>
+                  <Box textAlign="center" bold fontSize={1.2}>
+                    {portal_name}
+                  </Box>
                 </Section>
               </Stack.Item>
             )}

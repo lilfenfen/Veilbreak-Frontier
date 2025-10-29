@@ -2,7 +2,7 @@
 
 /obj/machinery/computer/portal_control
 	name = "portal control console"
-	desc = "Used to control dimensional portals and generate new dungeon destinations."
+	desc = "Used to control dimensional portals and generate new destinations beyond the veil."
 	icon_screen = "gateway"
 	icon_keyboard = "teleport_key"
 	var/obj/machinery/portal/linked_portal
@@ -25,10 +25,10 @@
 	. = ..()
 	ui = SStgui.try_update_ui(user, src, ui)
 	if(!ui)
-		ui = new(user, src, "PortalControl", name)  // This matches the TSX component name
+		ui = new(user, src, "PortalControl", name)
 		ui.open()
 	log_portal_control("Portal Control: [key_name(user)] opened UI at [AREACOORD(src)]")
-	return TRUE  // Added return value
+	return TRUE
 
 /obj/machinery/computer/portal_control/ui_data(mob/user)
 	. = list()
@@ -42,29 +42,19 @@
 	if(linked_portal?.target)
 		.["current_target"] = linked_portal.target.get_ui_data()
 
-	// Available destinations
-	var/list/destinations = list()
-	if(linked_portal)
-		for(var/destination_key in GLOB.portal_destinations)
-			var/datum/portal_destination/possible_destination = GLOB.portal_destinations[destination_key]
-			if(!istype(possible_destination)) // Safety check
-				continue
-			if(!linked_portal.valid_destination(possible_destination))
-				continue
-			destinations += list(possible_destination.get_ui_data())
-	.["destinations"] = destinations
-
 	// Generation status and cooldown
 	var/can_generate = FALSE
 	var/generation_status = "idle"
 	var/generation_progress = 0
-	var/dungeon_data = null
+	var/portal_name = null
 
 	if(linked_portal?.destination)
 		var/datum/portal_destination/veilbreak/veil_dest = linked_portal.destination
 		generation_status = veil_dest.generating ? "generating" : (veil_dest.generated ? "ready" : "idle")
 		generation_progress = veil_dest.generation_progress
-		dungeon_data = linked_portal.generated_dungeon_data
+
+		// Get portal name from the destination data
+		portal_name = get_portal_name(veil_dest)
 
 		// Check if we can generate
 		if(!generation_in_progress && !veil_dest.generating && world.time >= next_generate_attempt)
@@ -72,13 +62,45 @@
 
 	.["generation_status"] = generation_status
 	.["generation_progress"] = generation_progress
-	.["dungeon_data"] = dungeon_data
+	.["portal_name"] = portal_name
 	.["can_generate"] = can_generate
-	.["generation_cooldown"] = max(0, next_generate_attempt - world.time) / 10 // Convert to seconds for UI
+	.["generation_cooldown"] = max(0, next_generate_attempt - world.time) / 10
 	.["generate_cooldown"] = generate_cooldown
 	.["generation_in_progress"] = generation_in_progress
 
 	return .
+
+/// Retrieve portal name from the destination data
+/obj/machinery/computer/portal_control/proc/get_portal_name(datum/portal_destination/veilbreak/veil_dest)
+	if(!veil_dest || !veil_dest.generated)
+		return null
+
+	// Try to get stats from the destination first
+	var/list/stats = veil_dest.get_dungeon_stats()
+	if(stats && stats["name"])
+		return stats["name"]
+
+	// Try to get name from last generation data
+	if(veil_dest.last_generation_data)
+		var/list/metadata = veil_dest.last_generation_data["metadata"]
+		if(metadata && metadata["map_name"])
+			return metadata["map_name"]
+
+	// Final fallback
+	return generate_fallback_name()
+
+/// Generate a fallback name when metadata isn't available
+/obj/machinery/computer/portal_control/proc/generate_fallback_name()
+	var/static/list/sector_prefixes = list(
+		"Quantum", "Chrono", "Spatial", "Dimensional", "Void",
+		"Celestial", "Astral", "Ethereal", "Cosmic", "Nebular"
+	)
+	var/static/list/sector_suffixes = list(
+		"Realm", "Expanse", "Frontier", "Domain", "Territory",
+		"Reach", "Void", "Sector", "Zone", "Dimension"
+	)
+
+	return "[pick(sector_prefixes)] [pick(sector_suffixes)]"
 
 /obj/machinery/computer/portal_control/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
 	. = ..()
@@ -94,46 +116,42 @@
 			if(linked_portal)
 				log_portal_control("Portal Control: Successfully linked to portal at [AREACOORD(linked_portal)]")
 			. = TRUE
-		if("activate")
-			var/destination_key = params["destination"]
-			var/datum/portal_destination/D = GLOB.portal_destinations[destination_key]
-			if(D)
-				log_portal_control("Portal Control: [key_name(user)] activating portal to [D.name] at [AREACOORD(src)]")
-				try_to_connect(D)
-			. = TRUE
 		if("deactivate")
 			if(linked_portal?.target)
 				log_portal_control("Portal Control: [key_name(user)] deactivating portal from [linked_portal.target.name] at [AREACOORD(src)]")
-				// REFACTORED: Use the destination's own cleanup system
 				if(istype(linked_portal.target, /datum/portal_destination/veilbreak))
 					var/datum/portal_destination/veilbreak/veil_dest = linked_portal.target
-					cleanup_dungeon_with_corpse_dumping(veil_dest)
+					cleanup_portal_with_corpse_dumping(veil_dest)
 				linked_portal.deactivate()
 			. = TRUE
 		if("generate_new")
 			if(linked_portal?.destination)
 				var/datum/portal_destination/veilbreak/veil_dest = linked_portal.destination
 
-				// ENHANCED: Triple-check to prevent any generation conflicts
+				// Enhanced checks to prevent generation conflicts
 				if(generation_in_progress)
-					to_chat(user, span_warning("Dungeon generation is already being processed!"))
+					to_chat(user, span_warning("Portal stabilization is already in progress!"))
 					log_portal_control("Portal Control: Generation blocked - already in progress (local)")
 					return TRUE
 
 				if(veil_dest.generating)
-					to_chat(user, span_warning("Dungeon generation is already in progress!"))
+					to_chat(user, span_warning("Portal stabilization is already in progress!"))
 					log_portal_control("Portal Control: Generation blocked - already in progress (destination)")
 					return TRUE
 
-				if(world.time < next_generate_attempt)
-					to_chat(user, span_warning("Please wait [round((next_generate_attempt - world.time) / 10)] seconds before generating another dungeon."))
+				if(linked_portal.transport_active)
+					to_chat(user, span_warning("Deactivate the current portal before generating a new destination!"))
 					return TRUE
 
-				log_portal_control("Portal Control: [key_name(user)] initiating new dungeon generation at [AREACOORD(src)]")
+				if(world.time < next_generate_attempt)
+					to_chat(user, span_warning("Please wait [round((next_generate_attempt - world.time) / 10)] seconds before generating another portal."))
+					return TRUE
+
+				log_portal_control("Portal Control: [key_name(user)] initiating new portal generation at [AREACOORD(src)]")
 
 				// Set states BEFORE starting generation
 				generation_in_progress = TRUE
-				next_generate_attempt = world.time + (generate_cooldown * 10) // Set cooldown
+				next_generate_attempt = world.time + (generate_cooldown * 10)
 
 				// Start generation - wrap in try/catch for safety
 				var/start_success = FALSE
@@ -143,19 +161,19 @@
 				catch(var/exception/e)
 					log_portal_control("Portal Control: Exception during generation start: [e]")
 					generation_in_progress = FALSE
-					next_generate_attempt = 0 // Reset cooldown on failure
-					to_chat(user, span_danger("Dungeon generation failed to start due to an error."))
+					next_generate_attempt = 0
+					to_chat(user, span_danger("Portal stabilization failed to start due to an error."))
 					return TRUE
 
 				if(!veil_dest.generating && start_success)
 					// Generation failed to start properly
 					generation_in_progress = FALSE
-					next_generate_attempt = 0 // Reset cooldown on failure
-					to_chat(user, span_warning("Dungeon generation failed to start."))
+					next_generate_attempt = 0
+					to_chat(user, span_warning("Portal stabilization failed to start."))
 					log_portal_control("Portal Control: Generation failed to start properly")
 				else
-					linked_portal.say("Initiating new dungeon generation...")
-					log_portal_control("Portal Control: Generation started successfully")
+					linked_portal.say("Initiating new portal stabilization...")
+					log_portal_control("Portal Control: Portal generation started successfully")
 
 					// Register for generation completion callbacks
 					register_generation_callbacks(veil_dest)
@@ -169,27 +187,13 @@
 /obj/machinery/computer/portal_control/proc/try_to_linkup()
 	linked_portal = locate(/obj/machinery/portal) in view(7, get_turf(src))
 
-/obj/machinery/computer/portal_control/proc/try_to_connect(datum/portal_destination/D)
-	if(!D || !linked_portal)
-		log_portal_control("Portal Control: Connection failed - no destination or linked portal")
-		return
-	if(!D.is_available())
-		log_portal_control("Portal Control: Connection failed - destination [D.name] not available: [D.get_available_reason()]")
-		return
-	if(linked_portal.target)
-		log_portal_control("Portal Control: Connection failed - portal already active to [linked_portal.target.name]")
-		return
-
-	log_portal_control("Portal Control: Successfully connecting to [D.name]")
-	linked_portal.activate(D)
-
 /// Enhanced cleanup that dumps players safely before calling the destination's cleanup
-/obj/machinery/computer/portal_control/proc/cleanup_dungeon_with_corpse_dumping(datum/portal_destination/veilbreak/veil_dest)
+/obj/machinery/computer/portal_control/proc/cleanup_portal_with_corpse_dumping(datum/portal_destination/veilbreak/veil_dest)
 	if(!veil_dest.dungeon_z_level)
-		log_portal_control("Portal Control: No dungeon Z-level to clean up")
+		log_portal_control("Portal Control: No portal Z-level to clean up")
 		return
 
-	log_portal_control("Portal Control: Starting SAFE cleanup of dungeon Z-level [veil_dest.dungeon_z_level]")
+	log_portal_control("Portal Control: Starting SAFE cleanup of portal Z-level [veil_dest.dungeon_z_level]")
 
 	// SAFETY: Use the enhanced safe dumping
 	dump_players_safely(veil_dest.dungeon_z_level)
@@ -214,21 +218,20 @@
 /// Called when generation completes successfully
 /obj/machinery/computer/portal_control/proc/on_generation_completed()
 	generation_in_progress = FALSE
-	log_portal_control("Portal Control: Generation completed successfully")
+	log_portal_control("Portal Control: Portal generation completed successfully")
 
 	// Provide user feedback
 	if(linked_portal)
-		linked_portal.say("Dungeon generation complete. Portal stabilized.")
+		linked_portal.say("Portal stabilization complete. Destination secured.")
 
 /// Called when generation fails
 /obj/machinery/computer/portal_control/proc/on_generation_failed(reason)
 	generation_in_progress = FALSE
-	// Don't reset cooldown on failure - user should still wait before retry
-	log_portal_control("Portal Control: Generation failed - [reason]")
+	log_portal_control("Portal Control: Portal generation failed - [reason]")
 
 	// Provide user feedback
 	if(linked_portal)
-		linked_portal.say("Dungeon generation failed: [reason]")
+		linked_portal.say("Portal stabilization failed: [reason]")
 
 // ===== PLAYER DETECTION AND SAFE DUMPING PROCS =====
 
@@ -255,57 +258,60 @@
 
 	return FALSE
 
-/obj/machinery/computer/portal_control/proc/is_player_related(mob/living/mob)
-	// Quick exclusion for obvious hostiles first
-	if(is_definitely_hostile(mob))
-		return FALSE
+/// Enhanced dumping that provides better feedback for SSD players and borgs
+/obj/machinery/computer/portal_control/proc/dump_players_safely(dungeon_z)
+	if(!linked_portal)
+		return
 
-	// 1. Active players with clients (most common case)
-	if(mob.client && !isobserver(mob))
-		return TRUE
+	var/turf/portal_turf = get_turf(linked_portal)
+	if(!portal_turf)
+		return
 
-	// 2. SSD Players - they have ckeys but no client
-	if(mob.ckey && !mob.client && !isobserver(mob))
-		return TRUE
+	log_portal_control("Portal Control: Starting simplified player dump from Z-level [dungeon_z]")
 
-	// 3. Player corpses (dead humans) - include SSD corpses
-	if(ishuman(mob) && mob.stat == DEAD)
-		// Extra safety: check if they ever had a player mind
-		if(mob.mind || mob.ckey)
-			return TRUE
-		// If no mind/ckey, it might be a spawned corpse - be more careful
-		return FALSE
+	var/dumped_count = 0
+	var/skipped_hostiles = 0
 
-	// 4. Cyborgs and AIs - include SSD borgs
-	if(iscyborg(mob) || isAI(mob))
-		// Borgs always have players if they have ckeys or minds
-		if(mob.ckey || (mob.mind && mob.mind.key))
-			return TRUE
-		// Safety: exclude NPC borgs
-		return FALSE
+	var/list/safe_turfs = get_safe_dump_turfs(portal_turf)
 
-	// 5. Simple animals that are player-controlled (pets, etc.)
-	if(isanimal(mob))
-		// Only include if explicitly player-controlled
-		if(mob.ckey || mob.client || (mob.mind && mob.mind.key))
-			return TRUE
-		// Exclude wild animals
-		return FALSE
+	if(!length(safe_turfs))
+		log_portal_control("Portal Control: CRITICAL - No safe dump locations found!")
+		return
 
-	// 6. Mobs with player minds (covers edge cases)
-	if(mob.mind && mob.mind.key)
-		return TRUE
+	for(var/mob/living/mob in GLOB.mob_list)
+		if(mob.z != dungeon_z)
+			continue
 
-	// 7. Final ckey check as safety net
-	if(mob.ckey)
-		return TRUE
+		// Skip hostile mobs
+		if(is_definitely_hostile(mob))
+			skipped_hostiles++
+			continue
 
-	return FALSE
+		var/turf/dump_turf = pick(safe_turfs)
+		if(dump_turf)
+			mob.forceMove(dump_turf)
+
+			// Handle all non-hostile mobs the same way
+			if(mob.stat == CONSCIOUS)
+				mob.Stun(3 SECONDS)
+				to_chat(mob, span_warning("The portal destination collapses around you! You're ejected back to safety."))
+				playsound(mob, 'sound/effects/empulse.ogg', 50, TRUE)
+			else if(mob.stat == DEAD)
+				mob.visible_message(span_notice("[mob] appears from a shimmering portal!"))
+				playsound(mob, 'sound/effects/empulse.ogg', 30, TRUE)
+
+			dumped_count++
+
+	// Simplified feedback
+	var/feedback_msg = "Portal destination collapse complete: [dumped_count] entities returned to safety."
+	if(linked_portal)
+		linked_portal.say(feedback_msg)
+	log_portal_control("Portal Control: SIMPLIFIED DUMP COMPLETE - [feedback_msg] Hostiles skipped: [skipped_hostiles]")
 
 /// Get safe turfs around the portal for dumping (avoid walls, space, hazards)
 /obj/machinery/computer/portal_control/proc/get_safe_dump_turfs(turf/center_turf)
 	var/list/safe_turfs = list()
-	var/search_radius = 3 // How far from portal to search
+	var/search_radius = 3
 
 	// Search in expanding circles around the portal
 	for(var/turf/T in range(search_radius, center_turf))
@@ -352,132 +358,3 @@
 			return FALSE
 
 	return TRUE
-
-/// Enhanced dumping that provides better feedback for SSD players and borgs
-/obj/machinery/computer/portal_control/proc/dump_players_safely(dungeon_z)
-	if(!linked_portal)
-		return
-
-	var/turf/portal_turf = get_turf(linked_portal)
-	if(!portal_turf)
-		return
-
-	log_portal_control("Portal Control: Starting simplified player dump from Z-level [dungeon_z]")
-
-	var/dumped_count = 0
-	var/skipped_hostiles = 0
-
-	var/list/safe_turfs = get_safe_dump_turfs(portal_turf)
-
-	if(!length(safe_turfs))
-		log_portal_control("Portal Control: CRITICAL - No safe dump locations found!")
-		return
-
-	for(var/mob/living/mob in GLOB.mob_list)
-		if(mob.z != dungeon_z)
-			continue
-
-		// Skip hostile mobs
-		if(is_definitely_hostile(mob))
-			skipped_hostiles++
-			continue
-
-		var/turf/dump_turf = pick(safe_turfs)
-		if(dump_turf)
-			mob.forceMove(dump_turf)
-
-		// Handle all non-hostile mobs the same way
-		if(mob.stat == CONSCIOUS)
-			mob.Stun(3 SECONDS)
-			to_chat(mob, span_warning("The dungeon collapses around you! You're ejected back to safety."))
-			playsound(mob, 'sound/effects/empulse.ogg', 50, TRUE)
-		else if(mob.stat == DEAD)
-			mob.visible_message(span_notice("[mob] appears from a shimmering portal!"))
-			playsound(mob, 'sound/effects/empulse.ogg', 30, TRUE)
-
-		dumped_count++
-
-	// Simplified feedback
-	var/feedback_msg = "Dungeon collapse complete: [dumped_count] entities returned to safety."
-	if(linked_portal)
-		linked_portal.say(feedback_msg)
-	log_portal_control("Portal Control: SIMPLIFIED DUMP COMPLETE - [feedback_msg] Hostiles skipped: [skipped_hostiles]")
-
-// Debug verb to test player detection
-/obj/machinery/computer/portal_control/verb/test_player_detection()
-	set name = "Test Player Detection"
-	set category = "Debug"
-	set src in view(1)
-
-	usr << "=== PLAYER DETECTION TEST ==="
-	var/test_z = usr.z // Current Z-level for testing
-
-	var/active_players = 0
-	var/ssd_players = 0
-	var/borgs = 0
-	var/corpses = 0
-	var/hostiles = 0
-	var/unknown = 0
-
-	for(var/mob/living/mob in GLOB.mob_list)
-		if(mob.z != test_z)
-			continue
-
-		if(is_definitely_hostile(mob))
-			hostiles++
-			usr << "HOSTILE: [mob] ([mob.type])"
-			continue
-
-		if(!is_player_related(mob))
-			unknown++
-			usr << "UNKNOWN: [mob] ([mob.type]) - ckey: [mob.ckey], client: [mob.client], mind: [mob.mind]"
-			continue
-
-		// Categorize player-related mobs
-		if(iscyborg(mob) || isAI(mob))
-			borgs++
-			usr << "BORG: [mob] ([mob.type]) - ckey: [mob.ckey]"
-		else if(mob.ckey && !mob.client)
-			ssd_players++
-			usr << "SSD: [mob] ([mob.type]) - ckey: [mob.ckey]"
-		else if(mob.client)
-			active_players++
-			usr << "ACTIVE: [mob] ([mob.type])"
-		else if(mob.stat == DEAD)
-			corpses++
-			usr << "CORPSE: [mob] ([mob.type]) - mind: [mob.mind]"
-		else
-			unknown++
-			usr << "PLAYER-RELATED: [mob] ([mob.type]) - ckey: [mob.ckey]"
-
-	usr << "=== SUMMARY ==="
-	usr << "Active Players: [active_players]"
-	usr << "SSD Players: [ssd_players]"
-	usr << "Cyborgs/AI: [borgs]"
-	usr << "Corpses: [corpses]"
-	usr << "Hostiles: [hostiles]"
-	usr << "Unknown: [unknown]"
-	usr << "Total on Z-level: [active_players + ssd_players + borgs + corpses + hostiles + unknown]"
-
-// Debug verb for portal info
-/obj/machinery/computer/portal_control/verb/debug_portal_info()
-	set name = "Debug Portal Info"
-	set category = "Debug"
-	set src in view(1)
-
-	usr << "=== PORTAL DEBUG INFO ==="
-	usr << "Linked Portal: [linked_portal ? AREACOORD(linked_portal) : "NONE"]"
-	usr << "Portal Powered: [linked_portal ? linked_portal.powered() : "N/A"]"
-	usr << "Portal Possible: [linked_portal ? linked_portal.portal_possible : "N/A"]"
-	usr << "Transport Active: [linked_portal ? linked_portal.transport_active : "N/A"]"
-	usr << "Current Target: [linked_portal?.target ? linked_portal.target.name : "NONE"]"
-	usr << "Generation In Progress: [generation_in_progress]"
-	usr << "Next Generate Attempt: [next_generate_attempt] (current: [world.time])"
-
-	usr << "=== GLOBAL DESTINATIONS ==="
-	var/count = 0
-	for(var/key in GLOB.portal_destinations)
-		var/datum/portal_destination/D = GLOB.portal_destinations[key]
-		usr << "[key]: [D.name] - Available: [D.is_available()] - Reason: [D.get_available_reason()]"
-		count++
-	usr << "Total Destinations: [count]"
