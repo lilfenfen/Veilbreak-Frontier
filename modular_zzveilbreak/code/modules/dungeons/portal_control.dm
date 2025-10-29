@@ -25,9 +25,10 @@
 	. = ..()
 	ui = SStgui.try_update_ui(user, src, ui)
 	if(!ui)
-		ui = new(user, src, "PortalControl", name)
+		ui = new(user, src, "PortalControl", name)  // This matches the TSX component name
 		ui.open()
 	log_portal_control("Portal Control: [key_name(user)] opened UI at [AREACOORD(src)]")
+	return TRUE  // Added return value
 
 /obj/machinery/computer/portal_control/ui_data(mob/user)
 	. = list()
@@ -385,16 +386,16 @@
 		if(dump_turf)
 			mob.forceMove(dump_turf)
 
-			// Handle all non-hostile mobs the same way
-			if(mob.stat == CONSCIOUS)
-				mob.Stun(3 SECONDS)
-				to_chat(mob, span_warning("The dungeon collapses around you! You're ejected back to safety."))
-				playsound(mob, 'sound/effects/empulse.ogg', 50, TRUE)
-			else if(mob.stat == DEAD)
-				mob.visible_message(span_notice("[mob] appears from a shimmering portal!"))
-				playsound(mob, 'sound/effects/empulse.ogg', 30, TRUE)
+		// Handle all non-hostile mobs the same way
+		if(mob.stat == CONSCIOUS)
+			mob.Stun(3 SECONDS)
+			to_chat(mob, span_warning("The dungeon collapses around you! You're ejected back to safety."))
+			playsound(mob, 'sound/effects/empulse.ogg', 50, TRUE)
+		else if(mob.stat == DEAD)
+			mob.visible_message(span_notice("[mob] appears from a shimmering portal!"))
+			playsound(mob, 'sound/effects/empulse.ogg', 30, TRUE)
 
-			dumped_count++
+		dumped_count++
 
 	// Simplified feedback
 	var/feedback_msg = "Dungeon collapse complete: [dumped_count] entities returned to safety."

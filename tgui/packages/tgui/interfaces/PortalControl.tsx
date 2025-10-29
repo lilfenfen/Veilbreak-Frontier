@@ -1,6 +1,5 @@
-// modular_zzveilbreak/code/modules/dungeons/portal_control.tsx
+// tgui/packages/tgui/interfaces/PortalControl.tsx
 
-import { useBackend } from '../backend';
 import {
   Box,
   Button,
@@ -8,7 +7,8 @@ import {
   ProgressBar,
   Section,
   Stack,
-} from '../components';
+} from 'tgui-core/components';
+import { useBackend } from '../backend';
 import { Window } from '../layouts';
 
 interface PortalControlData {
@@ -18,6 +18,7 @@ interface PortalControlData {
   current_target?: {
     name: string;
     key: string;
+    description?: string;
   };
   destinations: Array<{
     name: string;
@@ -25,6 +26,8 @@ interface PortalControlData {
     key: string;
     available: boolean;
     available_reason: string;
+    timeout?: number;
+    connected?: boolean;
   }>;
   generation_status: string;
   generation_progress: number;
@@ -33,8 +36,18 @@ interface PortalControlData {
   can_generate: boolean;
   generation_in_progress: boolean;
   dungeon_data?: {
-    map_name: string;
-    z_level: number;
+    map_name?: string;
+    z_level?: number;
+    technical_name?: string;
+    seed?: number;
+    dimensions?: {
+      width: number;
+      height: number;
+    };
+    statistics?: {
+      rooms?: number;
+      mobs?: number;
+    };
   };
 }
 
@@ -95,23 +108,39 @@ export const PortalControl = (props, context) => {
     return 'Generate new dungeon';
   };
 
+  const getDestinationTooltip = (destination: (typeof destinations)[0]) => {
+    if (!destination.available) {
+      return destination.available_reason;
+    }
+    if (portal_active) {
+      return 'Deactivate current portal first';
+    }
+    return `Activate portal to ${destination.name}`;
+  };
+
   return (
     <Window width={500} height={600} theme="admin">
       <Window.Content scrollable>
-        <Section title="Portal Status">
+        <Section title="Portal Control Console">
           <LabeledList>
             <LabeledList.Item label="Portal Linked">
-              {portal_present ? 'Connected' : 'Not Found'}
+              <Box color={portal_present ? 'good' : 'bad'}>
+                {portal_present ? 'Connected' : 'Not Found'}
+              </Box>
             </LabeledList.Item>
             <LabeledList.Item label="Portal Power">
-              {portal_status ? 'Powered' : 'No Power'}
+              <Box color={portal_status ? 'good' : 'bad'}>
+                {portal_status ? 'Powered' : 'No Power'}
+              </Box>
             </LabeledList.Item>
             <LabeledList.Item label="Portal Active">
-              {portal_active ? 'Active' : 'Inactive'}
+              <Box color={portal_active ? 'good' : 'bad'}>
+                {portal_active ? 'Active' : 'Inactive'}
+              </Box>
             </LabeledList.Item>
             {current_target && (
               <LabeledList.Item label="Current Target">
-                {current_target.name}
+                <Box color="blue">{current_target.name}</Box>
               </LabeledList.Item>
             )}
           </LabeledList>
@@ -131,6 +160,8 @@ export const PortalControl = (props, context) => {
               <ProgressBar
                 value={generation_progress / 100}
                 color={getGenerationColor()}
+                minValue={0}
+                maxValue={1}
               >
                 {getGenerationText()}
               </ProgressBar>
@@ -139,6 +170,7 @@ export const PortalControl = (props, context) => {
             <Stack.Item>
               <Button
                 icon="bolt"
+                fluid
                 disabled={!can_generate}
                 tooltip={getGenerateTooltip()}
                 onClick={() => act('generate_new')}
@@ -149,7 +181,7 @@ export const PortalControl = (props, context) => {
 
             {generation_cooldown > 0 && (
               <Stack.Item>
-                <Box color="average">
+                <Box textAlign="center" color="average">
                   Cooldown: {Math.round(generation_cooldown)} /{' '}
                   {generate_cooldown} seconds
                 </Box>
@@ -158,12 +190,41 @@ export const PortalControl = (props, context) => {
 
             {dungeon_data && (
               <Stack.Item>
-                <Box mt={1} p={1} backgroundColor="rgba(0,0,0,0.2)">
-                  <strong>Current Dungeon:</strong>{' '}
-                  {dungeon_data.map_name || 'Unknown'}
-                  <br />
-                  <small>Z-Level: {dungeon_data.z_level || 'Not loaded'}</small>
-                </Box>
+                <Section title="Current Dungeon">
+                  <LabeledList>
+                    <LabeledList.Item label="Name">
+                      {dungeon_data.map_name || 'Unknown Dungeon'}
+                    </LabeledList.Item>
+                    <LabeledList.Item label="Z-Level">
+                      {dungeon_data.z_level || 'Not loaded'}
+                    </LabeledList.Item>
+                    {dungeon_data.dimensions && (
+                      <LabeledList.Item label="Size">
+                        {dungeon_data.dimensions.width} ×{' '}
+                        {dungeon_data.dimensions.height}
+                      </LabeledList.Item>
+                    )}
+                    {dungeon_data.statistics && (
+                      <>
+                        {dungeon_data.statistics.rooms && (
+                          <LabeledList.Item label="Rooms">
+                            {dungeon_data.statistics.rooms}
+                          </LabeledList.Item>
+                        )}
+                        {dungeon_data.statistics.mobs && (
+                          <LabeledList.Item label="Threats">
+                            {dungeon_data.statistics.mobs}
+                          </LabeledList.Item>
+                        )}
+                      </>
+                    )}
+                    {dungeon_data.seed && (
+                      <LabeledList.Item label="Seed">
+                        {dungeon_data.seed}
+                      </LabeledList.Item>
+                    )}
+                  </LabeledList>
+                </Section>
               </Stack.Item>
             )}
           </Stack>
@@ -171,7 +232,9 @@ export const PortalControl = (props, context) => {
 
         <Section title="Available Destinations">
           {destinations.length === 0 ? (
-            <Box color="label">No destinations available</Box>
+            <Box color="label" textAlign="center">
+              No destinations available
+            </Box>
           ) : (
             destinations.map((destination) => (
               <Box
@@ -179,18 +242,56 @@ export const PortalControl = (props, context) => {
                 mb={1}
                 p={1}
                 backgroundColor="rgba(0,0,0,0.1)"
+                style={{
+                  border:
+                    current_target?.key === destination.key
+                      ? '2px solid #00ff00'
+                      : '1px solid #555',
+                }}
               >
                 <Stack align="center">
                   <Stack.Item grow>
                     <Box>
-                      <strong>{destination.name}</strong>
-                      <br />
-                      <small>{destination.description}</small>
-                      {!destination.available && (
-                        <Box color="average">
-                          {destination.available_reason}
-                        </Box>
-                      )}
+                      <Stack vertical>
+                        <Stack.Item>
+                          <Box
+                            bold
+                            color={
+                              current_target?.key === destination.key
+                                ? 'good'
+                                : destination.available
+                                  ? 'white'
+                                  : 'gray'
+                            }
+                          >
+                            {destination.name}
+                          </Box>
+                        </Stack.Item>
+                        <Stack.Item>
+                          <Box color="label">{destination.description}</Box>
+                        </Stack.Item>
+                        {!destination.available && (
+                          <Stack.Item>
+                            <Box color="average" mt={0.5}>
+                              {destination.available_reason}
+                            </Box>
+                          </Stack.Item>
+                        )}
+                        {destination.timeout !== undefined &&
+                          destination.timeout > 0 && (
+                            <Stack.Item>
+                              <ProgressBar
+                                value={destination.timeout}
+                                minValue={0}
+                                maxValue={1}
+                                color="blue"
+                                mt={0.5}
+                              >
+                                Calibrating...
+                              </ProgressBar>
+                            </Stack.Item>
+                          )}
+                      </Stack>
                     </Box>
                   </Stack.Item>
                   <Stack.Item>
@@ -202,13 +303,7 @@ export const PortalControl = (props, context) => {
                           : 'default'
                       }
                       disabled={!destination.available || portal_active}
-                      tooltip={
-                        !destination.available
-                          ? destination.available_reason
-                          : portal_active
-                            ? 'Deactivate current portal first'
-                            : `Activate portal to ${destination.name}`
-                      }
+                      tooltip={getDestinationTooltip(destination)}
                       onClick={() =>
                         act('activate', {
                           destination: destination.key,
@@ -227,9 +322,10 @@ export const PortalControl = (props, context) => {
         </Section>
 
         {current_target && (
-          <Section title="Current Connection">
+          <Section title="Active Connection">
             <Button
               icon="power-off"
+              fluid
               color="bad"
               onClick={() => act('deactivate')}
             >
