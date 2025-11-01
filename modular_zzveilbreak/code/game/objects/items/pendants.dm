@@ -9,9 +9,7 @@
 	w_class = WEIGHT_CLASS_SMALL
 	slot_flags = ITEM_SLOT_NECK
 
-	// Skyrat scaling integration - same as ashwalker necklace
 	supports_variations_flags = CLOTHING_DIGITIGRADE_VARIATION | CLOTHING_SNOUTED_VARIATION
-	// NO custom scaling, NO custom build_worn_icon override
 
 	var/active = FALSE
 	var/on_cooldown = FALSE
@@ -59,13 +57,15 @@
 
 /obj/item/clothing/neck/aether_pendant/proc/on_damage(datum/source, damage, damagetype, def_zone, blocked, forced)
 	SIGNAL_HANDLER
-	if(prob(1) || active)
-		damage = 0
+	if(active || prob(5))
 		if(active)
 			active = FALSE
-			to_chat(source, span_notice("The void fully blocks the damage!"))
+			if(ismob(loc))
+				to_chat(loc, span_notice("The void fully blocks the damage!"))
 		else
-			to_chat(source, span_notice("The void passively blocks the damage!"))
+			if(ismob(loc))
+				to_chat(loc, span_notice("The void passively blocks the damage!"))
+		return -damage
 
 /obj/item/clothing/neck/aether_pendant/proc/end_cooldown()
 	on_cooldown = FALSE
