@@ -12,6 +12,10 @@
 	var/generate_cooldown = 30
 	/// Track if we're currently generating to prevent double-starts
 	var/generation_in_progress = FALSE
+	/// Last known UI data state for change detection
+	var/list/last_ui_data = list()
+	/// Timer for generation progress updates
+	var/generation_progress_timer
 
 // Helper proc for portal control logging
 /proc/log_portal_control(text)
@@ -27,6 +31,7 @@
 	if(!ui)
 		ui = new(user, src, "PortalControl", name)
 		ui.open()
+
 	log_portal_control("Portal Control: [key_name(user)] opened UI at [AREACOORD(src)]")
 	return TRUE
 
@@ -68,7 +73,84 @@
 	.["generate_cooldown"] = generate_cooldown
 	.["generation_in_progress"] = generation_in_progress
 
+	// Check if data has changed and update UI if needed
+	check_and_update_ui(.)
+
 	return .
+
+/// Check if UI data has changed and trigger update if needed
+/obj/machinery/computer/portal_control/proc/check_and_update_ui(list/current_data)
+	// If data is different from last known state, update UI
+	if(!compare_ui_data(last_ui_data, current_data))
+		last_ui_data = current_data.Copy()
+		SStgui.update_uis(src)
+		return TRUE
+	return FALSE
+
+/// Compare two UI data sets for significant changes
+/obj/machinery/computer/portal_control/proc/compare_ui_data(list/old_data, list/new_data)
+	if(!old_data || !new_data)
+		return FALSE
+
+	// Check key fields that should trigger updates
+	var/check_fields = list(
+		"portal_present",
+		"portal_status",
+		"portal_active",
+		"generation_status",
+		"generation_progress",
+		"generation_cooldown",
+		"can_generate",
+		"generation_in_progress",
+		"portal_name"
+	)
+
+	for(var/field in check_fields)
+		if(old_data[field] != new_data[field])
+			return FALSE
+
+	// Check current_target changes
+	var/old_target = old_data["current_target"]
+	var/new_target = new_data["current_target"]
+	if((old_target && !new_target) || (!old_target && new_target))
+		return FALSE
+	if(old_target && new_target && old_target["name"] != new_target["name"])
+		return FALSE
+
+	return TRUE
+
+/// Force a UI update (for when we know something important changed)
+/obj/machinery/computer/portal_control/proc/force_ui_update()
+	last_ui_data = list() // Force update by clearing last state
+	SStgui.update_uis(src)
+
+/// Start monitoring generation progress with periodic updates
+/obj/machinery/computer/portal_control/proc/start_generation_monitoring()
+	if(generation_progress_timer)
+		deltimer(generation_progress_timer)
+
+	// Update every 0.5 seconds during generation for progress bar
+	generation_progress_timer = addtimer(CALLBACK(src, .proc/update_generation_progress), 0.5 SECONDS, TIMER_STOPPABLE)
+
+/// Stop generation progress monitoring
+/obj/machinery/computer/portal_control/proc/stop_generation_monitoring()
+	if(generation_progress_timer)
+		deltimer(generation_progress_timer)
+		generation_progress_timer = null
+
+/// Update generation progress (called during generation)
+/obj/machinery/computer/portal_control/proc/update_generation_progress()
+	if(linked_portal?.destination)
+		var/datum/portal_destination/veilbreak/veil_dest = linked_portal.destination
+		if(veil_dest.generating)
+			// Force UI update to show progress
+			force_ui_update()
+			// Continue monitoring
+			start_generation_monitoring()
+		else
+			// Generation finished, do final update
+			force_ui_update()
+			stop_generation_monitoring()
 
 /// Retrieve portal name from the destination data
 /obj/machinery/computer/portal_control/proc/get_portal_name(datum/portal_destination/veilbreak/veil_dest)
@@ -115,14 +197,18 @@
 			try_to_linkup()
 			if(linked_portal)
 				log_portal_control("Portal Control: Successfully linked to portal at [AREACOORD(linked_portal)]")
+			// Force UI update after linkup
+			force_ui_update()
 			. = TRUE
 		if("deactivate")
 			if(linked_portal?.target)
 				log_portal_control("Portal Control: [key_name(user)] deactivating portal from [linked_portal.target.name] at [AREACOORD(src)]")
 				if(istype(linked_portal.target, /datum/portal_destination/veilbreak))
 					var/datum/portal_destination/veilbreak/veil_dest = linked_portal.target
-					cleanup_portal_with_corpse_dumping(veil_dest)
+					cleanup_portal_simple(veil_dest)
 				linked_portal.deactivate()
+			// Force UI update after deactivation
+			force_ui_update()
 			. = TRUE
 		if("generate_new")
 			if(linked_portal?.destination)
@@ -153,6 +239,9 @@
 				generation_in_progress = TRUE
 				next_generate_attempt = world.time + (generate_cooldown * 10)
 
+				// Start generation progress monitoring
+				start_generation_monitoring()
+
 				// Start generation - wrap in try/catch for safety
 				var/start_success = FALSE
 				try
@@ -162,6 +251,8 @@
 					log_portal_control("Portal Control: Exception during generation start: [e]")
 					generation_in_progress = FALSE
 					next_generate_attempt = 0
+					stop_generation_monitoring()
+					force_ui_update()
 					to_chat(user, span_danger("Portal stabilization failed to start due to an error."))
 					return TRUE
 
@@ -169,6 +260,8 @@
 					// Generation failed to start properly
 					generation_in_progress = FALSE
 					next_generate_attempt = 0
+					stop_generation_monitoring()
+					force_ui_update()
 					to_chat(user, span_warning("Portal stabilization failed to start."))
 					log_portal_control("Portal Control: Generation failed to start properly")
 				else
@@ -187,16 +280,16 @@
 /obj/machinery/computer/portal_control/proc/try_to_linkup()
 	linked_portal = locate(/obj/machinery/portal) in view(7, get_turf(src))
 
-/// Enhanced cleanup that dumps players safely before calling the destination's cleanup
-/obj/machinery/computer/portal_control/proc/cleanup_portal_with_corpse_dumping(datum/portal_destination/veilbreak/veil_dest)
+/// SIMPLIFIED CLEANUP - Eject all mobs except hostile or void faction
+/obj/machinery/computer/portal_control/proc/cleanup_portal_simple(datum/portal_destination/veilbreak/veil_dest)
 	if(!veil_dest.dungeon_z_level)
 		log_portal_control("Portal Control: No portal Z-level to clean up")
 		return
 
-	log_portal_control("Portal Control: Starting SAFE cleanup of portal Z-level [veil_dest.dungeon_z_level]")
+	log_portal_control("Portal Control: Starting SIMPLIFIED cleanup of portal Z-level [veil_dest.dungeon_z_level]")
 
-	// SAFETY: Use the enhanced safe dumping
-	dump_players_safely(veil_dest.dungeon_z_level)
+	// Use the new simple dumping
+	dump_mobs_simple(veil_dest.dungeon_z_level)
 
 	// Now call the destination's own cleanup proc
 	veil_dest.cleanup_dungeon()
@@ -207,6 +300,87 @@
 			GLOB.portal_destinations -= key
 			log_portal_control("Portal Control: Removed destination [key] from global list")
 			break
+
+// ===== SIMPLIFIED DUMPING SYSTEM =====
+
+/// Dump only mobs - players, corpses, everything except hostile/void
+/obj/machinery/computer/portal_control/proc/dump_mobs_simple(dungeon_z)
+	if(!linked_portal)
+		return
+
+	var/turf/portal_turf = get_turf(linked_portal)
+	if(!portal_turf)
+		return
+
+	log_portal_control("Portal Control: Starting MOB-ONLY dump from Z-level [dungeon_z]")
+
+	var/dumped_count = 0
+	var/skipped_count = 0
+
+	// Get area around portal for dumping - simple 3x3 area
+	var/list/dump_turfs = list()
+	for(var/turf/T in range(1, portal_turf))
+		if(T == portal_turf)
+			continue
+		if(istype(T, /turf/open))
+			dump_turfs += T
+
+	// Fallback if no turfs found
+	if(!length(dump_turfs))
+		dump_turfs += get_step(portal_turf, pick(NORTH, SOUTH, EAST, WEST))
+		log_portal_control("Portal Control: Using fallback dump location")
+
+	// Only process mobs
+	for(var/mob/living/mob in GLOB.mob_living_list)
+		if(mob.z != dungeon_z)
+			continue
+
+		// SIMPLE CHECK: Skip only hostile mobs or void faction
+		if(is_hostile_or_void(mob))
+			skipped_count++
+			continue
+
+		// All other mobs get dumped - players, corpses, animals, etc.
+		var/turf/dump_turf = length(dump_turfs) ? pick(dump_turfs) : portal_turf
+		if(dump_turf)
+			mob.forceMove(dump_turf)
+
+			// Stun and message for conscious mobs
+			if(mob.stat == CONSCIOUS)
+				mob.Stun(3 SECONDS)
+				to_chat(mob, span_warning("The portal collapses! You're ejected back to the station."))
+				playsound(mob, 'sound/effects/empulse.ogg', 50, TRUE)
+			else if(mob.stat == DEAD)
+				mob.visible_message(span_notice("[mob] appears from a collapsing portal!"))
+				playsound(mob, 'sound/effects/empulse.ogg', 30, TRUE)
+
+			dumped_count++
+
+	var/feedback_msg = "Portal collapse: [dumped_count] mobs returned. [skipped_count] hostiles removed."
+	if(linked_portal)
+		linked_portal.say(feedback_msg)
+	log_portal_control("Portal Control: MOB DUMP COMPLETE - [feedback_msg]")
+
+/// Simple check: TRUE if hostile or void faction, FALSE otherwise (safe to eject)
+/obj/machinery/computer/portal_control/proc/is_hostile_or_void(mob/living/mob)
+	// Void faction always gets removed
+	if(mob.faction == FACTION_VOID)
+		return TRUE
+
+	// Hostile simple animals
+	if(istype(mob, /mob/living/simple_animal/hostile))
+		return TRUE
+
+	// Xenomorphs
+	if(istype(mob, /mob/living/carbon/alien))
+		return TRUE
+
+	// If it has no client/ckey and is simple animal, assume hostile
+	if(istype(mob, /mob/living/simple_animal) && !mob.ckey)
+		return TRUE
+
+	// Everything else is safe to eject - players, corpses, friendly animals, etc.
+	return FALSE
 
 // ===== GENERATION CALLBACK SYSTEM =====
 
@@ -220,6 +394,10 @@
 	generation_in_progress = FALSE
 	log_portal_control("Portal Control: Portal generation completed successfully")
 
+	// Stop monitoring and force final update
+	stop_generation_monitoring()
+	force_ui_update()
+
 	// Provide user feedback
 	if(linked_portal)
 		linked_portal.say("Portal stabilization complete. Destination secured.")
@@ -229,132 +407,10 @@
 	generation_in_progress = FALSE
 	log_portal_control("Portal Control: Portal generation failed - [reason]")
 
+	// Stop monitoring and force final update
+	stop_generation_monitoring()
+	force_ui_update()
+
 	// Provide user feedback
 	if(linked_portal)
 		linked_portal.say("Portal stabilization failed: [reason]")
-
-// ===== PLAYER DETECTION AND SAFE DUMPING PROCS =====
-
-/obj/machinery/computer/portal_control/proc/is_definitely_hostile(mob/living/mob)
-	// Player-controlled entities are never hostile for dumping purposes
-	if(mob.ckey || mob.client)
-		return FALSE
-
-	// Explicit hostile types
-	if(istype(mob, /mob/living/simple_animal/hostile))
-		return TRUE
-
-	// Xenomorphs
-	if(istype(mob, /mob/living/carbon/alien))
-		return TRUE
-
-	// NPC simple animals (most are hostile)
-	if(istype(mob, /mob/living/simple_animal) && !mob.ckey)
-		return TRUE
-
-	// Mobs with hostile factions
-	if(mob.faction && mob.faction != "neutral" && mob.faction != "player" && mob.faction != "silicon")
-		return TRUE
-
-	return FALSE
-
-/// Enhanced dumping that provides better feedback for SSD players and borgs
-/obj/machinery/computer/portal_control/proc/dump_players_safely(dungeon_z)
-	if(!linked_portal)
-		return
-
-	var/turf/portal_turf = get_turf(linked_portal)
-	if(!portal_turf)
-		return
-
-	log_portal_control("Portal Control: Starting simplified player dump from Z-level [dungeon_z]")
-
-	var/dumped_count = 0
-	var/skipped_hostiles = 0
-
-	var/list/safe_turfs = get_safe_dump_turfs(portal_turf)
-
-	if(!length(safe_turfs))
-		log_portal_control("Portal Control: CRITICAL - No safe dump locations found!")
-		return
-
-	for(var/mob/living/mob in GLOB.mob_list)
-		if(mob.z != dungeon_z)
-			continue
-
-		// Skip hostile mobs
-		if(is_definitely_hostile(mob))
-			skipped_hostiles++
-			continue
-
-		var/turf/dump_turf = pick(safe_turfs)
-		if(dump_turf)
-			mob.forceMove(dump_turf)
-
-			// Handle all non-hostile mobs the same way
-			if(mob.stat == CONSCIOUS)
-				mob.Stun(3 SECONDS)
-				to_chat(mob, span_warning("The portal destination collapses around you! You're ejected back to safety."))
-				playsound(mob, 'sound/effects/empulse.ogg', 50, TRUE)
-			else if(mob.stat == DEAD)
-				mob.visible_message(span_notice("[mob] appears from a shimmering portal!"))
-				playsound(mob, 'sound/effects/empulse.ogg', 30, TRUE)
-
-			dumped_count++
-
-	// Simplified feedback
-	var/feedback_msg = "Portal destination collapse complete: [dumped_count] entities returned to safety."
-	if(linked_portal)
-		linked_portal.say(feedback_msg)
-	log_portal_control("Portal Control: SIMPLIFIED DUMP COMPLETE - [feedback_msg] Hostiles skipped: [skipped_hostiles]")
-
-/// Get safe turfs around the portal for dumping (avoid walls, space, hazards)
-/obj/machinery/computer/portal_control/proc/get_safe_dump_turfs(turf/center_turf)
-	var/list/safe_turfs = list()
-	var/search_radius = 3
-
-	// Search in expanding circles around the portal
-	for(var/turf/T in range(search_radius, center_turf))
-		// Skip the portal turf itself
-		if(T == center_turf)
-			continue
-
-		// Check if turf is safe for dumping
-		if(is_safe_dump_turf(T))
-			safe_turfs += T
-
-	// If no safe turfs found, try to find at least some open turfs
-	if(!length(safe_turfs))
-		for(var/turf/T in range(search_radius, center_turf))
-			if(T == center_turf)
-				continue
-			if(istype(T, /turf/open) && !T.density)
-				safe_turfs += T
-				log_portal_control("Portal Control: Using fallback turf at [AREACOORD(T)]")
-
-	return safe_turfs
-
-/// Check if a turf is safe for dumping players/corpses
-/obj/machinery/computer/portal_control/proc/is_safe_dump_turf(turf/T)
-	// Must be open and not dense
-	if(!istype(T, /turf/open) || T.density)
-		return FALSE
-
-	// Avoid space and lava
-	if(istype(T, /turf/open/space) || istype(T, /turf/open/lava))
-		return FALSE
-
-	// Avoid chasms and other hazards
-	if(istype(T, /turf/open/chasm))
-		return FALSE
-
-	// Avoid turfs with dangerous objects
-	for(var/obj/O in T)
-		if(O.density && !istype(O, /obj/structure/table) && !istype(O, /obj/structure/chair))
-			return FALSE
-		if(istype(O, /obj/machinery/porta_turret))
-			return FALSE
-		if(istype(O, /obj/structure/window) || istype(O, /obj/structure/grille))
-			return FALSE
-
-	return TRUE

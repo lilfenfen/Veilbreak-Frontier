@@ -8,7 +8,7 @@ import {
   Section,
   Stack,
 } from 'tgui-core/components';
-import { useBackend } from '../backend';
+import { useBackend, useLocalState } from '../backend';
 import { Window } from '../layouts';
 
 interface PortalControlData {
@@ -31,6 +31,11 @@ interface PortalControlData {
 
 export const PortalControl = (props, context) => {
   const { act, data } = useBackend<PortalControlData>(context);
+  const [updateCount, setUpdateCount] = useLocalState(
+    context,
+    'updateCount',
+    0,
+  );
 
   const {
     portal_present,
@@ -45,6 +50,13 @@ export const PortalControl = (props, context) => {
     generation_in_progress,
     portal_name,
   } = data;
+
+  // Force refresh more frequently during generation
+  if (generation_in_progress || generation_status === 'generating') {
+    setTimeout(() => {
+      setUpdateCount(updateCount + 1);
+    }, 500);
+  }
 
   const getGenerationColor = () => {
     switch (generation_status) {
@@ -88,7 +100,6 @@ export const PortalControl = (props, context) => {
     return 'Generate new portal destination';
   };
 
-  // Button is disabled if portal is active, generation is in progress, or portal is already ready
   const generateDisabled =
     portal_active ||
     generation_in_progress ||
