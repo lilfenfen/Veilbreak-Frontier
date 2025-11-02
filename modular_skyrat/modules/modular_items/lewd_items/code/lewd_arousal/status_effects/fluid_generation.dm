@@ -2,9 +2,9 @@
 #define AROUSAL_MULTIPLIER 25
 #define TESTES_MULTIPLIER 235
 #define NUTRITION_MULTIPLIER 100
-#define NUTRITION_COST_MULTIPLIER 2
+#define NUTRITION_COST_MULTIPLIER 100 // was 2 making it larger reduces the cost per unit of milk
 // Breasts have ungodly scaling at larger sizes, so the massive multiplier to ensure there's no runaway production makes sense here.
-#define BREASTS_MULTIPLIER 11000
+#define BREASTS_MULTIPLIER 100 // Was 11000 used as a divider so smaller makes it quicker
 #define VAGINA_MULTIPLIER 250
 #define VAGINA_FLUID_REMOVAL_AMOUNT -0.05
 #define BASE_MULTIPLIER 5

@@ -36,7 +36,7 @@
 		mob_vagi.internal_fluid_maximum *= CUMPLUS_MULT_VAGI
 
 	// Breasts
-	var/obj/item/organ/genital/testicles/mob_boobi = quirk_mob.get_organ_slot(ORGAN_SLOT_BREASTS)
+	var/obj/item/organ/genital/breasts/mob_boobi = quirk_mob.get_organ_slot(ORGAN_SLOT_BREASTS) // I think this was a error? changed /genital/testicles/ to /genital/breasts/
 	if(mob_boobi)
 		mob_boobi.internal_fluid_maximum *= CUMPLUS_MULT_BOOBI
 
