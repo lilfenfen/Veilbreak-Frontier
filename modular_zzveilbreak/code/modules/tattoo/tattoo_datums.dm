@@ -3,37 +3,26 @@
 #define TATTOO_LAYER_OVER 3
 
 /datum/tattoo
-    var/name = "Tattoo"
-    var/desc = ""
+    var/artist = "Unknown Artist" // Who applied the tattoo
+    var/design = "" // The tattoo design/description
     var/body_part = BODY_ZONE_CHEST
     var/color = "#000000"
-    var/creator = ""
     var/date_applied = ""
     var/layer = TATTOO_LAYER_NORMAL
 
-/datum/tattoo/New(name, desc, body_part, color, creator, layer = TATTOO_LAYER_NORMAL)
-    src.name = name
-    src.desc = desc
+/datum/tattoo/New(artist, design, body_part, color, layer = TATTOO_LAYER_NORMAL)
+    src.artist = sanitize_text(artist, "Unknown Artist")
+    src.design = sanitize_text(design, "An intricate design")
     src.body_part = body_part
-    src.color = color
-    src.creator = creator
-    src.layer = layer
+    src.color = sanitize_hexcolor(color, default = "#000000")
+    src.layer = clamp(layer, 1, 3)
     src.date_applied = time2text(world.realtime, "YYYY-MM-DD")
 
 /datum/tattoo/proc/get_examine_text(mob/viewer, mob/living/carbon/human/victim)
     if(!is_visible(viewer, victim))
         return ""
 
-    // FIX: Check if desc is empty and handle it properly
-    var/display_desc = desc
-    if(!display_desc || display_desc == "")
-        display_desc = "a design"
-
-    var/display_name = name
-    if(!display_name || display_name == "")
-        display_name = "unnamed tattoo"
-
-    return "<span style='color:[color]'>- \"[display_desc]\" ([display_name])</span>"
+    return "<span style='color:[color]'>- \"[design]\" (by [artist])</span>"
 
 /datum/tattoo/proc/is_visible(mob/viewer, mob/living/carbon/human/victim)
     if(!victim || !viewer)
@@ -42,31 +31,23 @@
     if(get_dist(viewer, victim) > 7)
         return FALSE
 
-    if(!ishuman(victim) || isobserver(viewer) || victim == viewer)
+    // Observers and non-humans can always see
+    if(!ishuman(victim) || isobserver(viewer))
         return TRUE
 
-    // Always show tattoos to the person who has them, regardless of clothing
-    if(victim == viewer)
-        return TRUE
+    // Check if the body part is covered by clothing - APPLIES TO EVERYONE INCLUDING SELF
+    return !is_hidden_by_clothes(victim, viewer)
 
-    return !is_hidden_by_clothes(victim)
-
-/datum/tattoo/proc/is_hidden_by_clothes(mob/living/carbon/human/target_mob)
-    // If it's the person looking at themselves, always show tattoos
-    if(target_mob == usr)
-        return FALSE
-
+/datum/tattoo/proc/is_hidden_by_clothes(mob/living/carbon/human/target_mob, mob/viewer)
     var/obj/item/bodypart/BP = target_mob.get_bodypart(body_part)
     if(!BP)
         return TRUE
 
-    // Convert body_zone to bodypart flag for coverage checking
     var/check_flags = body_zone_to_flag(body_part)
-
     if(!check_flags)
         return FALSE // If we can't map it to a flag, assume it's visible
 
-    // Check clothing coverage
+    // Check clothing coverage - NO EXCEPTIONS FOR SELF
     if(target_mob.w_uniform && (target_mob.w_uniform.body_parts_covered & check_flags))
         return TRUE
     if(target_mob.wear_suit && (target_mob.wear_suit.body_parts_covered & check_flags))
@@ -86,7 +67,6 @@
 
     return FALSE
 
-// Helper proc to convert body_zone to clothing coverage flags
 /proc/body_zone_to_flag(body_zone)
     switch(body_zone)
         if(BODY_ZONE_HEAD) return HEAD
@@ -100,5 +80,4 @@
         if(BODY_ZONE_PRECISE_L_FOOT) return FOOT_LEFT
         if(BODY_ZONE_PRECISE_R_FOOT) return FOOT_RIGHT
         if(BODY_ZONE_PRECISE_GROIN) return GROIN
-        // For custom zones, try to be permissive
         else return null

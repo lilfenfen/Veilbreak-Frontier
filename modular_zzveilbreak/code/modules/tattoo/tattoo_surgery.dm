@@ -65,7 +65,7 @@
     else
         var/list/tattoo_choices = list()
         for(var/datum/tattoo/T as anything in tattoos)
-            tattoo_choices["[T.name] - [T.desc]"] = T
+            tattoo_choices["[T.design] by [T.artist]"] = T
         var/choice = input(user, "Which tattoo would you like to remove?", "Tattoo Removal") as null|anything in tattoo_choices
         to_remove = tattoo_choices[choice]
     if(!to_remove)
@@ -73,13 +73,13 @@
     operated_tattoo = to_remove
     var/burn_message
     if(istype(tool, /obj/item/cautery))
-        burn_message = "You begin carefully cauterizing the '[to_remove.name]' tattoo from [target]'s [parse_zone(target_zone)]..."
+        burn_message = "You begin carefully cauterizing the tattoo from [target]'s [parse_zone(target_zone)]..."
     else if(istype(tool, /obj/item/weldingtool))
-        burn_message = "You begin burning away the '[to_remove.name]' tattoo from [target]'s [parse_zone(target_zone)] with the welding tool..."
+        burn_message = "You begin burning away the tattoo from [target]'s [parse_zone(target_zone)] with the welding tool..."
     else if(istype(tool, /obj/item/cigarette) || istype(tool, /obj/item/lighter))
-        burn_message = "You begin carefully burning the '[to_remove.name]' tattoo from [target]'s [parse_zone(target_zone)]..."
+        burn_message = "You begin carefully burning the tattoo from [target]'s [parse_zone(target_zone)]..."
     else
-        burn_message = "You begin scraping away the '[to_remove.name]' tattoo from [target]'s [parse_zone(target_zone)]..."
+        burn_message = "You begin scraping away the tattoo from [target]'s [parse_zone(target_zone)]..."
     display_results(
         user,
         target,
@@ -116,11 +116,11 @@
     if(H.remove_tattoo(operated_tattoo))
         var/success_message
         if(istype(tool, /obj/item/cautery))
-            success_message = "You successfully cauterize away the '[operated_tattoo.name]' tattoo."
+            success_message = "You successfully cauterize away the tattoo."
         else if(istype(tool, /obj/item/weldingtool))
-            success_message = "You successfully burn away the '[operated_tattoo.name]' tattoo."
+            success_message = "You successfully burn away the tattoo."
         else
-            success_message = "You successfully remove the '[operated_tattoo.name]' tattoo."
+            success_message = "You successfully remove the tattoo."
         display_results(
             user,
             target,

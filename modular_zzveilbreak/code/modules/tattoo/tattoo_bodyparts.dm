@@ -1,23 +1,24 @@
 // Global list to store all tattooable body parts
 GLOBAL_LIST_INIT(tattooable_body_parts, populate_tattooable_body_parts())
 
-// Blacklist for body zones and organ slots that shouldn't be tattooable
+// Blacklist for body zones that shouldn't be tattooable
 GLOBAL_LIST_INIT(tattoo_blacklist, list(
-	ORGAN_SLOT_EYES,
-	// Add more blacklisted slots here as needed
+	BODY_ZONE_PRECISE_EYES,
+	BODY_ZONE_PRECISE_MOUTH,
+	// Add more blacklisted zones here as needed
 ))
 
 /proc/populate_tattooable_body_parts()
 	var/list/parts = list()
 
-	// Method 1: Scan all bodypart types for unique body_zones
+	// Scan all bodypart types for unique body_zones
 	for(var/path in subtypesof(/obj/item/bodypart))
 		var/obj/item/bodypart/BP = path
 		var/body_zone = initial(BP.body_zone)
 		if(body_zone && !(body_zone in parts) && !(body_zone in GLOB.tattoo_blacklist))
 			parts |= body_zone
 
-	// Method 2: Add all known body zone defines as fallback
+	// Add all known body zone defines as fallback
 	var/list/fallback_zones = list(
 		BODY_ZONE_HEAD,
 		BODY_ZONE_CHEST,
@@ -43,7 +44,6 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 	return parts
 
 /proc/get_body_zone_display_name(body_zone)
-	// Convert body zone to human readable name
 	var/name = ""
 	switch(body_zone)
 		if(BODY_ZONE_HEAD) name = "Head"
@@ -79,7 +79,6 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 
 		var/display_name = get_body_zone_display_name(zone)
 		var/exists = FALSE
-		var/type = "bodypart"
 
 		// Check if it's a bodypart (arms, legs, chest, head)
 		var/obj/item/bodypart/BP = H.get_bodypart(zone)
@@ -90,7 +89,7 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 			available_parts[zone] = list(
 				"name" = display_name,
 				"zone" = zone,
-				"type" = type,
+				"type" = "bodypart",
 				"current_tattoos" = length(H.get_tattoos(zone))
 			)
 
