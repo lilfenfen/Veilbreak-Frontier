@@ -23,7 +23,17 @@
 /datum/tattoo/proc/get_examine_text(mob/viewer, mob/living/carbon/human/victim)
     if(!is_visible(viewer, victim))
         return ""
-    return "<span style='color:[color]'>- \"[desc]\" ([name])</span>"
+
+    // FIX: Check if desc is empty and handle it properly
+    var/display_desc = desc
+    if(!display_desc || display_desc == "")
+        display_desc = "a design"
+
+    var/display_name = name
+    if(!display_name || display_name == "")
+        display_name = "unnamed tattoo"
+
+    return "<span style='color:[color]'>- \"[display_desc]\" ([display_name])</span>"
 
 /datum/tattoo/proc/is_visible(mob/viewer, mob/living/carbon/human/victim)
     if(!victim || !viewer)
