@@ -85,7 +85,7 @@
 
 /mob/living/simple_animal/hostile/Consumed_Pathfinder/Life()
 	. = ..()
-	if(target && world.time > last_summon + 10 SECONDS)
+	if(target && world.time > last_summon + 30 SECONDS)
 		last_summon = world.time
 		var/mob/living/simple_animal/hostile/Voidling/new_voidling = new(loc)
 		new_voidling.faction = faction.Copy()
