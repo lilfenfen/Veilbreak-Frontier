@@ -68,6 +68,7 @@
             if(istype(target_mob.wear_suit, /obj/item/clothing/suit) && target_mob.wear_suit.flags_inv & HIDETAIL)
                 if(body_part == ORGAN_SLOT_EXTERNAL_TAIL)
                     return TRUE
+            // Check for spine covering
             if(target_mob.wear_suit.flags_inv & HIDEJUMPSUIT)
                 if(body_part == ORGAN_SLOT_EXTERNAL_SPINES)
                     return TRUE

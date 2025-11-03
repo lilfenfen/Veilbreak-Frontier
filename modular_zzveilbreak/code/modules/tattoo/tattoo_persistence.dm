@@ -3,126 +3,115 @@
 
 /// Saves tattoo data to preferences
 /datum/preferences/proc/save_tattoo_data(list/save_data)
-	if(!features)
-		features = list()
+    if(!features)
+        features = list()
 
-	// Get tattoos from current mob if available, otherwise use stored data
-	var/mob/living/carbon/human/H = parent?.mob
-	var/list/tattoos_to_save = H?.body_tattoos || LAZYACCESS(features, "tattoos") || list()
+    // Get tattoos from current mob if available, otherwise use stored data
+    var/mob/living/carbon/human/H = parent?.mob
+    var/list/tattoos_to_save = H?.body_tattoos || LAZYACCESS(features, "tattoos") || list()
 
-	var/list/tattoo_data = list()
-	for(var/datum/tattoo/T as anything in tattoos_to_save)
-		if(istype(T) && !QDELETED(T))
-			tattoo_data += list(list(
-				"artist" = T.artist,
-				"design" = T.design,
-				"body_part" = T.body_part,
-				"color" = T.color,
-				"date_applied" = T.date_applied,
-				"layer" = T.layer
-			))
+    var/list/tattoo_data = list()
+    for(var/datum/tattoo/T as anything in tattoos_to_save)
+        if(istype(T) && !QDELETED(T))
+            // Convert body part to string description for saving
+            var/body_part_description = get_specific_body_part_description(T.body_part)
+            tattoo_data += list(list(
+                "artist" = T.artist,
+                "design" = T.design,
+                "body_part" = body_part_description, // Save as string, not define
+                "color" = T.color,
+                "date_applied" = T.date_applied,
+                "layer" = T.layer
+            ))
 
-	// Store in features for persistence
-	LAZYSET(features, "tattoos_data", tattoo_data)
+    // Store in features for persistence
+    LAZYSET(features, "tattoos_data", tattoo_data)
 
-	// Also store directly in save_data if provided (for modular save system integration)
-	if(save_data)
-		save_data["tattoos_data"] = tattoo_data
+    // Also store directly in save_data if provided (for modular save system integration)
+    if(save_data)
+        save_data["tattoos_data"] = tattoo_data
 
-	// Trigger character save to ensure persistence
-	save_character()
+    // Trigger character save to ensure persistence
+    save_character()
+
+// LEGACY SUPPORT - If your code is calling the wrong proc name
+/datum/preferences/proc/save_tattoos_data(list/save_data)
+    save_tattoo_data(save_data)
 
 /// Loads tattoo data from preferences
 /datum/preferences/proc/load_tattoo_data(list/save_data)
-	if(!features)
-		features = list()
+    if(!features)
+        features = list()
 
-	world.log << "DEBUG: load_tattoo_data called for [parent?.ckey]"
+    var/list/tattoo_data
+    if(save_data && LAZYACCESS(save_data, "tattoos_data"))
+        tattoo_data = save_data["tattoos_data"]
+    else if(LAZYACCESS(features, "tattoos_data"))
+        tattoo_data = features["tattoos_data"]
+    else
+        // No tattoo data found
+        features["tattoos"] = list()
+        return
 
-	var/list/tattoo_data
-	if(save_data && LAZYACCESS(save_data, "tattoos_data"))
-		tattoo_data = save_data["tattoos_data"]
-		world.log << "DEBUG: Found tattoo_data in save_data: [length(tattoo_data)] entries"
-	else if(LAZYACCESS(features, "tattoos_data"))
-		tattoo_data = features["tattoos_data"]
-		world.log << "DEBUG: Found tattoo_data in features: [length(tattoo_data)] entries"
-	else
-		world.log << "DEBUG: No tattoo_data found anywhere"
-		features["tattoos"] = list()
-		return
+    if(!islist(tattoo_data))
+        features["tattoos"] = list()
+        return
 
-	if(!islist(tattoo_data))
-		world.log << "DEBUG: tattoo_data is not a list: [tattoo_data]"
-		features["tattoos"] = list()
-		return
+    features["tattoos"] = list()
+    for(var/list/tattoo_info as anything in tattoo_data)
+        if(!islist(tattoo_info))
+            continue
 
-	features["tattoos"] = list()
-	world.log << "DEBUG: Processing [length(tattoo_data)] tattoo entries"
+        // Sanitize and validate all data
+        var/artist = sanitize_text(tattoo_info["artist"], "Unknown Artist")
+        var/design = sanitize_text(tattoo_info["design"], "An intricate design")
+        var/body_part_string = tattoo_info["body_part"]
+        var/color = sanitize_hexcolor(tattoo_info["color"], default = "#000000")
+        var/layer = sanitize_integer(tattoo_info["layer"], 1, 3, 2)
+        var/date_applied = sanitize_text(tattoo_info["date_applied"], time2text(world.realtime, "YYYY-MM-DD"))
 
-	for(var/list/tattoo_info as anything in tattoo_data)
-		if(!islist(tattoo_info))
-			world.log << "DEBUG: Skipping non-list tattoo_info: [tattoo_info]"
-			continue
+        // Convert body part string back to define
+        var/body_part_define = get_body_part_from_description(body_part_string)
+        if(!body_part_define)
+            // If conversion failed, try to use as-is (might be a valid define string)
+            body_part_define = body_part_string
 
-		// Sanitize and validate all data
-		var/artist = sanitize_text(tattoo_info["artist"], "Unknown Artist")
-		var/design = sanitize_text(tattoo_info["design"], "An intricate design")
-		var/body_part_string = tattoo_info["body_part"]
-		var/color = sanitize_hexcolor(tattoo_info["color"], default = "#000000")
-		var/layer = sanitize_integer(tattoo_info["layer"], 1, 3, 2)
-		var/date_applied = sanitize_text(tattoo_info["date_applied"], time2text(world.realtime, "YYYY-MM-DD"))
+        if(body_part_define && is_valid_tattoo_bodypart(body_part_define))
+            var/datum/tattoo/T = new(artist, design, body_part_define, color, layer)
+            T.date_applied = date_applied
+            features["tattoos"] += T
 
-		world.log << "DEBUG: Loading tattoo: [design] on [body_part_string]"
-
-		// === ADD THIS SECTION HERE ===
-		var/body_part_define
-		if(isnum(body_part_string) || (body_part_string in GLOB.tattooable_body_parts))
-			// It's already a define
-			body_part_define = body_part_string
-			world.log << "DEBUG: Body part is already a define: [body_part_string]"
-		else
-			// It's a string that needs conversion
-			body_part_define = get_body_part_from_description(body_part_string)
-			world.log << "DEBUG: Converted body part string '[body_part_string]' to define: [body_part_define]"
-		// === END OF ADDED SECTION ===
-
-		if(body_part_define && is_valid_tattoo_bodypart(body_part_define))
-			var/datum/tattoo/T = new(artist, design, body_part_define, color, layer)
-			T.date_applied = date_applied
-			features["tattoos"] += T
-			world.log << "DEBUG: Successfully created tattoo datum for [body_part_define]"
-		else
-			world.log << "DEBUG: Invalid body part for tattoo: [body_part_string] -> [body_part_define]"
-
-	world.log << "DEBUG: Loaded [length(features["tattoos"])] tattoos total"
+// LEGACY SUPPORT - If your code is calling the wrong proc name
+/datum/preferences/proc/load_tattoos_data(list/save_data)
+    load_tattoo_data(save_data)
 
 /// Applies saved tattoos to a mob
 /datum/preferences/proc/apply_tattoos_to_mob(mob/living/carbon/human/character)
-	if(!istype(character) || !features)
-		return
+    if(!istype(character) || !features)
+        return
 
-	// Ensure tattoo data is loaded
-	if(!LAZYACCESS(features, "tattoos"))
-		load_tattoo_data()
+    // Ensure tattoo data is loaded
+    if(!LAZYACCESS(features, "tattoos"))
+        load_tattoo_data()
 
-	character.body_tattoos = list()
-	for(var/datum/tattoo/T as anything in features["tattoos"])
-		if(istype(T) && !QDELETED(T))
-			character.body_tattoos += T
+    character.body_tattoos = list()
+    for(var/datum/tattoo/T as anything in features["tattoos"])
+        if(istype(T) && !QDELETED(T))
+            character.body_tattoos += T
 
-	// Update examine text and icons
-	character.regenerate_icons()
+    // Update examine text and icons
+    character.regenerate_icons()
 
 // =====================
 // COMPATIBILITY WRAPPERS
 // =====================
 
-// Legacy support procs for backward compatibility
+// Additional legacy support procs for backward compatibility
 /datum/preferences/proc/save_tattoos_modular(list/save_data)
-	save_tattoo_data(save_data)
+    save_tattoo_data(save_data)
 
 /datum/preferences/proc/load_tattoos_modular(list/save_data)
-	load_tattoo_data(save_data)
+    load_tattoo_data(save_data)
 
 // =====================
 // HOOKS
@@ -130,15 +119,15 @@
 
 /// Hook to load tattoos when preferences are loaded
 /hook/character_setup/proc/load_character_tattoos(datum/preferences/prefs)
-	if(istype(prefs))
-		prefs.load_tattoo_data()
-	return TRUE
+    if(istype(prefs))
+        prefs.load_tattoo_data()
+    return TRUE
 
 /// Hook to apply tattoos when a new human mob is created
 /hook/mob_new/proc/apply_saved_tattoos(mob/living/carbon/human/H)
-	if(istype(H) && H.client?.prefs)
-		H.client.prefs.apply_tattoos_to_mob(H)
-	return TRUE
+    if(istype(H) && H.client?.prefs)
+        H.client.prefs.apply_tattoos_to_mob(H)
+    return TRUE
 
 // =====================
 // MANAGEMENT TOOLS
@@ -146,66 +135,66 @@
 
 /// Clears all tattoos from preferences
 /datum/preferences/proc/clear_all_tattoos()
-	if(!features)
-		return
+    if(!features)
+        return
 
-	features["tattoos"] = list()
-	features["tattoos_data"] = list()
+    features["tattoos"] = list()
+    features["tattoos_data"] = list()
 
-	// Also clear from current mob if it exists
-	var/mob/living/carbon/human/H = parent?.mob
-	if(istype(H))
-		H.body_tattoos = list()
-		H.regenerate_icons()
+    // Also clear from current mob if it exists
+    var/mob/living/carbon/human/H = parent?.mob
+    if(istype(H))
+        H.body_tattoos = list()
+        H.regenerate_icons()
 
-	save_character()
+    save_character()
 
 /// Removes a specific tattoo by reference
 /datum/preferences/proc/remove_specific_tattoo(datum/tattoo/tattoo_to_remove)
-	if(!features || !tattoo_to_remove)
-		return FALSE
+    if(!features || !tattoo_to_remove)
+        return FALSE
 
-	var/list/current_tattoos = LAZYACCESS(features, "tattoos")
-	if(!current_tattoos || !(tattoo_to_remove in current_tattoos))
-		return FALSE
+    var/list/current_tattoos = LAZYACCESS(features, "tattoos")
+    if(!current_tattoos || !(tattoo_to_remove in current_tattoos))
+        return FALSE
 
-	current_tattoos -= tattoo_to_remove
-	qdel(tattoo_to_remove)
+    current_tattoos -= tattoo_to_remove
+    qdel(tattoo_to_remove)
 
-	// Update the mob if it exists
-	var/mob/living/carbon/human/H = parent?.mob
-	if(istype(H) && (tattoo_to_remove in H.body_tattoos))
-		H.body_tattoos -= tattoo_to_remove
-		H.regenerate_icons()
+    // Update the mob if it exists
+    var/mob/living/carbon/human/H = parent?.mob
+    if(istype(H) && (tattoo_to_remove in H.body_tattoos))
+        H.body_tattoos -= tattoo_to_remove
+        H.regenerate_icons()
 
-	// Save the changes
-	save_tattoo_data()
-	return TRUE
+    // Save the changes
+    save_tattoo_data()
+    return TRUE
 
 /// Gets all tattoos for a specific body part
 /datum/preferences/proc/get_tattoos_for_bodypart(body_zone)
-	if(!features || !body_zone)
-		return list()
+    if(!features || !body_zone)
+        return list()
 
-	if(!LAZYACCESS(features, "tattoos"))
-		load_tattoo_data()
+    if(!LAZYACCESS(features, "tattoos"))
+        load_tattoo_data()
 
-	var/list/result = list()
-	for(var/datum/tattoo/T as anything in features["tattoos"])
-		if(T.body_part == body_zone)
-			result += T
+    var/list/result = list()
+    for(var/datum/tattoo/T as anything in features["tattoos"])
+        if(T.body_part == body_zone)
+            result += T
 
-	return result
+    return result
 
 /// Counts total tattoos across all body parts
 /datum/preferences/proc/count_total_tattoos()
-	if(!features)
-		return 0
+    if(!features)
+        return 0
 
-	if(!LAZYACCESS(features, "tattoos"))
-		load_tattoo_data()
+    if(!LAZYACCESS(features, "tattoos"))
+        load_tattoo_data()
 
-	return length(features["tattoos"])
+    return length(features["tattoos"])
 
 // =====================
 // DEBUG & ADMIN TOOLS
@@ -213,29 +202,29 @@
 
 /// Debug proc to view tattoo data
 /datum/preferences/proc/debug_view_tattoos()
-	if(!features)
-		return "No features data"
+    if(!features)
+        return "No features data"
 
-	if(!LAZYACCESS(features, "tattoos"))
-		load_tattoo_data()
+    if(!LAZYACCESS(features, "tattoos"))
+        load_tattoo_data()
 
-	var/list/tattoos = features["tattoos"]
-	if(!length(tattoos))
-		return "No tattoos found"
+    var/list/tattoos = features["tattoos"]
+    if(!length(tattoos))
+        return "No tattoos found"
 
-	var/output = "Total Tattoos: [length(tattoos)]\n"
-	for(var/datum/tattoo/T as anything in tattoos)
-		output += "- [T.design] on [T.body_part] by [T.artist] (Layer: [T.layer])\n"
+    var/output = "Total Tattoos: [length(tattoos)]\n"
+    for(var/datum/tattoo/T as anything in tattoos)
+        output += "- [T.design] on [T.body_part] by [T.artist] (Layer: [T.layer])\n"
 
-	return output
+    return output
 
 /// Admin proc to force reload tattoos on current mob
 /datum/preferences/proc/force_reload_tattoos()
-	var/mob/living/carbon/human/H = parent?.mob
-	if(istype(H))
-		apply_tattoos_to_mob(H)
-		return TRUE
-	return FALSE
+    var/mob/living/carbon/human/H = parent?.mob
+    if(istype(H))
+        apply_tattoos_to_mob(H)
+        return TRUE
+    return FALSE
 
 // =====================
 // COMPATIBILITY WRAPPERS
@@ -245,48 +234,48 @@
 
 /// Legacy support - saves tattoos directly to a save_data list
 /proc/save_tattoos_to_list(list/save_data, list/tattoos)
-	if(!save_data || !islist(tattoos))
-		return
+    if(!save_data || !islist(tattoos))
+        return
 
-	var/list/tattoo_data = list()
-	for(var/datum/tattoo/T as anything in tattoos)
-		if(istype(T) && !QDELETED(T))
-			tattoo_data += list(list(
-				"artist" = T.artist,
-				"design" = T.design,
-				"body_part" = T.body_part,
-				"color" = T.color,
-				"date_applied" = T.date_applied,
-				"layer" = T.layer
-			))
+    var/list/tattoo_data = list()
+    for(var/datum/tattoo/T as anything in tattoos)
+        if(istype(T) && !QDELETED(T))
+            tattoo_data += list(list(
+                "artist" = T.artist,
+                "design" = T.design,
+                "body_part" = T.body_part,
+                "color" = T.color,
+                "date_applied" = T.date_applied,
+                "layer" = T.layer
+            ))
 
-	save_data["tattoos_data"] = tattoo_data
+    save_data["tattoos_data"] = tattoo_data
 
 /// Legacy support - loads tattoos directly from a save_data list
 /proc/load_tattoos_from_list(list/save_data)
-	if(!save_data || !LAZYACCESS(save_data, "tattoos_data"))
-		return list()
+    if(!save_data || !LAZYACCESS(save_data, "tattoos_data"))
+        return list()
 
-	var/list/tattoo_data = save_data["tattoos_data"]
-	var/list/tattoos = list()
+    var/list/tattoo_data = save_data["tattoos_data"]
+    var/list/tattoos = list()
 
-	for(var/list/tattoo_info as anything in tattoo_data)
-		if(!islist(tattoo_info))
-			continue
+    for(var/list/tattoo_info as anything in tattoo_data)
+        if(!islist(tattoo_info))
+            continue
 
-		var/artist = sanitize_text(tattoo_info["artist"], "Unknown Artist")
-		var/design = sanitize_text(tattoo_info["design"], "An intricate design")
-		var/body_part = sanitize_inlist(tattoo_info["body_part"], GLOB.tattooable_body_parts, BODY_ZONE_CHEST)
-		var/color = sanitize_hexcolor(tattoo_info["color"], default = "#000000")
-		var/layer = sanitize_integer(tattoo_info["layer"], 1, 3, 2)
-		var/date_applied = sanitize_text(tattoo_info["date_applied"], time2text(world.realtime, "YYYY-MM-DD"))
+        var/artist = sanitize_text(tattoo_info["artist"], "Unknown Artist")
+        var/design = sanitize_text(tattoo_info["design"], "An intricate design")
+        var/body_part = tattoo_info["body_part"]
+        var/color = sanitize_hexcolor(tattoo_info["color"], default = "#000000")
+        var/layer = sanitize_integer(tattoo_info["layer"], 1, 3, 2)
+        var/date_applied = sanitize_text(tattoo_info["date_applied"], time2text(world.realtime, "YYYY-MM-DD"))
 
-		if(is_valid_tattoo_bodypart(body_part))
-			var/datum/tattoo/T = new(artist, design, body_part, color, layer)
-			T.date_applied = date_applied
-			tattoos += T
+        if(is_valid_tattoo_bodypart(body_part))
+            var/datum/tattoo/T = new(artist, design, body_part, color, layer)
+            T.date_applied = date_applied
+            tattoos += T
 
-	return tattoos
+    return tattoos
 
 // =====================
 // INITIALIZATION
@@ -294,9 +283,9 @@
 
 // Initialize the tattoo system when the world starts
 /hook/roundstart/proc/initialize_tattoo_persistence()
-	// Register our hooks
-	// These will automatically be called by the hook system
+    // Register our hooks
+    // These will automatically be called by the hook system
 
-	// Log initialization
-	world.log << "Tattoo persistence system initialized"
-	return TRUE
+    // Log initialization
+    world.log << "Tattoo persistence system initialized"
+    return TRUE
