@@ -96,3 +96,14 @@
         var/tattoo_text = T.get_examine_text(src, src)
         if(tattoo_text)
             to_chat(src, " • [tattoo_text]")
+
+
+/mob/living/carbon/human/Login()
+	. = ..()
+	world.log << "=== HUMAN LOGIN ==="
+	world.log << "DEBUG: [src] logged in, client: [client], prefs: [client?.prefs]"
+
+	// Manual tattoo application if hooks aren't working
+	if(client?.prefs && !length(body_tattoos))
+		world.log << "DEBUG: Manually applying tattoos on login"
+		client.prefs.apply_tattoos_to_mob(src)

@@ -215,7 +215,8 @@
 
 /// Hook when character is set up in preferences
 /hook/character_setup/proc/load_character_tattoos(datum/preferences/prefs)
-	world.log << "=== CHARACTER SETUP HOOK ==="
+	world.log << "=== CHARACTER SETUP HOOK CALLED ==="
+	world.log << "DEBUG: Prefs: [prefs], Parent: [prefs?.parent], Ckey: [prefs?.parent?.ckey]"
 	if(istype(prefs))
 		world.log << "DEBUG: Loading tattoos for [prefs.parent?.ckey]"
 		prefs.load_tattoo_data()
@@ -225,7 +226,8 @@
 
 /// Hook when new mob is created
 /hook/mob_new/proc/apply_saved_tattoos(mob/living/carbon/human/H)
-	world.log << "=== MOB NEW HOOK ==="
+	world.log << "=== MOB NEW HOOK CALLED ==="
+	world.log << "DEBUG: Mob: [H], Client: [H?.client], Prefs: [H?.client?.prefs]"
 	if(istype(H) && H.client?.prefs)
 		world.log << "DEBUG: Applying tattoos to new mob [H] ([H.ckey])"
 		H.client.prefs.apply_tattoos_to_mob(H)
