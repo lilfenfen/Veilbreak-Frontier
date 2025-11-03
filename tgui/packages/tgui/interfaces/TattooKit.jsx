@@ -122,11 +122,32 @@ const DesignTattooStep = (props) => {
     selected_layer = 2,
   } = data;
 
-  const canApply =
-    tattoo_name &&
-    tattoo_name.trim() !== '' &&
-    tattoo_desc &&
-    tattoo_desc.trim() !== '';
+  // More robust check for valid inputs
+  const hasValidName = tattoo_name && tattoo_name.trim().length > 0;
+  const hasValidDesc = tattoo_desc && tattoo_desc.trim().length > 0;
+  const canApply = hasValidName && hasValidDesc;
+
+  const handleNameChange = (value) => {
+    act('update_tattoo_name', { name: value });
+  };
+
+  const handleDescChange = (value) => {
+    act('update_tattoo_desc', { desc: value });
+  };
+
+  const handleLayerChange = (layer) => {
+    act('update_tattoo_layer', { layer: layer });
+  };
+
+  const handleApply = () => {
+    if (canApply) {
+      act('apply_tattoo', {
+        name: tattoo_name,
+        desc: tattoo_desc,
+        layer: selected_layer,
+      });
+    }
+  };
 
   return (
     <Window width={500} height={600}>
@@ -147,9 +168,7 @@ const DesignTattooStep = (props) => {
                     fluid
                     value={tattoo_name}
                     placeholder="Enter tattoo name..."
-                    onChange={(e, value) =>
-                      act('update_tattoo_name', { name: value })
-                    }
+                    onChange={(e, value) => handleNameChange(value)}
                   />
                 </LabeledList.Item>
               </LabeledList>
@@ -163,9 +182,7 @@ const DesignTattooStep = (props) => {
                     value={tattoo_desc}
                     height="100%"
                     placeholder="Enter tattoo description..."
-                    onChange={(e, value) =>
-                      act('update_tattoo_desc', { desc: value })
-                    }
+                    onChange={(e, value) => handleDescChange(value)}
                   />
                 </LabeledList.Item>
               </LabeledList>
@@ -202,7 +219,7 @@ const DesignTattooStep = (props) => {
                     <Flex.Item>
                       <Button
                         selected={selected_layer === 1}
-                        onClick={() => act('update_tattoo_layer', { layer: 1 })}
+                        onClick={() => handleLayerChange(1)}
                       >
                         Under Layer
                       </Button>
@@ -210,7 +227,7 @@ const DesignTattooStep = (props) => {
                     <Flex.Item ml={1}>
                       <Button
                         selected={selected_layer === 2}
-                        onClick={() => act('update_tattoo_layer', { layer: 2 })}
+                        onClick={() => handleLayerChange(2)}
                       >
                         Normal Layer
                       </Button>
@@ -218,7 +235,7 @@ const DesignTattooStep = (props) => {
                     <Flex.Item ml={1}>
                       <Button
                         selected={selected_layer === 3}
-                        onClick={() => act('update_tattoo_layer', { layer: 3 })}
+                        onClick={() => handleLayerChange(3)}
                       >
                         Over Layer
                       </Button>
@@ -232,15 +249,9 @@ const DesignTattooStep = (props) => {
                     icon="check"
                     color={canApply ? 'good' : 'default'}
                     disabled={!canApply}
-                    onClick={() =>
-                      act('apply_tattoo', {
-                        name: tattoo_name,
-                        desc: tattoo_desc,
-                        layer: selected_layer,
-                      })
-                    }
+                    onClick={handleApply}
                   >
-                    Apply Tattoo
+                    {canApply ? 'Apply Tattoo' : 'Fill Name and Description'}
                   </Button>
                 </LabeledList.Item>
               </LabeledList>

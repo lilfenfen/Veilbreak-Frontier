@@ -151,11 +151,12 @@
 			. = TRUE
 
 		if("apply_tattoo")
-			var/apply_name = params["name"] || tattoo_name
-			var/apply_desc = params["desc"] || tattoo_desc
-			var/apply_layer = text2num(params["layer"]) || selected_layer
+			var/apply_name = tattoo_name // Use the stored values, not params
+			var/apply_desc = tattoo_desc
+			var/apply_layer = selected_layer
 
 			if(!apply_name || !apply_desc || !selected_zone)
+				to_chat(usr, "<span class='warning'>Please fill in both the name and description!</span>")
 				return
 
 			// Sanitize inputs and ensure they're not empty
