@@ -23,7 +23,7 @@
 /datum/tattoo/proc/get_examine_text(mob/viewer, mob/living/carbon/human/victim)
     if(!is_visible(viewer, victim))
         return ""
-    return "<span style='color:[color]'>Tattoo: [desc]</span>"
+    return "<span style='color:[color]'>- \"[desc]\" ([name])</span>"
 
 /datum/tattoo/proc/is_visible(mob/viewer, mob/living/carbon/human/victim)
     if(!victim || !viewer)
@@ -35,15 +35,31 @@
     if(!ishuman(victim) || isobserver(viewer) || victim == viewer)
         return TRUE
 
+    // Always show tattoos to the person who has them, regardless of clothing
+    if(victim == viewer)
+        return TRUE
+
     return !is_hidden_by_clothes(victim)
 
 /datum/tattoo/proc/is_hidden_by_clothes(mob/living/carbon/human/target_mob)
+    // If it's the person looking at themselves, always show tattoos
+    if(target_mob == usr)
+        return FALSE
+
     var/obj/item/bodypart/BP = target_mob.get_bodypart(body_part)
     if(!BP)
         return TRUE
 
-    // Check main clothing items
-    if((target_mob.w_uniform && (target_mob.w_uniform.body_parts_covered & body_part)) || (target_mob.wear_suit && (target_mob.wear_suit.body_parts_covered & body_part)))
+    // Convert body_zone to bodypart flag for coverage checking
+    var/check_flags = body_zone_to_flag(body_part)
+
+    if(!check_flags)
+        return FALSE // If we can't map it to a flag, assume it's visible
+
+    // Check clothing coverage
+    if(target_mob.w_uniform && (target_mob.w_uniform.body_parts_covered & check_flags))
+        return TRUE
+    if(target_mob.wear_suit && (target_mob.wear_suit.body_parts_covered & check_flags))
         return TRUE
 
     // Special case for hospital gown
@@ -51,23 +67,28 @@
         return TRUE
 
     // SPLURT EDIT - Extra Inventory compatibility
-    // Check undershirt
-    if(target_mob.w_shirt && !target_mob.undershirt_hidden())
-        if(target_mob.w_shirt.body_parts_covered & body_part)
-            return TRUE
-
-    // Check bra
-    if(target_mob.w_bra && !target_mob.bra_hidden())
-        if(target_mob.w_bra.body_parts_covered & body_part)
-            return TRUE
-
-    // Check underwear
-    if(target_mob.w_underwear && !target_mob.underwear_hidden())
-        if(target_mob.w_underwear.body_parts_covered & body_part)
-            return TRUE
-
-    // Check for head/face coverage
-    if(body_part == BODY_ZONE_HEAD && (target_mob.obscured_slots & HIDEFACE))
+    if(target_mob.w_shirt && !target_mob.undershirt_hidden() && (target_mob.w_shirt.body_parts_covered & check_flags))
+        return TRUE
+    if(target_mob.w_bra && !target_mob.bra_hidden() && (target_mob.w_bra.body_parts_covered & check_flags))
+        return TRUE
+    if(target_mob.w_underwear && !target_mob.underwear_hidden() && (target_mob.w_underwear.body_parts_covered & check_flags))
         return TRUE
 
     return FALSE
+
+// Helper proc to convert body_zone to clothing coverage flags
+/proc/body_zone_to_flag(body_zone)
+    switch(body_zone)
+        if(BODY_ZONE_HEAD) return HEAD
+        if(BODY_ZONE_CHEST) return CHEST
+        if(BODY_ZONE_L_ARM) return ARM_LEFT
+        if(BODY_ZONE_R_ARM) return ARM_RIGHT
+        if(BODY_ZONE_L_LEG) return LEG_LEFT
+        if(BODY_ZONE_R_LEG) return LEG_RIGHT
+        if(BODY_ZONE_PRECISE_L_HAND) return HAND_LEFT
+        if(BODY_ZONE_PRECISE_R_HAND) return HAND_RIGHT
+        if(BODY_ZONE_PRECISE_L_FOOT) return FOOT_LEFT
+        if(BODY_ZONE_PRECISE_R_FOOT) return FOOT_RIGHT
+        if(BODY_ZONE_PRECISE_GROIN) return GROIN
+        // For custom zones, try to be permissive
+        else return null
