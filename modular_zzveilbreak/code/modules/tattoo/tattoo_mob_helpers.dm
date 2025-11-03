@@ -54,16 +54,22 @@
     return A.layer - B.layer
 
 /mob/living/carbon/human/examine(mob/user)
-    . = ..()
+	. = ..()
 
-    var/list/visible_tattoos = get_visible_tattoos(user)
-    if(length(visible_tattoos))
-        . += span_notice("<b>Visible Tattoos:</b>")
-        for(var/datum/tattoo/T as anything in visible_tattoos)
-            var/tattoo_text = T.get_examine_text(user, src)
-            if(tattoo_text)
-                . += " [tattoo_text]" // Indented bullet points
-				
+	var/list/visible_tattoos = get_visible_tattoos(user)
+	world.log << "=== HUMAN EXAMINE DEBUG ==="
+	world.log << "DEBUG: Found [length(visible_tattoos)] visible tattoos on [src]"
+
+	if(length(visible_tattoos))
+		. += span_notice("<b>Visible Tattoos:</b>")
+		for(var/datum/tattoo/T as anything in visible_tattoos)
+			var/tattoo_text = T.get_examine_text(user, src)
+			if(tattoo_text)
+				. += " [tattoo_text]" // Indented bullet points
+				world.log << "DEBUG: Added tattoo text to examine: [tattoo_text]"
+			else
+				world.log << "DEBUG: No tattoo text returned for [T.design]"
+
 
 // Verb for players to check their own tattoos
 /mob/living/carbon/human/verb/examine_my_tattoos()

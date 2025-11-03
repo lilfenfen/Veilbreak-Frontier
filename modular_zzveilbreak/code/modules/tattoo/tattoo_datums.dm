@@ -19,22 +19,27 @@
     src.date_applied = time2text(world.realtime, "YYYY-MM-DD")
 
 /datum/tattoo/proc/get_examine_text(mob/viewer, mob/living/carbon/human/victim)
-    if(!is_visible(viewer, victim))
-        return ""
+	if(!is_visible(viewer, victim))
+		world.log << "DEBUG: Tattoo not visible to viewer, no examine text"
+		return ""
 
-    // Make sure we have valid text
-    var/display_design = design
-    if(!display_design || display_design == "")
-        display_design = "an intricate design"
+	// Make sure we have valid text
+	var/display_design = design
+	if(!display_design || display_design == "")
+		display_design = "an intricate design"
 
-    var/display_artist = artist
-    if(!display_artist || display_artist == "")
-        display_artist = "an unknown artist"
+	var/display_artist = artist
+	if(!display_artist || display_artist == "")
+		display_artist = "an unknown artist"
 
-    // Use the enhanced body part descriptions
-    var/body_part_description = get_specific_body_part_description(body_part)
+	// Use the enhanced body part descriptions
+	var/body_part_description = get_specific_body_part_description(body_part)
 
-    return "<span style='color:[color]'>- [body_part_description]: \"[display_design]\" (by [display_artist])</span>"
+	world.log << "DEBUG: Generating examine text for [display_design] on [body_part_description]"
+
+	var/text = "<span style='color:[color]'>- [body_part_description]: \"[display_design]\" (by [display_artist])</span>"
+	world.log << "DEBUG: Examine text: [text]"
+	return text
 
 /datum/tattoo/proc/is_visible(mob/viewer, mob/living/carbon/human/victim)
     if(!victim || !viewer)
@@ -51,84 +56,158 @@
     return !is_hidden_by_clothes(victim, viewer)
 
 /datum/tattoo/proc/is_hidden_by_clothes(mob/living/carbon/human/target_mob, mob/viewer)
-    if(!target_mob)
-        return TRUE
+	if(!target_mob)
+		return TRUE
 
-    // Special handling for external organ slots (tails, wings, etc.)
-    if(body_part in list(ORGAN_SLOT_EXTERNAL_TAIL, ORGAN_SLOT_EXTERNAL_SPINES, ORGAN_SLOT_EXTERNAL_FRILLS,
-                        ORGAN_SLOT_EXTERNAL_HORNS, ORGAN_SLOT_EXTERNAL_WINGS, ORGAN_SLOT_WINGS))
-        // These are usually always visible unless specifically covered by certain clothing
-        var/obj/item/organ/organ = target_mob.get_organ_slot(body_part)
-        if(!organ)
-            return TRUE
+	world.log << "=== TATTOO VISIBILITY DEBUG ==="
+	world.log << "DEBUG: Checking visibility for tattoo: [design] on [body_part]"
+	world.log << "DEBUG: Target: [target_mob], Viewer: [viewer]"
+	world.log << "DEBUG: Body part: [body_part]"
 
-        // Check for specific clothing that might cover these features
-        if(target_mob.wear_suit)
-            // Some suits might cover wings/tails specifically
-            if(istype(target_mob.wear_suit, /obj/item/clothing/suit) && target_mob.wear_suit.flags_inv & HIDETAIL)
-                if(body_part == ORGAN_SLOT_EXTERNAL_TAIL)
-                    return TRUE
-            // Check for spine covering
-            if(target_mob.wear_suit.flags_inv & HIDEJUMPSUIT)
-                if(body_part == ORGAN_SLOT_EXTERNAL_SPINES)
-                    return TRUE
+	// Special handling for external organ slots (tails, wings, etc.)
+	if(body_part in list(ORGAN_SLOT_EXTERNAL_TAIL, ORGAN_SLOT_EXTERNAL_SPINES, ORGAN_SLOT_EXTERNAL_FRILLS,
+						ORGAN_SLOT_EXTERNAL_HORNS, ORGAN_SLOT_EXTERNAL_WINGS, ORGAN_SLOT_WINGS))
+		// These are usually always visible unless specifically covered by certain clothing
+		var/obj/item/organ/organ = target_mob.get_organ_slot(body_part)
+		if(!organ)
+			world.log << "DEBUG: Organ not found for [body_part], returning hidden"
+			return TRUE
 
-        return FALSE
+		// Check for specific clothing that might cover these features
+		if(target_mob.wear_suit)
+			// Some suits might cover wings/tails specifically
+			if(istype(target_mob.wear_suit, /obj/item/clothing/suit) && target_mob.wear_suit.flags_inv & HIDETAIL)
+				if(body_part == ORGAN_SLOT_EXTERNAL_TAIL)
+					world.log << "DEBUG: Tail hidden by suit with HIDETAIL flag"
+					return TRUE
+			// Check for spine covering
+			if(target_mob.wear_suit.flags_inv & HIDEJUMPSUIT)
+				if(body_part == ORGAN_SLOT_EXTERNAL_SPINES)
+					world.log << "DEBUG: Spines hidden by suit with HIDEJUMPSUIT flag"
+					return TRUE
 
-    var/obj/item/bodypart/BP = target_mob.get_bodypart(body_part)
-    if(!BP)
-        // Check if it's an organ instead
-        var/obj/item/organ/organ = target_mob.get_organ_slot(body_part)
-        if(!organ)
-            return TRUE
+		world.log << "DEBUG: External organ [body_part] is visible"
+		return FALSE
 
-    var/check_flags = body_zone_to_flag(body_part)
-    if(!check_flags)
-        return FALSE // If we can't map it to a flag, assume it's visible
+	// Handle butt/stomach specifically since they're organ slots
+	if(body_part == ORGAN_SLOT_BUTT)
+		world.log << "DEBUG: Checking butt visibility"
+		// Butt should be visible if not wearing pants/underwear that cover groin
+		if(target_mob.w_uniform)
+			var/covered = target_mob.w_uniform.body_parts_covered & GROIN
+			world.log << "DEBUG: Uniform covers groin: [covered]"
+			if(covered)
+				return TRUE
+		if(target_mob.wear_suit)
+			var/covered = target_mob.wear_suit.body_parts_covered & GROIN
+			world.log << "DEBUG: Suit covers groin: [covered]"
+			if(covered)
+				return TRUE
+		// Check underwear too
+		if(target_mob.w_underwear && !target_mob.underwear_hidden())
+			var/covered = target_mob.w_underwear.body_parts_covered & GROIN
+			world.log << "DEBUG: Underwear covers groin: [covered]"
+			if(covered)
+				return TRUE
 
-    // STRICT clothing check - NO EXCEPTIONS
-    // Check all possible clothing layers
+		world.log << "DEBUG: Butt is visible"
+		return FALSE
 
-    // Outer suit coverage
-    if(target_mob.wear_suit)
-        if(target_mob.wear_suit.body_parts_covered & check_flags)
-            return TRUE
-        // Check if suit has flags that might cover the area
-        if(target_mob.wear_suit.flags_inv & HIDEJUMPSUIT)
-            if(check_flags & (CHEST|GROIN|ARMS|LEGS))
-                return TRUE
+	if(body_part == ORGAN_SLOT_BELLY)
+		world.log << "DEBUG: Checking stomach visibility"
+		// Stomach should be visible if not wearing shirt that covers chest
+		if(target_mob.w_uniform)
+			var/covered = target_mob.w_uniform.body_parts_covered & CHEST
+			world.log << "DEBUG: Uniform covers chest: [covered]"
+			if(covered)
+				return TRUE
+		if(target_mob.wear_suit)
+			var/covered = target_mob.wear_suit.body_parts_covered & CHEST
+			world.log << "DEBUG: Suit covers chest: [covered]"
+			if(covered)
+				return TRUE
+		// Check undershirt too
+		if(target_mob.w_shirt && !target_mob.undershirt_hidden())
+			var/covered = target_mob.w_shirt.body_parts_covered & CHEST
+			world.log << "DEBUG: Shirt covers chest: [covered]"
+			if(covered)
+				return TRUE
 
-    // Uniform coverage
-    if(target_mob.w_uniform)
-        if(target_mob.w_uniform.body_parts_covered & check_flags)
-            return TRUE
+		world.log << "DEBUG: Stomach is visible"
+		return FALSE
 
-    // Special cases for specific clothing types
-    if(istype(target_mob.wear_suit, /obj/item/clothing/suit/toggle/labcoat/hospitalgown))
-        return TRUE
+	var/obj/item/bodypart/BP = target_mob.get_bodypart(body_part)
+	if(!BP)
+		// Check if it's an organ instead
+		var/obj/item/organ/organ = target_mob.get_organ_slot(body_part)
+		if(!organ)
+			world.log << "DEBUG: No bodypart or organ found for [body_part], returning hidden"
+			return TRUE
 
-    // Additional clothing layers (SPLURT EDIT compatibility)
-    if(target_mob.w_shirt && !target_mob.undershirt_hidden())
-        if(target_mob.w_shirt.body_parts_covered & check_flags)
-            return TRUE
+	var/check_flags = body_zone_to_flag(body_part)
+	if(!check_flags)
+		world.log << "DEBUG: No check flags for [body_part], assuming visible"
+		return FALSE // If we can't map it to a flag, assume it's visible
 
-    if(target_mob.w_underwear && !target_mob.underwear_hidden())
-        if(target_mob.w_underwear.body_parts_covered & check_flags)
-            return TRUE
+	world.log << "DEBUG: Check flags for [body_part]: [check_flags]"
 
-    // Gloves for hands
-    if((check_flags & (HAND_LEFT|HAND_RIGHT)) && target_mob.gloves)
-        return TRUE
+	// STRICT clothing check - NO EXCEPTIONS
+	// Check all possible clothing layers
 
-    // Shoes for feet
-    if((check_flags & (FOOT_LEFT|FOOT_RIGHT)) && target_mob.shoes)
-        return TRUE
+	// Outer suit coverage
+	if(target_mob.wear_suit)
+		world.log << "DEBUG: Checking wear_suit: [target_mob.wear_suit]"
+		if(target_mob.wear_suit.body_parts_covered & check_flags)
+			world.log << "DEBUG: Hidden by wear_suit body_parts_covered"
+			return TRUE
+		// Check if suit has flags that might cover the area
+		if(target_mob.wear_suit.flags_inv & HIDEJUMPSUIT)
+			if(check_flags & (CHEST|GROIN|ARMS|LEGS))
+				world.log << "DEBUG: Hidden by wear_suit HIDEJUMPSUIT flag"
+				return TRUE
 
-    // Headwear for head
-    if((check_flags & HEAD) && target_mob.head)
-        return TRUE
+	// Uniform coverage
+	if(target_mob.w_uniform)
+		world.log << "DEBUG: Checking w_uniform: [target_mob.w_uniform]"
+		if(target_mob.w_uniform.body_parts_covered & check_flags)
+			world.log << "DEBUG: Hidden by w_uniform body_parts_covered"
+			return TRUE
 
-    return FALSE
+	// Special cases for specific clothing types
+	if(istype(target_mob.wear_suit, /obj/item/clothing/suit/toggle/labcoat/hospitalgown))
+		world.log << "DEBUG: Hidden by hospital gown"
+		return TRUE
+
+	// Additional clothing layers (SPLURT EDIT compatibility)
+	if(target_mob.w_shirt && !target_mob.undershirt_hidden())
+		world.log << "DEBUG: Checking w_shirt: [target_mob.w_shirt]"
+		if(target_mob.w_shirt.body_parts_covered & check_flags)
+			world.log << "DEBUG: Hidden by w_shirt body_parts_covered"
+			return TRUE
+
+	if(target_mob.w_underwear && !target_mob.underwear_hidden())
+		world.log << "DEBUG: Checking w_underwear: [target_mob.w_underwear]"
+		if(target_mob.w_underwear.body_parts_covered & check_flags)
+			world.log << "DEBUG: Hidden by w_underwear body_parts_covered"
+			return TRUE
+
+	// Gloves for hands
+	if((check_flags & (HAND_LEFT|HAND_RIGHT)) && target_mob.gloves)
+		world.log << "DEBUG: Hidden by gloves"
+		return TRUE
+
+	// Shoes for feet
+	if((check_flags & (FOOT_LEFT|FOOT_RIGHT)) && target_mob.shoes)
+		world.log << "DEBUG: Hidden by shoes"
+		return TRUE
+
+	// Headwear for head
+	if((check_flags & HEAD) && target_mob.head)
+		world.log << "DEBUG: Hidden by head"
+		return TRUE
+
+	world.log << "DEBUG: Tattoo is visible - no clothing covering [body_part]"
+	return FALSE
 
 /proc/body_zone_to_flag(body_zone)
     // Handle string organ slots first
