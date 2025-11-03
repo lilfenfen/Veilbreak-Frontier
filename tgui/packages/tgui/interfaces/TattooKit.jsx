@@ -13,6 +13,9 @@ export const TattooKit = (props) => {
     body_parts,
     selected_zone,
     current_step,
+    tattoo_name,
+    tattoo_desc,
+    selected_layer,
   } = data;
 
   if (current_step === 'design_tattoo') {
@@ -91,15 +94,14 @@ export const TattooKit = (props) => {
 
 const DesignTattooStep = (props) => {
   const { act, data } = useBackend();
-  const { target_name, ink_color, selected_zone } = data;
-
-  const [tattooName, setTattooName] = useLocalState(context, 'tattooName', '');
-  const [tattooDesc, setTattooDesc] = useLocalState(context, 'tattooDesc', '');
-  const [selectedLayer, setSelectedLayer] = useLocalState(
-    context,
-    'selectedLayer',
-    2,
-  );
+  const {
+    target_name,
+    ink_color,
+    selected_zone,
+    tattoo_name = '',
+    tattoo_desc = '',
+    selected_layer = 2,
+  } = data;
 
   return (
     <Window width={400} height={400}>
@@ -116,21 +118,25 @@ const DesignTattooStep = (props) => {
             <LabeledList.Item label="Tattoo Name">
               <input
                 type="text"
-                value={tattooName}
+                value={tattoo_name}
                 style={{ width: '100%' }}
-                onChange={(e) => setTattooName(e.target.value)}
+                onChange={(e) =>
+                  act('update_tattoo_name', { name: e.target.value })
+                }
                 placeholder="Enter tattoo name..."
               />
             </LabeledList.Item>
             <LabeledList.Item label="Description">
               <textarea
-                value={tattooDesc}
+                value={tattoo_desc}
                 style={{
                   width: '100%',
                   height: '80px',
                   resize: 'vertical',
                 }}
-                onChange={(e) => setTattooDesc(e.target.value)}
+                onChange={(e) =>
+                  act('update_tattoo_desc', { desc: e.target.value })
+                }
                 placeholder="Enter tattoo description..."
               />
             </LabeledList.Item>
@@ -156,20 +162,20 @@ const DesignTattooStep = (props) => {
             </LabeledList.Item>
             <LabeledList.Item label="Layer">
               <Button
-                selected={selectedLayer === 1}
-                onClick={() => setSelectedLayer(1)}
+                selected={selected_layer === 1}
+                onClick={() => act('update_tattoo_layer', { layer: 1 })}
               >
                 Under
               </Button>
               <Button
-                selected={selectedLayer === 2}
-                onClick={() => setSelectedLayer(2)}
+                selected={selected_layer === 2}
+                onClick={() => act('update_tattoo_layer', { layer: 2 })}
               >
                 Normal
               </Button>
               <Button
-                selected={selectedLayer === 3}
-                onClick={() => setSelectedLayer(3)}
+                selected={selected_layer === 3}
+                onClick={() => act('update_tattoo_layer', { layer: 3 })}
               >
                 Over
               </Button>
@@ -179,12 +185,12 @@ const DesignTattooStep = (props) => {
                 fluid
                 icon="check"
                 color="good"
-                disabled={!tattooName || !tattooDesc}
+                disabled={!tattoo_name || !tattoo_desc}
                 onClick={() =>
                   act('apply_tattoo', {
-                    name: tattooName,
-                    desc: tattooDesc,
-                    layer: selectedLayer,
+                    name: tattoo_name,
+                    desc: tattoo_desc,
+                    layer: selected_layer,
                   })
                 }
               >

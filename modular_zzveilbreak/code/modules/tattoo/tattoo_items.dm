@@ -12,7 +12,10 @@
 	var/tattoo_max_uses = 50
 	var/selected_zone = BODY_ZONE_CHEST
 	var/mob/living/carbon/human/current_target
-	var/current_step = "select_part" // ADD THIS LINE - define the variable
+	var/current_step = "select_part"
+	var/tattoo_name = ""
+	var/tattoo_desc = ""
+	var/selected_layer = 2
 
 /obj/item/tattoo_kit/attack(mob/living/carbon/human/M, mob/living/user)
 	if(!istype(M))
@@ -28,7 +31,10 @@
 		return TRUE
 
 	current_target = M
-	current_step = "select_part" // Reset to selection step when starting
+	current_step = "select_part"
+	tattoo_name = ""
+	tattoo_desc = ""
+	selected_layer = 2
 	ui_interact(user)
 	return TRUE
 
@@ -39,7 +45,10 @@
 
 	if(istype(user, /mob/living/carbon/human))
 		current_target = user
-		current_step = "select_part" // Reset to selection step when starting
+		current_step = "select_part"
+		tattoo_name = ""
+		tattoo_desc = ""
+		selected_layer = 2
 		ui_interact(user)
 	else
 		to_chat(user, "<span class='warning'>Only humans can use this!</span>")
@@ -61,7 +70,10 @@
 	data["max_uses"] = tattoo_max_uses
 	data["ink_color"] = ink_color
 	data["selected_zone"] = selected_zone
-	data["current_step"] = current_step // Include current_step in data
+	data["current_step"] = current_step
+	data["tattoo_name"] = tattoo_name
+	data["tattoo_desc"] = tattoo_desc
+	data["selected_layer"] = selected_layer
 
 	// Get all available body parts for the selected zone
 	var/list/body_parts = list()
@@ -123,20 +135,32 @@
 				return
 
 			selected_zone = zone
-			current_step = "design_tattoo" // Switch to design step
+			current_step = "design_tattoo"
+			. = TRUE
+
+		if("update_tattoo_name")
+			tattoo_name = params["name"]
+			. = TRUE
+
+		if("update_tattoo_desc")
+			tattoo_desc = params["desc"]
+			. = TRUE
+
+		if("update_tattoo_layer")
+			selected_layer = text2num(params["layer"])
 			. = TRUE
 
 		if("apply_tattoo")
-			var/tattoo_name = params["name"]
-			var/tattoo_desc = params["desc"]
-			var/tattoo_layer = text2num(params["layer"])
+			var/apply_name = params["name"] || tattoo_name
+			var/apply_desc = params["desc"] || tattoo_desc
+			var/apply_layer = text2num(params["layer"]) || selected_layer
 
-			if(!tattoo_name || !tattoo_desc || !selected_zone)
+			if(!apply_name || !apply_desc || !selected_zone)
 				return
 
 			// Sanitize inputs
-			tattoo_name = sanitize(tattoo_name, max_length = 100)
-			tattoo_desc = sanitize(tattoo_desc, max_length = 500)
+			apply_name = sanitize(apply_name, max_length = 100)
+			apply_desc = sanitize(apply_desc, max_length = 500)
 
 			// Close UI during application
 			if(ui)
@@ -144,7 +168,7 @@
 
 			// Perform the tattoo application with do_after
 			if(do_after(usr, 50, target = current_target))
-				var/datum/tattoo/new_tattoo = new(tattoo_name, tattoo_desc, selected_zone, ink_color, usr.name, tattoo_layer)
+				var/datum/tattoo/new_tattoo = new(apply_name, apply_desc, selected_zone, ink_color, usr.name, apply_layer)
 				if(current_target.add_tattoo(new_tattoo))
 					to_chat(usr, "<span class='notice'>You successfully apply the tattoo to [current_target]'s [get_body_zone_display_name(selected_zone)].</span>")
 					to_chat(current_target, "<span class='notice'>You feel a slight sting as the tattoo is applied to your [get_body_zone_display_name(selected_zone)].</span>")
@@ -162,7 +186,10 @@
 				to_chat(usr, "<span class='warning'>Tattoo application interrupted!</span>")
 
 			// Reset for next use
-			current_step = "select_part" // Return to selection step
+			current_step = "select_part"
+			tattoo_name = ""
+			tattoo_desc = ""
+			selected_layer = 2
 			. = TRUE
 
 		if("change_ink_color")
@@ -173,7 +200,7 @@
 			. = TRUE
 
 		if("back_to_selection")
-			current_step = "select_part" // Return to selection step
+			current_step = "select_part"
 			. = TRUE
 
 	return TRUE
