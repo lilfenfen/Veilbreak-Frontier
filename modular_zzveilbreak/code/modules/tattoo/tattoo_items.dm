@@ -171,13 +171,16 @@
 			var/apply_desc = tattoo_desc
 			var/apply_layer = selected_layer
 
+			// Debug output before applying
+			to_chat(usr, span_notice("DEBUG: Applying tattoo - Name: '[apply_name]', Desc: '[apply_desc]', Layer: [apply_layer]"))
+
 			if(!apply_name || length(apply_name) == 0 || !apply_desc || length(apply_desc) == 0)
 				to_chat(usr, span_warning("Please fill in both the name and description!"))
 				return
 
-			// Sanitize inputs
-			apply_name = sanitize(apply_name, max_length = 100)
-			apply_desc = sanitize(apply_desc, max_length = 500)
+			// FIX: Remove max_length parameter from sanitize
+			apply_name = sanitize(apply_name)
+			apply_desc = sanitize(apply_desc)
 
 			// Ensure name and desc are not empty
 			if(!apply_name || apply_name == "")

@@ -134,11 +134,7 @@ const DesignTattooStep = (props) => {
                 fluid
                 value={tattoo_name}
                 placeholder="Enter tattoo name..."
-                onChange={(value) =>
-                  act('update_tattoo_name', {
-                    name: value,
-                  })
-                }
+                onChange={(value) => act('update_tattoo_name', { name: value })}
               />
             </LabeledList.Item>
             <LabeledList.Item label="Description">
@@ -147,11 +143,7 @@ const DesignTattooStep = (props) => {
                 value={tattoo_desc}
                 height="80px"
                 placeholder="Enter tattoo description..."
-                onChange={(value) =>
-                  act('update_tattoo_desc', {
-                    desc: value,
-                  })
-                }
+                onChange={(value) => act('update_tattoo_desc', { desc: value })}
               />
             </LabeledList.Item>
             <LabeledList.Item label="Ink Color">
@@ -171,31 +163,19 @@ const DesignTattooStep = (props) => {
             <LabeledList.Item label="Layer">
               <Button
                 selected={selected_layer === 1}
-                onClick={() =>
-                  act('update_tattoo_layer', {
-                    layer: 1,
-                  })
-                }
+                onClick={() => act('update_tattoo_layer', { layer: 1 })}
               >
                 Under
               </Button>
               <Button
                 selected={selected_layer === 2}
-                onClick={() =>
-                  act('update_tattoo_layer', {
-                    layer: 2,
-                  })
-                }
+                onClick={() => act('update_tattoo_layer', { layer: 2 })}
               >
                 Normal
               </Button>
               <Button
                 selected={selected_layer === 3}
-                onClick={() =>
-                  act('update_tattoo_layer', {
-                    layer: 3,
-                  })
-                }
+                onClick={() => act('update_tattoo_layer', { layer: 3 })}
               >
                 Over
               </Button>
