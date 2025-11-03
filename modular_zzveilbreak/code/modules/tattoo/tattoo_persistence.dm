@@ -86,14 +86,20 @@
 
         world.log << "DEBUG LOAD: Processing tattoo: '[design]' on '[body_part_string]'"
 
-        // Convert body part string back to define
+        // === USE THE UPDATED CONVERSION FUNCTION ===
         var/body_part_define = get_body_part_from_description(body_part_string)
-        world.log << "DEBUG LOAD: Conversion: '[body_part_string]' -> [body_part_define]"
 
-        if(!body_part_define)
-            // If conversion failed, try to use as-is (might be a valid define string)
-            world.log << "DEBUG LOAD: Conversion failed, using as-is"
-            body_part_define = body_part_string
+        if(body_part_define)
+            world.log << "DEBUG LOAD: Conversion function result: '[body_part_string]' -> [body_part_define]"
+        else
+            // If conversion failed, check if it's already a valid define
+            if(body_part_string in GLOB.tattooable_body_parts)
+                body_part_define = body_part_string
+                world.log << "DEBUG LOAD: Using as valid define: [body_part_string]"
+            else
+                world.log << "DEBUG LOAD: WARNING: No conversion found for '[body_part_string]', using as-is"
+                body_part_define = body_part_string
+        // === END CONVERSION LOGIC ===
 
         world.log << "DEBUG LOAD: Final body part: [body_part_define]"
         world.log << "DEBUG LOAD: Is valid tattoo bodypart? [is_valid_tattoo_bodypart(body_part_define)]"
@@ -107,10 +113,6 @@
             world.log << "DEBUG LOAD: FAILED to create tattoo - invalid body part"
 
     world.log << "DEBUG LOAD: Loaded [length(features["tattoos"])] tattoos total"
-
-// LEGACY SUPPORT - If your code is calling the wrong proc name
-/datum/preferences/proc/load_tattoos_data(list/save_data)
-    load_tattoo_data(save_data)
 
 /// Applies saved tattoos to a mob
 /datum/preferences/proc/apply_tattoos_to_mob(mob/living/carbon/human/character)

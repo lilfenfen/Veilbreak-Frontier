@@ -182,7 +182,15 @@
 
 /// Converts body part descriptions back to their original defines
 /proc/get_body_part_from_description(description)
-    switch(description)
+    if(!description)
+        return null
+
+    // Handle both exact matches and case variations
+    var/lower_description = lowertext(description)
+
+    world.log << "DEBUG CONVERSION: Converting '[description]' (lower: '[lower_description]')"
+
+    switch(lower_description)
         if("head") return BODY_ZONE_HEAD
         if("chest") return BODY_ZONE_CHEST
         if("left arm") return BODY_ZONE_L_ARM
@@ -193,18 +201,21 @@
         if("right hand") return BODY_ZONE_PRECISE_R_HAND
         if("left foot") return BODY_ZONE_PRECISE_L_FOOT
         if("right foot") return BODY_ZONE_PRECISE_R_FOOT
-        if("groin area") return BODY_ZONE_PRECISE_GROIN
+        if("groin area", "groin") return BODY_ZONE_PRECISE_GROIN
         // REVERSE ORGAN MAPPINGS
-        if("stomach") return ORGAN_SLOT_BELLY
-        if("backside") return ORGAN_SLOT_BUTT
+        if("stomach", "belly") return ORGAN_SLOT_BELLY
+        if("backside", "butt", "ass", "rear")
+            world.log << "DEBUG CONVERSION: Matched 'butt' to ORGAN_SLOT_BUTT"
+            return ORGAN_SLOT_BUTT
         if("tail") return ORGAN_SLOT_EXTERNAL_TAIL
-        if("spine ridge") return ORGAN_SLOT_EXTERNAL_SPINES
-        if("head frills") return ORGAN_SLOT_EXTERNAL_FRILLS
+        if("spine ridge", "spines") return ORGAN_SLOT_EXTERNAL_SPINES
+        if("head frills", "frills") return ORGAN_SLOT_EXTERNAL_FRILLS
         if("horns") return ORGAN_SLOT_EXTERNAL_HORNS
-        if("wings") return ORGAN_SLOT_EXTERNAL_WINGS
-        if("wing membranes") return ORGAN_SLOT_WINGS
+        if("wings", "wing membranes") return ORGAN_SLOT_EXTERNAL_WINGS
         else
             // Try to parse as a body zone define
             if(description in GLOB.tattooable_body_parts)
+                world.log << "DEBUG CONVERSION: '[description]' is already a valid define"
                 return description
+            world.log << "DEBUG CONVERSION: Failed to convert '[description]' to any known define"
             return null
