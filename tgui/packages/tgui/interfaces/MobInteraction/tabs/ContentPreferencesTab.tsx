@@ -35,6 +35,8 @@ type ContentPrefsInfo = {
   vore_enable_pref: boolean;
   vore_overlays: boolean;
   vore_overlay_options: boolean;
+  // Tattoo/Bodywriting pref
+  allow_bodywriting_pref: boolean;
 };
 
 type ContentPreferencesTabProps = {
@@ -78,6 +80,8 @@ export const ContentPreferencesTab = ({
     vore_enable_pref,
     vore_overlays,
     vore_overlay_options,
+    // Tattoo/Bodywriting pref
+    allow_bodywriting_pref,
   } = data;
 
   const renderToggle = (
@@ -242,6 +246,14 @@ export const ContentPreferencesTab = ({
                 'Vore Overlay Options',
               )}
             </>
+          )}
+
+          {/* Tattoo/Bodywriting Preference */}
+          {renderToggle(
+            'allow_bodywriting_pref',
+            allow_bodywriting_pref,
+            'Allow Bodywriting',
+            'Allow other players to apply tattoos and bodywriting to your character',
           )}
         </>
       )}
