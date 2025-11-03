@@ -12,7 +12,6 @@
 
 	if(H?.body_tattoos)
 		tattoos_to_save = H.body_tattoos.Copy()
-	else
 
 	// Convert to saveable format
 	var/list/tattoo_data = list()
@@ -44,7 +43,6 @@
 	// Check if we have tattoo data in features
 	var/has_tattoo_data = features && features["tattoos_data"]
 
-
 	if(!has_tattoo_data)
 		features["tattoos"] = list()
 		features["tattoos_data"] = list()
@@ -57,10 +55,8 @@
 		features["tattoos_data"] = list()
 		return
 
-
 	// Convert loaded data back to tattoo datums
 	var/list/loaded_tattoos = list()
-	var/successful_loads = 0
 
 	for(var/i in 1 to length(tattoo_data))
 		var/list/tattoo_info = tattoo_data[i]
@@ -105,7 +101,6 @@
 		T.date_applied = sanitize_text(date_applied)
 
 		loaded_tattoos += T
-		successful_loads++
 
 	// Store in features
 	features["tattoos"] = loaded_tattoos
@@ -130,18 +125,8 @@
 
 	// Apply tattoos to mob
 	character.body_tattoos = tattoos_to_apply.Copy()
-
-	// Verify application - check each tattoo individually
-	for(var/datum/tattoo/T as anything in character.body_tattoos)
-		// Test the body part
-		var/body_part_define = T.body_part
-		// Test if body part exists on mob
-		var/body_part_exists = body_part_exists(character, body_part_define)
-
-		// Test visibility immediately
-		var/visible = T.is_visible(character, character)
-
 	character.regenerate_icons()
+
 // =====================
 // PREFERENCE SYSTEM INTEGRATION
 // =====================
