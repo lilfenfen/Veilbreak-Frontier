@@ -191,27 +191,61 @@
     world.log << "DEBUG CONVERSION: Converting '[description]' (lower: '[lower_description]')"
 
     switch(lower_description)
-        if("head") return BODY_ZONE_HEAD
-        if("chest") return BODY_ZONE_CHEST
-        if("left arm") return BODY_ZONE_L_ARM
-        if("right arm") return BODY_ZONE_R_ARM
-        if("left leg") return BODY_ZONE_L_LEG
-        if("right leg") return BODY_ZONE_R_LEG
-        if("left hand") return BODY_ZONE_PRECISE_L_HAND
-        if("right hand") return BODY_ZONE_PRECISE_R_HAND
-        if("left foot") return BODY_ZONE_PRECISE_L_FOOT
-        if("right foot") return BODY_ZONE_PRECISE_R_FOOT
-        if("groin area", "groin") return BODY_ZONE_PRECISE_GROIN
+        if("head")
+            world.log << "DEBUG CONVERSION: Matched 'head' to BODY_ZONE_HEAD"
+            return BODY_ZONE_HEAD
+        if("chest")
+            world.log << "DEBUG CONVERSION: Matched 'chest' to BODY_ZONE_CHEST"
+            return BODY_ZONE_CHEST
+        if("left arm")
+            world.log << "DEBUG CONVERSION: Matched 'left arm' to BODY_ZONE_L_ARM"
+            return BODY_ZONE_L_ARM
+        if("right arm")
+            world.log << "DEBUG CONVERSION: Matched 'right arm' to BODY_ZONE_R_ARM"
+            return BODY_ZONE_R_ARM
+        if("left leg")
+            world.log << "DEBUG CONVERSION: Matched 'left leg' to BODY_ZONE_L_LEG"
+            return BODY_ZONE_L_LEG
+        if("right leg")
+            world.log << "DEBUG CONVERSION: Matched 'right leg' to BODY_ZONE_R_LEG"
+            return BODY_ZONE_R_LEG
+        if("left hand")
+            world.log << "DEBUG CONVERSION: Matched 'left hand' to BODY_ZONE_PRECISE_L_HAND"
+            return BODY_ZONE_PRECISE_L_HAND
+        if("right hand")
+            world.log << "DEBUG CONVERSION: Matched 'right hand' to BODY_ZONE_PRECISE_R_HAND"
+            return BODY_ZONE_PRECISE_R_HAND
+        if("left foot")
+            world.log << "DEBUG CONVERSION: Matched 'left foot' to BODY_ZONE_PRECISE_L_FOOT"
+            return BODY_ZONE_PRECISE_L_FOOT
+        if("right foot")
+            world.log << "DEBUG CONVERSION: Matched 'right foot' to BODY_ZONE_PRECISE_R_FOOT"
+            return BODY_ZONE_PRECISE_R_FOOT
+        if("groin area", "groin")
+            world.log << "DEBUG CONVERSION: Matched '[lower_description]' to BODY_ZONE_PRECISE_GROIN"
+            return BODY_ZONE_PRECISE_GROIN
         // REVERSE ORGAN MAPPINGS
-        if("stomach", "belly") return ORGAN_SLOT_BELLY
+        if("stomach", "belly")
+            world.log << "DEBUG CONVERSION: Matched '[lower_description]' to ORGAN_SLOT_BELLY"
+            return ORGAN_SLOT_BELLY
         if("backside", "butt", "ass", "rear")
-            world.log << "DEBUG CONVERSION: Matched 'butt' to ORGAN_SLOT_BUTT"
-            return ORGAN_SLOT_BUTT
-        if("tail") return ORGAN_SLOT_EXTERNAL_TAIL
-        if("spine ridge", "spines") return ORGAN_SLOT_EXTERNAL_SPINES
-        if("head frills", "frills") return ORGAN_SLOT_EXTERNAL_FRILLS
-        if("horns") return ORGAN_SLOT_EXTERNAL_HORNS
-        if("wings", "wing membranes") return ORGAN_SLOT_EXTERNAL_WINGS
+            world.log << "DEBUG CONVERSION: Matched '[lower_description]' to ORGAN_SLOT_BUTT"
+            return ORGAN_SLOT_BUTT  // ← THIS WAS MISSING THE RETURN!
+        if("tail")
+            world.log << "DEBUG CONVERSION: Matched 'tail' to ORGAN_SLOT_EXTERNAL_TAIL"
+            return ORGAN_SLOT_EXTERNAL_TAIL
+        if("spine ridge", "spines")
+            world.log << "DEBUG CONVERSION: Matched '[lower_description]' to ORGAN_SLOT_EXTERNAL_SPINES"
+            return ORGAN_SLOT_EXTERNAL_SPINES
+        if("head frills", "frills")
+            world.log << "DEBUG CONVERSION: Matched '[lower_description]' to ORGAN_SLOT_EXTERNAL_FRILLS"
+            return ORGAN_SLOT_EXTERNAL_FRILLS
+        if("horns")
+            world.log << "DEBUG CONVERSION: Matched 'horns' to ORGAN_SLOT_EXTERNAL_HORNS"
+            return ORGAN_SLOT_EXTERNAL_HORNS
+        if("wings", "wing membranes")
+            world.log << "DEBUG CONVERSION: Matched '[lower_description]' to ORGAN_SLOT_EXTERNAL_WINGS"
+            return ORGAN_SLOT_EXTERNAL_WINGS
         else
             // Try to parse as a body zone define
             if(description in GLOB.tattooable_body_parts)
