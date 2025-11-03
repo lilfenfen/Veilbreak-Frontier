@@ -122,7 +122,11 @@ const DesignTattooStep = (props) => {
     selected_layer = 2,
   } = data;
 
-  const canApply = tattoo_name.trim() !== '' && tattoo_desc.trim() !== '';
+  const canApply =
+    tattoo_name &&
+    tattoo_name.trim() !== '' &&
+    tattoo_desc &&
+    tattoo_desc.trim() !== '';
 
   return (
     <Window width={500} height={600}>
