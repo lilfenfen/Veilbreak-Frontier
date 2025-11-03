@@ -38,18 +38,11 @@
 
 /mob/living/carbon/human/proc/get_visible_tattoos(mob/viewer)
     . = list()
-    world.log << "=== GET VISIBLE TATTOOS DEBUG ==="
-    world.log << "DEBUG: Checking [length(body_tattoos)] total tattoos on [src]"
-
     for(var/datum/tattoo/T as anything in body_tattoos)
-        world.log << "DEBUG: Checking tattoo: [T.design] on [T.body_part]"
         var/visible = T.is_visible(viewer, src)
-        world.log << "DEBUG: Tattoo [T.design] visible: [visible]"
         if(visible)
             . += T
-            world.log << "DEBUG: Added tattoo [T.design] to visible list"
 
-    world.log << "DEBUG: Total visible tattoos: [length(.)]"
     . = sortTim(., GLOBAL_PROC_REF(cmp_tattoo_layer_asc))
 
 /mob/living/carbon/human/proc/can_see_own_tattoo(body_zone)
@@ -66,8 +59,6 @@
 	. = ..()
 
 	var/list/visible_tattoos = get_visible_tattoos(user)
-	world.log << "=== HUMAN EXAMINE DEBUG ==="
-	world.log << "DEBUG: Found [length(visible_tattoos)] visible tattoos on [src]"
 
 	if(length(visible_tattoos))
 		. += span_notice("<b>Visible Tattoos:</b>")
@@ -75,9 +66,7 @@
 			var/tattoo_text = T.get_examine_text(user, src)
 			if(tattoo_text)
 				. += " [tattoo_text]" // Indented bullet points
-				world.log << "DEBUG: Added tattoo text to examine: [tattoo_text]"
 			else
-				world.log << "DEBUG: No tattoo text returned for [T.design]"
 
 
 // Verb for players to check their own tattoos
@@ -100,10 +89,7 @@
 
 /mob/living/carbon/human/Login()
 	. = ..()
-	world.log << "=== HUMAN LOGIN ==="
-	world.log << "DEBUG: [src] logged in, client: [client], prefs: [client?.prefs]"
 
 	// Manual tattoo application if hooks aren't working
 	if(client?.prefs && !length(body_tattoos))
-		world.log << "DEBUG: Manually applying tattoos on login"
 		client.prefs.apply_tattoos_to_mob(src)

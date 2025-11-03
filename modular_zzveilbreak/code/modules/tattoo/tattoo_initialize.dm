@@ -11,8 +11,6 @@
     if(!GLOB.preference_entries[/datum/preference/toggle/allow_bodywriting])
         GLOB.preference_entries[/datum/preference/toggle/allow_bodywriting] = new /datum/preference/toggle/allow_bodywriting
 
-    world.log << "Tattoo system initialized successfully"
-
 /world/New()
     ..()
     addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(initialize_tattoo_system)), 0)
