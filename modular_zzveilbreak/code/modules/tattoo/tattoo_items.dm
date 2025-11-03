@@ -71,6 +71,8 @@
 	data["ink_color"] = ink_color
 	data["selected_zone"] = selected_zone
 	data["current_step"] = current_step
+
+	// ADD THESE LINES - Include the tattoo data in the UI
 	data["tattoo_name"] = tattoo_name
 	data["tattoo_desc"] = tattoo_desc
 	data["selected_layer"] = selected_layer
@@ -140,19 +142,24 @@
 
 		if("update_tattoo_name")
 			tattoo_name = params["name"]
-			// Force UI update by sending data immediately
+			// Force immediate UI update
 			SStgui.update_uis(src)
 			. = TRUE
 
 		if("update_tattoo_desc")
 			tattoo_desc = params["desc"]
-			// Force UI update by sending data immediately
+			// Force immediate UI update
 			SStgui.update_uis(src)
 			. = TRUE
 
 		if("update_tattoo_layer")
 			selected_layer = text2num(params["layer"])
-			// Force UI update by sending data immediately
+			// Force immediate UI update
+			SStgui.update_uis(src)
+			. = TRUE
+
+		if("refresh_ui")
+			// Just refresh the UI without changing anything
 			SStgui.update_uis(src)
 			. = TRUE
 
@@ -161,7 +168,11 @@
 			var/apply_desc = tattoo_desc
 			var/apply_layer = selected_layer
 
-			if(!apply_name || apply_name == "" || !apply_desc || apply_desc == "")
+			// Debug output
+			to_chat(usr, "<span class='notice'>DEBUG: Applying tattoo - Name: '[apply_name]', Desc: '[apply_desc]', Layer: [apply_layer]</span>")
+
+			// FIX: Remove .trim() - just check if strings have content
+			if(!apply_name || length(apply_name) == 0 || !apply_desc || length(apply_desc) == 0)
 				to_chat(usr, "<span class='warning'>Please fill in both the name and description!</span>")
 				return
 
