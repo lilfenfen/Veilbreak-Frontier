@@ -11,7 +11,6 @@
     if(!GLOB.preference_entries[/datum/preference/toggle/allow_bodywriting])
         GLOB.preference_entries[/datum/preference/toggle/allow_bodywriting] = new /datum/preference/toggle/allow_bodywriting
 
-    // The proc overrides in tattoo_persistence.dm will automatically take effect
     world.log << "Tattoo system initialized successfully"
 
 /world/New()

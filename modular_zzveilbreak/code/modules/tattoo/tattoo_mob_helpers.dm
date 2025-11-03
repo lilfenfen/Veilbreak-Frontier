@@ -2,7 +2,7 @@
     var/list/datum/tattoo/body_tattoos = list()
 
 /mob/living/carbon/human/proc/add_tattoo(datum/tattoo/new_tattoo)
-    if(!new_tattoo || !istype(new_tattoo) || (new_tattoo in body_tattoos))
+    if(!new_tattoo || QDELETED(new_tattoo) || !istype(new_tattoo))
         return FALSE
 
     if(!is_valid_tattoo_bodypart(new_tattoo.body_part))
@@ -54,8 +54,8 @@
 
     var/list/visible_tattoos = get_visible_tattoos(user)
     if(length(visible_tattoos))
-        . += "<span class='notice'>They have visible tattoos:</span>"
+        . += "<span class='notice'><b>Visible Tattoos:</b></span>"
         for(var/datum/tattoo/T as anything in visible_tattoos)
             var/tattoo_text = T.get_examine_text(user, src)
             if(tattoo_text)
-                . += tattoo_text
+                . += " • [tattoo_text]" // Indented bullet points
