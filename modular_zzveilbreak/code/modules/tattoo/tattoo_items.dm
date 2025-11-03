@@ -118,9 +118,9 @@
 			if(!zone || !body_part_exists(current_target, zone))
 				return
 
-			// Check if body part is exposed - APPLIES TO EVERYONE INCLUDING SELF
+			// STRICT coverage check - no exceptions
 			if(is_bodypart_covered(current_target, zone, usr))
-				to_chat(usr, span_warning("[current_target == usr ? "Your" : "[current_target]'s"] [get_body_zone_display_name(zone)] is covered! Expose it first."))
+				to_chat(usr, span_warning("[current_target == usr ? "Your" : "[current_target]'s"] [get_body_zone_display_name(zone)] is covered by clothing! Expose it first."))
 				return
 
 			// Check tattoo limit
@@ -131,28 +131,6 @@
 
 			selected_zone = zone
 			current_step = "design_tattoo"
-			. = TRUE
-
-		if("update_artist_name")
-			var/name = params["name"]
-			artist_name = sanitize(name, max_length = 50)
-			if(!artist_name || artist_name == "")
-				artist_name = "Unknown Artist"
-			SStgui.update_uis(src)
-			. = TRUE
-
-		if("update_tattoo_design")
-			var/design = params["design"]
-			tattoo_design = sanitize(design, max_length = 500)
-			if(!tattoo_design || tattoo_design == "")
-				tattoo_design = "An intricate design"
-			SStgui.update_uis(src)
-			. = TRUE
-
-		if("update_tattoo_layer")
-			var/layer = text2num(params["layer"])
-			selected_layer = clamp(layer, 1, 3)
-			SStgui.update_uis(src)
 			. = TRUE
 
 		if("apply_tattoo")
@@ -174,9 +152,9 @@
 			if(!apply_design || apply_design == "")
 				apply_design = "An intricate design"
 
-			// Verify body part is still accessible
+			// STRICT FINAL CHECK - cannot proceed if covered
 			if(is_bodypart_covered(current_target, selected_zone, usr))
-				to_chat(usr, span_warning("[current_target == usr ? "Your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)] is now covered! Aborting."))
+				to_chat(usr, span_warning("[current_target == usr ? "Your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)] became covered! Aborting."))
 				current_step = "select_part"
 				artist_name = ""
 				tattoo_design = ""
@@ -191,7 +169,7 @@
 			to_chat(usr, span_notice("You begin carefully applying the tattoo to [current_target == usr ? "your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)]..."))
 
 			if(do_after(usr, 8 SECONDS, target = current_target))
-				// One final check
+				// ONE FINAL CHECK - clothing could have been put on during the delay
 				if(is_bodypart_covered(current_target, selected_zone, usr))
 					to_chat(usr, span_warning("The body part became covered during application! Tattoo failed."))
 					return
@@ -225,27 +203,12 @@
 			selected_layer = 2
 			. = TRUE
 
-		if("change_ink_color")
-			var/new_color = input(usr, "Choose ink color:", "Tattoo Kit", ink_color) as color|null
-			if(new_color)
-				ink_color = sanitize_hexcolor(new_color, default = "#000000")
-				to_chat(usr, span_notice("You change the ink color to [new_color]."))
-			. = TRUE
-
-		if("back_to_selection")
-			current_step = "select_part"
-			artist_name = ""
-			tattoo_design = ""
-			selected_layer = 2
-			. = TRUE
-
-	return TRUE
-
 // Helper proc to check if a bodypart is covered by clothing
 /proc/is_bodypart_covered(mob/living/carbon/human/target, body_zone, mob/user)
-	if(user == target)
-		return FALSE // Always accessible to self
+	if(!target || !body_zone)
+		return TRUE
 
+	// Create a temporary tattoo to use its visibility checking
 	var/datum/tattoo/temp_tattoo = new("temp", "temp", body_zone)
 	var/covered = temp_tattoo.is_hidden_by_clothes(target, user)
 	qdel(temp_tattoo)

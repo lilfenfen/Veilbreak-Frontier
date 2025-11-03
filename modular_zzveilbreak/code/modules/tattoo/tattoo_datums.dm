@@ -22,7 +22,16 @@
     if(!is_visible(viewer, victim))
         return ""
 
-    return "<span style='color:[color]'>- \"[design]\" (by [artist])</span>"
+    // Make sure we have valid text
+    var/display_design = design
+    if(!display_design || display_design == "")
+        display_design = "an intricate design"
+
+    var/display_artist = artist
+    if(!display_artist || display_artist == "")
+        display_artist = "an unknown artist"
+
+    return "<span style='color:[color]'>- \"[display_design]\" (by [display_artist])</span>"
 
 /datum/tattoo/proc/is_visible(mob/viewer, mob/living/carbon/human/victim)
     if(!victim || !viewer)
@@ -39,33 +48,60 @@
     return !is_hidden_by_clothes(victim, viewer)
 
 /datum/tattoo/proc/is_hidden_by_clothes(mob/living/carbon/human/target_mob, mob/viewer)
-    var/obj/item/bodypart/BP = target_mob.get_bodypart(body_part)
-    if(!BP)
-        return TRUE
+	if(!target_mob)
+		return TRUE
 
-    var/check_flags = body_zone_to_flag(body_part)
-    if(!check_flags)
-        return FALSE // If we can't map it to a flag, assume it's visible
+	var/obj/item/bodypart/BP = target_mob.get_bodypart(body_part)
+	if(!BP)
+		return TRUE
 
-    // Check clothing coverage - NO EXCEPTIONS FOR SELF
-    if(target_mob.w_uniform && (target_mob.w_uniform.body_parts_covered & check_flags))
-        return TRUE
-    if(target_mob.wear_suit && (target_mob.wear_suit.body_parts_covered & check_flags))
-        return TRUE
+	var/check_flags = body_zone_to_flag(body_part)
+	if(!check_flags)
+		return FALSE // If we can't map it to a flag, assume it's visible
 
-    // Special case for hospital gown
-    if(istype(target_mob.wear_suit, /obj/item/clothing/suit/toggle/labcoat/hospitalgown))
-        return TRUE
+	// STRICT clothing check - NO EXCEPTIONS
+	// Check all possible clothing layers
 
-    // SPLURT EDIT - Extra Inventory compatibility
-    if(target_mob.w_shirt && !target_mob.undershirt_hidden() && (target_mob.w_shirt.body_parts_covered & check_flags))
-        return TRUE
-    if(target_mob.w_bra && !target_mob.bra_hidden() && (target_mob.w_bra.body_parts_covered & check_flags))
-        return TRUE
-    if(target_mob.w_underwear && !target_mob.underwear_hidden() && (target_mob.w_underwear.body_parts_covered & check_flags))
-        return TRUE
+	// Outer suit coverage
+	if(target_mob.wear_suit)
+		if(target_mob.wear_suit.body_parts_covered & check_flags)
+			return TRUE
+		// Check if suit has flags that might cover the area
+		if(target_mob.wear_suit.flags_inv & HIDEJUMPSUIT)
+			if(check_flags & (CHEST|GROIN|ARMS|LEGS))
+				return TRUE
 
-    return FALSE
+	// Uniform coverage
+	if(target_mob.w_uniform)
+		if(target_mob.w_uniform.body_parts_covered & check_flags)
+			return TRUE
+
+	// Special cases for specific clothing types
+	if(istype(target_mob.wear_suit, /obj/item/clothing/suit/toggle/labcoat/hospitalgown))
+		return TRUE
+
+	// Additional clothing layers (SPLURT EDIT compatibility)
+	if(target_mob.w_shirt && !target_mob.undershirt_hidden())
+		if(target_mob.w_shirt.body_parts_covered & check_flags)
+			return TRUE
+
+	if(target_mob.w_underwear && !target_mob.underwear_hidden())
+		if(target_mob.w_underwear.body_parts_covered & check_flags)
+			return TRUE
+
+	// Gloves for hands
+	if((check_flags & (HAND_LEFT|HAND_RIGHT)) && target_mob.gloves)
+		return TRUE
+
+	// Shoes for feet
+	if((check_flags & (FOOT_LEFT|FOOT_RIGHT)) && target_mob.shoes)
+		return TRUE
+
+	// Headwear for head
+	if((check_flags & HEAD) && target_mob.head)
+		return TRUE
+
+	return FALSE
 
 /proc/body_zone_to_flag(body_zone)
     switch(body_zone)
