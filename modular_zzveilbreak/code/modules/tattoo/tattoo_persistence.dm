@@ -1,226 +1,158 @@
 // Tattoo Persistence System
 // Handles saving and loading tattoos between rounds
 
-/// Saves tattoo data to preferences
-/datum/preferences/proc/save_tattoo_data(list/save_data)
-    if(!features)
-        features = list()
+/// Saves tattoo data to preferences - called from various places
+/datum/preferences/proc/save_tattoo_data()
+	if(!features)
+		features = list()
 
-    // Initialize the keys if they don't exist
-    if(!("tattoos" in features))
-        features["tattoos"] = list()
-    if(!("tattoos_data" in features))
-        features["tattoos_data"] = list()
+	// Convert current mob tattoos to save format, or use existing features data
+	var/list/tattoos_to_save = list()
+	var/mob/living/carbon/human/H = parent?.mob
 
-    // Get tattoos from current mob if available
-    var/mob/living/carbon/human/H = parent?.mob
-    var/list/tattoos_to_save = list()
+	if(H?.body_tattoos)
+		// Save from current mob
+		tattoos_to_save = H.body_tattoos.Copy()
+	else if(features["tattoos"])
+		// Save from features cache
+		tattoos_to_save = features["tattoos"].Copy()
 
-    if(H?.body_tattoos)
-        tattoos_to_save = H.body_tattoos.Copy()
+	// Convert to saveable format
+	var/list/tattoo_data = list()
+	for(var/datum/tattoo/T as anything in tattoos_to_save)
+		if(istype(T) && !QDELETED(T))
+			var/body_part_description = get_specific_body_part_description(T.body_part)
 
-    // Convert tattoos to saveable format
-    var/list/tattoo_data = list()
-    for(var/datum/tattoo/T as anything in tattoos_to_save)
-        if(istype(T) && !QDELETED(T))
-            var/body_part_description = get_specific_body_part_description(T.body_part)
+			tattoo_data += list(list(
+				"artist" = T.artist,
+				"design" = T.design,
+				"body_part" = body_part_description,
+				"color" = T.color,
+				"date_applied" = T.date_applied,
+				"layer" = T.layer
+			))
 
-            tattoo_data += list(list(
-                "artist" = T.artist,
-                "design" = T.design,
-                "body_part" = body_part_description,
-                "color" = T.color,
-                "date_applied" = T.date_applied,
-                "layer" = T.layer
-            ))
+	// Store in features for persistence
+	features["tattoos_data"] = tattoo_data
+	features["tattoos"] = tattoos_to_save
 
-    // Store in features
-    features["tattoos_data"] = tattoo_data
+	// Save to file
+	save_character()
 
-    // Also store in save_data if provided
-    if(save_data)
-        save_data["tattoos_data"] = tattoo_data
+/// Loads tattoo data from preferences - called during character setup
+/datum/preferences/proc/load_tattoo_data()
+	if(!features)
+		features = list()
 
-    // Save character
-    save_character()
+	// Get data from features (loaded from save file)
+	var/list/tattoo_data = features["tattoos_data"]
 
-// Legacy support
-/datum/preferences/proc/save_tattoos_data(list/save_data)
-    save_tattoo_data(save_data)
+	if(!tattoo_data || !islist(tattoo_data))
+		// Initialize empty
+		features["tattoos"] = list()
+		features["tattoos_data"] = list()
+		return
 
-/// Loads tattoo data from preferences
-/datum/preferences/proc/load_tattoo_data(list/save_data)
-    if(!features)
-        features = list()
+	// Convert loaded data back to tattoo datums
+	var/list/loaded_tattoos = list()
 
-    // Initialize the keys if they don't exist
-    if(!("tattoos" in features))
-        features["tattoos"] = list()
-    if(!("tattoos_data" in features))
-        features["tattoos_data"] = list()
+	for(var/list/tattoo_info as anything in tattoo_data)
+		if(!islist(tattoo_info))
+			continue
 
-    var/list/tattoo_data
+		var/artist = tattoo_info["artist"] || "Unknown Artist"
+		var/design = tattoo_info["design"] || "An intricate design"
+		var/body_part_string = tattoo_info["body_part"]
+		var/color = tattoo_info["color"] || "#000000"
+		var/layer = tattoo_info["layer"] || 2
+		var/date_applied = tattoo_info["date_applied"] || time2text(world.realtime, "YYYY-MM-DD")
 
-    // Try to get data from save_data first, then features
-    if(save_data && ("tattoos_data" in save_data))
-        tattoo_data = save_data["tattoos_data"]
-    else if("tattoos_data" in features)
-        tattoo_data = features["tattoos_data"]
-    else
-        return
+		if(!body_part_string)
+			continue
 
-    if(!islist(tattoo_data))
-        return
+		// Convert body part string back to define
+		var/body_part_define = get_standardized_body_part(body_part_string)
 
-    // Convert loaded data back to tattoo datums
-    var/list/loaded_tattoos = list()
+		if(!body_part_define || !is_valid_tattoo_bodypart(body_part_define))
+			continue
 
-    for(var/list/tattoo_info as anything in tattoo_data)
-        if(!islist(tattoo_info))
-            continue
+		// Create the tattoo datum - FIXED: Use correct sanitize function parameters
+		var/datum/tattoo/T = new(
+			sanitize_text(artist, "Unknown Artist"),
+			sanitize_text(design, "An intricate design"),
+			body_part_define,
+			sanitize_hexcolor(color, 6, TRUE, "#000000"), // Correct parameters: color, desired_format, include_crunch, default
+			sanitize_integer(layer, 1, 3, 2) // min=1, max=3, default=2
+		)
+		T.date_applied = sanitize_text(date_applied, time2text(world.realtime, "YYYY-MM-DD"))
 
-        // Extract data
-        var/artist = tattoo_info["artist"] || "Unknown Artist"
-        var/design = tattoo_info["design"] || "An intricate design"
-        var/body_part_string = tattoo_info["body_part"]
-        var/color = tattoo_info["color"] || "#000000"
-        var/layer = tattoo_info["layer"] || 2
-        var/date_applied = tattoo_info["date_applied"] || time2text(world.realtime, "YYYY-MM-DD")
+		loaded_tattoos += T
 
-        if(!body_part_string)
-            continue
+	// Store in features
+	features["tattoos"] = loaded_tattoos
 
-        // Convert body part string back to define
-        var/body_part_define = get_standardized_body_part(body_part_string)
-
-        if(!body_part_define || !is_valid_tattoo_bodypart(body_part_define))
-            continue
-
-        // Create the tattoo datum
-        var/datum/tattoo/T = new(
-            sanitize_text(artist, "Unknown Artist"),
-            sanitize_text(design, "An intricate design"),
-            body_part_define,
-            sanitize_hexcolor(color, "#000000"),
-            sanitize_integer(layer, 1, 3, 2)
-        )
-        T.date_applied = sanitize_text(date_applied, time2text(world.realtime, "YYYY-MM-DD"))
-
-        loaded_tattoos += T
-
-    // Store the loaded tattoos
-    features["tattoos"] = loaded_tattoos
-
-// Legacy support
-/datum/preferences/proc/load_tattoos_data(list/save_data)
-    load_tattoo_data(save_data)
-
-/// Applies saved tattoos to a mob
+/// Applies saved tattoos to a mob - called when mob is created
 /datum/preferences/proc/apply_tattoos_to_mob(mob/living/carbon/human/character)
-    if(!istype(character) || !features)
-        return
+	if(!istype(character))
+		return
 
-    // Initialize the keys if they don't exist
-    if(!("tattoos" in features))
-        features["tattoos"] = list()
-    if(!("tattoos_data" in features))
-        features["tattoos_data"] = list()
+	if(!features || !features["tattoos"])
+		// Ensure we have data loaded
+		load_tattoo_data()
 
-    // Ensure we have loaded tattoo data
-    if(!length(features["tattoos"]))
-        load_tattoo_data()
+	var/list/tattoos_to_apply = features["tattoos"]
 
-    var/list/tattoos_to_apply = features["tattoos"]
+	if(!tattoos_to_apply || !islist(tattoos_to_apply))
+		character.body_tattoos = list()
+		return
 
-    if(!islist(tattoos_to_apply))
-        character.body_tattoos = list()
-        return
-
-    // Clear existing tattoos and apply new ones
-    character.body_tattoos = list()
-
-    for(var/datum/tattoo/T as anything in tattoos_to_apply)
-        if(istype(T) && !QDELETED(T))
-            character.body_tattoos += T
-
-    character.regenerate_icons()
+	// Apply tattoos to mob
+	character.body_tattoos = tattoos_to_apply.Copy()
+	character.regenerate_icons()
 
 // =====================
-// HOOKS
+// PREFERENCE SYSTEM INTEGRATION
 // =====================
 
-/// Hook to load tattoos when preferences are loaded
+/// Called when preferences are loaded
+/datum/preferences/proc/load_tattoos()
+	load_tattoo_data()
+
+/// Called when preferences are saved
+/datum/preferences/proc/save_tattoos()
+	save_tattoo_data()
+
+// =====================
+// HOOKS - THESE ARE CRITICAL
+// =====================
+
+/// Hook when character is set up in preferences
 /hook/character_setup/proc/load_character_tattoos(datum/preferences/prefs)
-    if(istype(prefs))
-        prefs.load_tattoo_data()
-        return TRUE
-    return FALSE
+	if(istype(prefs))
+		prefs.load_tattoo_data()
+		return TRUE
+	return FALSE
 
-/// Hook to apply tattoos when a new human mob is created
+/// Hook when new mob is created
 /hook/mob_new/proc/apply_saved_tattoos(mob/living/carbon/human/H)
-    if(istype(H) && H.client?.prefs)
-        H.client.prefs.apply_tattoos_to_mob(H)
-        return TRUE
-    return FALSE
-
-// =====================
-// MANAGEMENT TOOLS
-// =====================
-
-/// Clears all tattoos from preferences
-/datum/preferences/proc/clear_all_tattoos()
-    if(!features)
-        features = list()
-
-    features["tattoos"] = list()
-    features["tattoos_data"] = list()
-
-    // Clear from current mob
-    var/mob/living/carbon/human/H = parent?.mob
-    if(istype(H))
-        H.body_tattoos = list()
-        H.regenerate_icons()
-
-    save_character()
-
-/// Gets all tattoos for a specific body part
-/datum/preferences/proc/get_tattoos_for_bodypart(body_zone)
-    if(!features || !body_zone)
-        return list()
-
-    if(!("tattoos" in features))
-        features["tattoos"] = list()
-
-    var/list/result = list()
-    for(var/datum/tattoo/T as anything in features["tattoos"])
-        if(T.body_part == body_zone)
-            result += T
-
-    return result
-
-/// Counts total tattoos across all body parts
-/datum/preferences/proc/count_total_tattoos()
-    if(!features)
-        return 0
-
-    if(!("tattoos" in features))
-        features["tattoos"] = list()
-
-    return length(features["tattoos"])
+	if(istype(H) && H.client?.prefs)
+		H.client.prefs.apply_tattoos_to_mob(H)
+		return TRUE
+	return FALSE
 
 // =====================
 // COMPATIBILITY WRAPPERS
 // =====================
 
-/datum/preferences/proc/save_tattoos_modular(list/save_data)
-    save_tattoo_data(save_data)
+// Legacy support for different call patterns
+/datum/preferences/proc/save_tattoos_data()
+	save_tattoo_data()
 
-/datum/preferences/proc/load_tattoos_modular(list/save_data)
-    load_tattoo_data(save_data)
+/datum/preferences/proc/load_tattoos_data()
+	load_tattoo_data()
 
-// =====================
-// INITIALIZATION
-// =====================
+/datum/preferences/proc/save_tattoos_modular()
+	save_tattoo_data()
 
-/hook/roundstart/proc/initialize_tattoo_persistence()
-    return TRUE
+/datum/preferences/proc/load_tattoos_modular()
+	load_tattoo_data()
