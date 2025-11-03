@@ -240,36 +240,44 @@ GLOBAL_LIST_EMPTY(void_tile_cooldowns)
 	gas_path = /datum/gas/delirium
 	heat_modifier = 15
 	power_transmission = 6
-	heat_power_generation = 1
+	heat_power_generation = 1.7
 	powerloss_inhibition = 2
 	desc = "Strong fuel with unknown properties. Be extremely careful while testing."
 
 GLOBAL_LIST_EMPTY(delirium_warnings)
 
 /datum/sm_gas/delirium/proc/transform_and_summon(obj/machinery/power/supermatter_crystal/sm)
-	if(QDELETED(sm) || sm.gas_percentage[/datum/gas/delirium] <= 0.2)
+	if(QDELETED(sm) || sm.gas_percentage[/datum/gas/delirium] <= 0.1)
 		return
 
-	var/list/possible_turfs = list()
-	for(var/turf/open/floor/floor in range(8, sm)) // Find potential tiles to transform
-		if(get_dist(floor, sm) > 3 && !istype(floor, /turf/open/floor/void_tile))
-			possible_turfs += floor
+	var/turf/open/floor/target_turf
+	// Iterate from the closest distance outwards to the max range to find a tile to convert.
+	for(var/dist in 4 to 8)
+		var/list/possible_turfs_at_dist = list()
+		for(var/turf/open/floor/floor in range(dist, sm))
+			if(get_dist(floor, sm) == dist && !istype(floor, /turf/open/floor/void_tile))
+				possible_turfs_at_dist += floor
 
-	if(length(possible_turfs))
-		var/turf/open/floor/target_turf = pick(possible_turfs)
+		if(length(possible_turfs_at_dist))
+			target_turf = pick(possible_turfs_at_dist)
+			break // Found a tile at the closest possible distance, so we stop searching.
+
+	if(target_turf)
 		target_turf.ChangeTurf(/turf/open/floor/void_tile, flags = CHANGETURF_INHERIT_AIR)
 
-		var/mob_type = pick(/mob/living/simple_animal/hostile/Voidling, /mob/living/simple_animal/hostile/Consumed_Pathfinder, /mob/living/simple_animal/hostile/Voidbug, /mob/living/simple_animal/hostile/Void_Healer)
-		new mob_type(target_turf)
+		if(prob(25))
+			var/mob_type = pick(/mob/living/simple_animal/hostile/Voidling, /mob/living/simple_animal/hostile/Consumed_Pathfinder, /mob/living/simple_animal/hostile/Voidbug, /mob/living/simple_animal/hostile/Void_Healer)
+			new mob_type(target_turf)
 
 		// Schedule the next transformation and summon
 		addtimer(CALLBACK(src, PROC_REF(transform_and_summon), sm), 5 SECONDS)
 
 /datum/sm_gas/delirium/extra_effects(obj/machinery/power/supermatter_crystal/sm)
-	if(sm.gas_percentage[/datum/gas/delirium] > 0.2)
+	if(sm.gas_percentage[/datum/gas/delirium] > 0.1)
 		if(!GLOB.delirium_warnings[sm])
 			for(var/mob/M in range(150, sm)) // Wide range warning
 				to_chat(M, span_warning("The fabric of reality shudders as the Void begins to manifest around the supermatter!"))
+				to_chat(M, )
 			GLOB.delirium_warnings[sm] = world.time
 			// Start the transformation and summoning loop
 			INVOKE_ASYNC(src, PROC_REF(transform_and_summon), sm)
