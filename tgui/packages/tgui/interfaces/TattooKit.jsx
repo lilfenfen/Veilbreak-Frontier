@@ -42,28 +42,22 @@ export const TattooKit = (props) => {
               </Box>
             </LabeledList.Item>
             <LabeledList.Item label="Ink Color">
-              <Flex align="center">
-                <Flex.Item>
-                  <Button
-                    icon="palette"
-                    content="Change Color"
-                    onClick={() => act('change_ink_color')}
-                  />
-                </Flex.Item>
-                <Flex.Item ml={1}>
-                  <Box
-                    style={{
-                      display: 'inline-block',
-                      width: '24px',
-                      height: '24px',
-                      backgroundColor: ink_color,
-                      border: '2px solid #000',
-                      borderRadius: '2px',
-                    }}
-                  />
-                </Flex.Item>
-                <Flex.Item ml={1}>{ink_color}</Flex.Item>
-              </Flex>
+              <Button
+                icon="palette"
+                content="Change Color"
+                onClick={() => act('change_ink_color')}
+              />
+              <Box
+                inline
+                ml={1}
+                style={{
+                  display: 'inline-block',
+                  width: '20px',
+                  height: '20px',
+                  backgroundColor: ink_color,
+                  border: '1px solid #000',
+                }}
+              />
             </LabeledList.Item>
           </LabeledList>
         </Section>
@@ -94,13 +88,8 @@ export const TattooKit = (props) => {
                           : `Apply tattoo to ${part.name}`
                   }
                 >
-                  <Flex align="center" justify="space-between">
-                    <Flex.Item>{part.name}</Flex.Item>
-                    <Flex.Item>
-                      ({part.current_tattoos}/{part.max_tattoos})
-                    </Flex.Item>
-                    <Flex.Item>{part.covered ? '🔒' : '🔓'}</Flex.Item>
-                  </Flex>
+                  {part.name} ({part.current_tattoos}/{part.max_tattoos})
+                  {part.covered ? ' 🔒' : ' 🔓'}
                 </Button>
               </Stack.Item>
             ))}
@@ -122,37 +111,11 @@ const DesignTattooStep = (props) => {
     selected_layer = 2,
   } = data;
 
-  // Simple check - if both fields have any content
   const canApply =
     tattoo_name &&
     tattoo_name.length > 0 &&
     tattoo_desc &&
     tattoo_desc.length > 0;
-
-  // Use direct onChange handlers without setTimeout
-  const handleNameChange = (e, value) => {
-    console.log('Name changed to:', value);
-    act('update_tattoo_name', { name: value });
-  };
-
-  const handleDescChange = (e, value) => {
-    console.log('Desc changed to:', value);
-    act('update_tattoo_desc', { desc: value });
-  };
-
-  const handleLayerChange = (layer) => {
-    act('update_tattoo_layer', { layer: layer });
-  };
-
-  const handleApply = () => {
-    if (canApply) {
-      act('apply_tattoo', {
-        name: tattoo_name,
-        desc: tattoo_desc,
-        layer: selected_layer,
-      });
-    }
-  };
 
   return (
     <Window width={500} height={600}>
@@ -165,117 +128,96 @@ const DesignTattooStep = (props) => {
             </Button>
           }
         >
-          <Stack vertical fill>
-            <Stack.Item>
-              <LabeledList>
-                <LabeledList.Item label="Tattoo Name">
-                  <Input
-                    fluid
-                    value={tattoo_name || ''}
-                    placeholder="Enter tattoo name..."
-                    onChange={handleNameChange}
-                  />
-                </LabeledList.Item>
-              </LabeledList>
-            </Stack.Item>
-
-            <Stack.Item grow>
-              <LabeledList>
-                <LabeledList.Item label="Description">
-                  <TextArea
-                    fluid
-                    value={tattoo_desc || ''}
-                    height="100%"
-                    placeholder="Enter tattoo description..."
-                    onChange={handleDescChange}
-                  />
-                </LabeledList.Item>
-              </LabeledList>
-            </Stack.Item>
-
-            <Stack.Item>
-              <LabeledList>
-                <LabeledList.Item label="Debug Info">
-                  <Box color="label">
-                    Name: "{tattoo_name}" (Length:{' '}
-                    {tattoo_name ? tattoo_name.length : 0})<br />
-                    Desc: "{tattoo_desc}" (Length:{' '}
-                    {tattoo_desc ? tattoo_desc.length : 0})<br />
-                    Layer: {selected_layer}
-                    <br />
-                    Can Apply: {canApply ? '✅ YES' : '❌ NO'}
-                  </Box>
-                </LabeledList.Item>
-
-                <LabeledList.Item label="Ink Color">
-                  <Flex align="center">
-                    <Flex.Item>
-                      <Button
-                        icon="palette"
-                        onClick={() => act('change_ink_color')}
-                      />
-                    </Flex.Item>
-                    <Flex.Item ml={1}>
-                      <Box
-                        style={{
-                          display: 'inline-block',
-                          width: '24px',
-                          height: '24px',
-                          backgroundColor: ink_color,
-                          border: '2px solid #000',
-                          borderRadius: '2px',
-                        }}
-                      />
-                    </Flex.Item>
-                    <Flex.Item ml={1}>{ink_color}</Flex.Item>
-                  </Flex>
-                </LabeledList.Item>
-
-                <LabeledList.Item label="Layer">
-                  <Flex>
-                    <Flex.Item>
-                      <Button
-                        selected={selected_layer === 1}
-                        onClick={() => handleLayerChange(1)}
-                      >
-                        Under Layer
-                      </Button>
-                    </Flex.Item>
-                    <Flex.Item ml={1}>
-                      <Button
-                        selected={selected_layer === 2}
-                        onClick={() => handleLayerChange(2)}
-                      >
-                        Normal Layer
-                      </Button>
-                    </Flex.Item>
-                    <Flex.Item ml={1}>
-                      <Button
-                        selected={selected_layer === 3}
-                        onClick={() => handleLayerChange(3)}
-                      >
-                        Over Layer
-                      </Button>
-                    </Flex.Item>
-                  </Flex>
-                </LabeledList.Item>
-
-                <LabeledList.Item>
-                  <Button
-                    fluid
-                    icon="check"
-                    color={canApply ? 'good' : 'default'}
-                    disabled={!canApply}
-                    onClick={handleApply}
-                  >
-                    {canApply
-                      ? `Apply: "${tattoo_name.substring(0, 20)}${tattoo_name.length > 20 ? '...' : ''}"`
-                      : 'Fill Name and Description'}
-                  </Button>
-                </LabeledList.Item>
-              </LabeledList>
-            </Stack.Item>
-          </Stack>
+          <LabeledList>
+            <LabeledList.Item label="Tattoo Name">
+              <Input
+                fluid
+                value={tattoo_name}
+                placeholder="Enter tattoo name..."
+                onChange={(value) =>
+                  act('update_tattoo_name', {
+                    name: value,
+                  })
+                }
+              />
+            </LabeledList.Item>
+            <LabeledList.Item label="Description">
+              <TextArea
+                fluid
+                value={tattoo_desc}
+                height="80px"
+                placeholder="Enter tattoo description..."
+                onChange={(value) =>
+                  act('update_tattoo_desc', {
+                    desc: value,
+                  })
+                }
+              />
+            </LabeledList.Item>
+            <LabeledList.Item label="Ink Color">
+              <Button icon="palette" onClick={() => act('change_ink_color')} />
+              <Box
+                inline
+                ml={1}
+                style={{
+                  display: 'inline-block',
+                  width: '20px',
+                  height: '20px',
+                  backgroundColor: ink_color,
+                  border: '1px solid #000',
+                }}
+              />
+            </LabeledList.Item>
+            <LabeledList.Item label="Layer">
+              <Button
+                selected={selected_layer === 1}
+                onClick={() =>
+                  act('update_tattoo_layer', {
+                    layer: 1,
+                  })
+                }
+              >
+                Under
+              </Button>
+              <Button
+                selected={selected_layer === 2}
+                onClick={() =>
+                  act('update_tattoo_layer', {
+                    layer: 2,
+                  })
+                }
+              >
+                Normal
+              </Button>
+              <Button
+                selected={selected_layer === 3}
+                onClick={() =>
+                  act('update_tattoo_layer', {
+                    layer: 3,
+                  })
+                }
+              >
+                Over
+              </Button>
+            </LabeledList.Item>
+            <LabeledList.Item>
+              <Button
+                fluid
+                icon="check"
+                color={canApply ? 'good' : 'default'}
+                disabled={!canApply}
+                onClick={() =>
+                  act('apply_tattoo', {
+                    name: tattoo_name,
+                    desc: tattoo_desc,
+                    layer: selected_layer,
+                  })
+                }
+              >
+                Apply Tattoo
+              </Button>
+            </LabeledList.Item>
+          </LabeledList>
         </Section>
       </Window.Content>
     </Window>

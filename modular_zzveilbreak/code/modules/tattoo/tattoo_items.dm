@@ -6,31 +6,41 @@
 	force = 0
 	throwforce = 0
 	w_class = WEIGHT_CLASS_SMALL
+	/// Current ink color
 	var/ink_color = "#000000"
+	/// Maximum tattoos allowed per body part
 	var/max_tattoos_per_part = 5
+	/// Current number of tattoo uses remaining
 	var/tattoo_uses = 10
+	/// Maximum tattoo uses when fully stocked
 	var/tattoo_max_uses = 50
+	/// Currently selected body zone
 	var/selected_zone = BODY_ZONE_CHEST
+	/// The mob currently being tattooed
 	var/mob/living/carbon/human/current_target
+	/// Current UI step
 	var/current_step = "select_part"
+	/// Temporary tattoo name during design
 	var/tattoo_name = ""
+	/// Temporary tattoo description during design
 	var/tattoo_desc = ""
+	/// Selected tattoo layer
 	var/selected_layer = 2
 
-/obj/item/tattoo_kit/attack(mob/living/carbon/human/M, mob/living/user)
-	if(!istype(M))
+/obj/item/tattoo_kit/attack(mob/living/carbon/human/target, mob/living/user)
+	if(!istype(target))
 		return ..()
 
 	if(tattoo_uses <= 0)
-		to_chat(user, "<span class='warning'>This tattoo kit is out of ink!</span>")
+		to_chat(user, span_warning("This tattoo kit is out of ink!"))
 		return TRUE
 
 	// Check if target allows bodywriting
-	if(!M.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
-		to_chat(user, "<span class='warning'>[M] doesn't allow bodywriting!</span>")
+	if(!target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
+		to_chat(user, span_warning("[target] doesn't allow bodywriting!"))
 		return TRUE
 
-	current_target = M
+	current_target = target
 	current_step = "select_part"
 	tattoo_name = ""
 	tattoo_desc = ""
@@ -40,7 +50,7 @@
 
 /obj/item/tattoo_kit/attack_self(mob/user)
 	if(tattoo_uses <= 0)
-		to_chat(user, "<span class='warning'>This tattoo kit is out of ink!</span>")
+		to_chat(user, span_warning("This tattoo kit is out of ink!"))
 		return
 
 	if(istype(user, /mob/living/carbon/human))
@@ -51,7 +61,7 @@
 		selected_layer = 2
 		ui_interact(user)
 	else
-		to_chat(user, "<span class='warning'>Only humans can use this!</span>")
+		to_chat(user, span_warning("Only humans can use this!"))
 
 /obj/item/tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
 	ui = SStgui.try_update_ui(user, src, ui)
@@ -71,13 +81,11 @@
 	data["ink_color"] = ink_color
 	data["selected_zone"] = selected_zone
 	data["current_step"] = current_step
-
-	// ADD THESE LINES - Include the tattoo data in the UI
 	data["tattoo_name"] = tattoo_name
 	data["tattoo_desc"] = tattoo_desc
 	data["selected_layer"] = selected_layer
 
-	// Get all available body parts for the selected zone
+	// Get all available body parts
 	var/list/body_parts = list()
 	var/list/all_parts = get_all_available_body_parts(current_target)
 
@@ -85,7 +93,7 @@
 		var/list/part_info = all_parts[zone]
 		var/covered = FALSE
 
-		// Check if the body part is covered by clothing
+		// Check if body part is covered by clothing (only if user is not the target)
 		if(user != current_target)
 			var/datum/tattoo/temp_tattoo = new("temp", "temp", zone)
 			covered = temp_tattoo.is_hidden_by_clothes(current_target)
@@ -125,15 +133,15 @@
 			if(usr != current_target)
 				var/datum/tattoo/temp_tattoo = new("temp", "temp", zone)
 				if(temp_tattoo.is_hidden_by_clothes(current_target))
-					to_chat(usr, "<span class='warning'>You need to expose [current_target]'s [get_body_zone_display_name(zone)] first!</span>")
+					to_chat(usr, span_warning("You need to expose [current_target]'s [get_body_zone_display_name(zone)] first!"))
 					qdel(temp_tattoo)
 					return
 				qdel(temp_tattoo)
 
-			// Check if body part has reached tattoo limit
+			// Check tattoo limit
 			var/current_tattoos = current_target.get_tattoos(zone)
 			if(length(current_tattoos) >= max_tattoos_per_part)
-				to_chat(usr, "<span class='warning'>This body part already has too many tattoos! (Max: [max_tattoos_per_part])</span>")
+				to_chat(usr, span_warning("This body part already has too many tattoos! (Max: [max_tattoos_per_part])"))
 				return
 
 			selected_zone = zone
@@ -141,25 +149,20 @@
 			. = TRUE
 
 		if("update_tattoo_name")
-			tattoo_name = params["name"]
-			// Force immediate UI update
+			var/name = params["name"]
+			tattoo_name = name
 			SStgui.update_uis(src)
 			. = TRUE
 
 		if("update_tattoo_desc")
-			tattoo_desc = params["desc"]
-			// Force immediate UI update
+			var/desc = params["desc"]
+			tattoo_desc = desc
 			SStgui.update_uis(src)
 			. = TRUE
 
 		if("update_tattoo_layer")
-			selected_layer = text2num(params["layer"])
-			// Force immediate UI update
-			SStgui.update_uis(src)
-			. = TRUE
-
-		if("refresh_ui")
-			// Just refresh the UI without changing anything
+			var/layer = text2num(params["layer"])
+			selected_layer = layer
 			SStgui.update_uis(src)
 			. = TRUE
 
@@ -168,19 +171,15 @@
 			var/apply_desc = tattoo_desc
 			var/apply_layer = selected_layer
 
-			// Debug output
-			to_chat(usr, "<span class='notice'>DEBUG: Applying tattoo - Name: '[apply_name]', Desc: '[apply_desc]', Layer: [apply_layer]</span>")
-
-			// FIX: Remove .trim() - just check if strings have content
 			if(!apply_name || length(apply_name) == 0 || !apply_desc || length(apply_desc) == 0)
-				to_chat(usr, "<span class='warning'>Please fill in both the name and description!</span>")
+				to_chat(usr, span_warning("Please fill in both the name and description!"))
 				return
 
 			// Sanitize inputs
 			apply_name = sanitize(apply_name, max_length = 100)
 			apply_desc = sanitize(apply_desc, max_length = 500)
 
-			// Ensure name and desc are not empty after sanitization
+			// Ensure name and desc are not empty
 			if(!apply_name || apply_name == "")
 				apply_name = "Unnamed Tattoo"
 			if(!apply_desc || apply_desc == "")
@@ -190,24 +189,24 @@
 			if(ui)
 				ui.close()
 
-			// Perform the tattoo application with do_after
-			if(do_after(usr, 50, target = current_target))
+			// Perform tattoo application
+			if(do_after(usr, 5 SECONDS, target = current_target))
 				var/datum/tattoo/new_tattoo = new(apply_name, apply_desc, selected_zone, ink_color, usr.name, apply_layer)
 				if(current_target.add_tattoo(new_tattoo))
-					to_chat(usr, "<span class='notice'>You successfully apply the tattoo to [current_target]'s [get_body_zone_display_name(selected_zone)].</span>")
-					to_chat(current_target, "<span class='notice'>You feel a slight sting as the tattoo is applied to your [get_body_zone_display_name(selected_zone)].</span>")
+					to_chat(usr, span_notice("You successfully apply the tattoo to [current_target]'s [get_body_zone_display_name(selected_zone)]."))
+					to_chat(current_target, span_notice("You feel a slight sting as the tattoo is applied to your [get_body_zone_display_name(selected_zone)]."))
 					tattoo_uses--
 					if(tattoo_uses <= 0)
-						to_chat(usr, "<span class='warning'>The tattoo kit is now out of ink!</span>")
+						to_chat(usr, span_warning("The tattoo kit is now out of ink!"))
 						desc = "An empty tattoo kit. All the ink has been used up."
 
-					// Force update the examine text
+					// Update examine text
 					current_target.regenerate_icons()
 				else
-					to_chat(usr, "<span class='warning'>Failed to apply the tattoo!</span>")
+					to_chat(usr, span_warning("Failed to apply the tattoo!"))
 					qdel(new_tattoo)
 			else
-				to_chat(usr, "<span class='warning'>Tattoo application interrupted!</span>")
+				to_chat(usr, span_warning("Tattoo application interrupted!"))
 
 			// Reset for next use
 			current_step = "select_part"
@@ -220,7 +219,7 @@
 			var/new_color = input(usr, "Choose ink color:", "Tattoo Kit", ink_color) as color|null
 			if(new_color)
 				ink_color = new_color
-				to_chat(usr, "<span class='notice'>You change the ink color to [new_color].</span>")
+				to_chat(usr, span_notice("You change the ink color to [new_color]."))
 			. = TRUE
 
 		if("back_to_selection")
@@ -235,18 +234,20 @@
 /obj/item/tattoo_kit/examine(mob/user)
 	. = ..()
 	if(!tattoo_uses)
-		. += "<span class='warning'>This kit has no uses left!</span>"
+		. += span_warning("This kit has no uses left!")
 	else
-		. += "<span class='notice'>This kit has enough ink for [tattoo_uses] use\s.</span>"
-	. += "<span class='boldnotice'>You can use a toner cartridge to refill this.</span>"
+		. += span_notice("This kit has enough ink for [tattoo_uses] use\s.")
+	. += span_boldnotice("You can use a toner cartridge to refill this.")
 
 /obj/item/tattoo_kit/item_interaction(mob/living/user, obj/item/toner/ink_cart, list/modifiers)
 	if(!istype(ink_cart))
 		return NONE
+
 	var/added_amount = round(ink_cart.charges / 5)
 	if(added_amount == 0)
 		balloon_alert(user, "none left!")
 		return ITEM_INTERACT_BLOCKING
+
 	if(tattoo_uses >= tattoo_max_uses)
 		balloon_alert(user, "already full!")
 		return ITEM_INTERACT_BLOCKING
