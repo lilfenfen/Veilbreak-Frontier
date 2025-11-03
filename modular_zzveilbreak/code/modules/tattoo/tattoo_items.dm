@@ -8,8 +8,8 @@
 	w_class = WEIGHT_CLASS_SMALL
 	var/ink_color = "#000000"
 	var/max_tattoos_per_part = 5
-	var/tattoo_uses = 10 // Renamed from 'uses'
-	var/tattoo_max_uses = 50 // Renamed from 'max_uses'
+	var/tattoo_uses = 10
+	var/tattoo_max_uses = 50
 
 /obj/item/tattoo_kit/attack(mob/living/carbon/human/M, mob/living/user)
 	if(!istype(M))
@@ -70,7 +70,6 @@
 		if(M.add_tattoo(new_tattoo))
 			to_chat(user, "<span class='notice'>You successfully apply the tattoo to [M]'s [parse_zone(target_part.body_zone)].</span>")
 			to_chat(M, "<span class='notice'>You feel a slight sting as the tattoo is applied to your [parse_zone(target_part.body_zone)].</span>")
-			M.update_tattoo_persistence()
 			tattoo_uses--
 			if(tattoo_uses <= 0)
 				to_chat(user, "<span class='warning'>The tattoo kit is now out of ink!</span>")
@@ -110,20 +109,6 @@
 	balloon_alert(user, "added tattoo ink")
 	return ITEM_INTERACT_SUCCESS
 
-// Alternative method to select any available body part
-/obj/item/tattoo_kit/proc/select_body_part(mob/living/carbon/human/M, mob/living/user)
-	var/list/available_parts = get_available_body_parts(M)
-	if(!length(available_parts))
-		to_chat(user, "<span class='warning'>No available body parts found!</span>")
-		return null
-
-	var/choice = input(user, "Select body part to tattoo:", "Tattoo Location") as null|anything in available_parts
-	if(!choice)
-		return null
-
-	var/body_zone = available_parts[choice]
-	return M.get_bodypart(body_zone)
-
 // Advanced tattoo kit with body part selection
 /obj/item/tattoo_kit/advanced
 	name = "advanced tattoo kit"
@@ -132,41 +117,7 @@
 	tattoo_max_uses = 100
 	max_tattoos_per_part = 10
 
-/obj/item/tattoo_kit/advanced/attack(mob/living/carbon/human/M, mob/living/user)
-	if(!istype(M))
-		return ..()
-
-	if(M == user)
-		to_chat(user, "<span class='warning'>You can't tattoo yourself!</span>")
-		return
-
-	// Check if target allows bodywriting
-	if(!M.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
-		to_chat(user, "<span class='warning'>[M] doesn't allow bodywriting!</span>")
-		return
-
-	if(tattoo_uses <= 0)
-		to_chat(user, "<span class='warning'>This tattoo kit is out of ink!</span>")
-		return
-
-	var/obj/item/bodypart/target_part = select_body_part(M, user)
-	if(!target_part)
-		return
-
-	// Check if body part is exposed for application
-	var/datum/tattoo/temp_tattoo = new("temp", "temp", target_part.body_zone)
-	if(temp_tattoo.is_hidden_by_clothes(M))
-		to_chat(user, "<span class='warning'>You need to expose [M]'s [parse_zone(target_part.body_zone)] first!</span>")
-		qdel(temp_tattoo)
-		return
-	qdel(temp_tattoo)
-
-	start_tattoo_application(M, user, target_part)
-
-// Override examine for advanced kit to prevent duplicate text
 /obj/item/tattoo_kit/advanced/examine(mob/user)
-	. = ..()
-	// Remove the base class examine text and replace with our own
 	. = list()
 	. += "[icon2html(src, user)] [desc]"
 	. += "It is a small item."

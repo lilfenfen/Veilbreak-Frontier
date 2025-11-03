@@ -1,61 +1,52 @@
-/mob/living/carbon/human/proc/update_tattoo_persistence()
-    if(!client?.prefs)
-        return
+// Tattoo data management procs
+/datum/preferences/proc/save_tattoos_modular()
+	if(!features)
+		features = list()
 
-    var/datum/preferences/prefs = client.prefs
-    if(!prefs)
-        return
+	var/list/tattoo_data = list()
+	if(LAZYACCESS(features, "tattoos"))
+		for(var/datum/tattoo/T as anything in features["tattoos"])
+			if(!QDELETED(T))
+				tattoo_data += list(list(
+					"name" = T.name,
+					"desc" = T.desc,
+					"body_part" = T.body_part,
+					"color" = T.color,
+					"creator" = T.creator,
+					"date_applied" = T.date_applied,
+					"layer" = T.layer
+				))
 
-    // Save tattoos to preferences features instead of metadata
-    var/list/tattoo_data = list()
-    for(var/datum/tattoo/T as anything in body_tattoos)
-        if(!QDELETED(T))
-            tattoo_data += list(list(
-                "name" = T.name,
-                "desc" = T.desc,
-                "body_part" = T.body_part,
-                "color" = T.color,
-                "creator" = T.creator,
-                "date_applied" = T.date_applied,
-                "layer" = T.layer
-            ))
+	// Store in features - this will be automatically saved by the main savefile system
+	LAZYSET(features, "tattoos_data", tattoo_data)
 
-    // Use features to store tattoo data
-    LAZYSET(prefs.features, "tattoos", tattoo_data)
-    prefs.save_preferences()
+/datum/preferences/proc/load_tattoos_modular()
+	if(!features || !LAZYACCESS(features, "tattoos_data"))
+		return
 
-// Hook into preference loading/saving
-/datum/preferences/proc/load_tattoos()
-    if(!LAZYACCESS(features, "tattoos"))
-        return
+	var/list/tattoo_data = features["tattoos_data"]
+	if(!islist(tattoo_data))
+		return
 
-    var/list/tattoo_data = features["tattoos"]
-    if(!islist(tattoo_data))
-        return
+	features["tattoos"] = list()
+	for(var/list/tattoo_info as anything in tattoo_data)
+		if(is_valid_tattoo_bodypart(tattoo_info["body_part"]))
+			var/datum/tattoo/T = new(
+				tattoo_info["name"],
+				tattoo_info["desc"],
+				tattoo_info["body_part"],
+				tattoo_info["color"],
+				tattoo_info["creator"],
+				tattoo_info["layer"] || TATTOO_LAYER_NORMAL
+			)
+			T.date_applied = tattoo_info["date_applied"]
+			features["tattoos"] += T
 
-    // Initialize tattoos list if it doesn't exist
-    if(!LAZYACCESS(features, "tattoos_list"))
-        LAZYSET(features, "tattoos_list", list())
+/datum/preferences/proc/apply_tattoos_to_mob_modular(mob/living/carbon/human/character)
+	if(!istype(character) || !features || !features["tattoos"])
+		return
 
-    features["tattoos_list"] = list()
-    for(var/list/tattoo_info as anything in tattoo_data)
-        if(is_valid_tattoo_bodypart(tattoo_info["body_part"]))
-            var/datum/tattoo/T = new(
-                tattoo_info["name"],
-                tattoo_info["desc"],
-                tattoo_info["body_part"],
-                tattoo_info["color"],
-                tattoo_info["creator"],
-                tattoo_info["layer"] || TATTOO_LAYER_NORMAL
-            )
-            T.date_applied = tattoo_info["date_applied"]
-            features["tattoos_list"] += T
-
-/datum/preferences/proc/apply_tattoos_to_mob(mob/living/carbon/human/character)
-    if(!istype(character) || !features || !features["tattoos_list"])
-        return
-
-    character.body_tattoos = list()
-    for(var/datum/tattoo/T as anything in features["tattoos_list"])
-        if(!QDELETED(T))
-            character.body_tattoos += T
+	character.body_tattoos = list()
+	for(var/datum/tattoo/T as anything in features["tattoos"])
+		if(!QDELETED(T))
+			character.body_tattoos += T

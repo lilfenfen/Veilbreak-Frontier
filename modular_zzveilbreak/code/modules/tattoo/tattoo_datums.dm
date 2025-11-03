@@ -45,9 +45,13 @@
     // Check main clothing items
     if((target_mob.w_uniform && (target_mob.w_uniform.body_parts_covered & body_part)) || (target_mob.wear_suit && (target_mob.wear_suit.body_parts_covered & body_part)))
         return TRUE
+
     // Special case for hospital gown
     if(istype(target_mob.wear_suit, /obj/item/clothing/suit/toggle/labcoat/hospitalgown))
         return TRUE
+
+    // SPLURT EDIT - Extra Inventory compatibility
+    // Check undershirt
     if(target_mob.w_shirt && !target_mob.undershirt_hidden())
         if(target_mob.w_shirt.body_parts_covered & body_part)
             return TRUE

@@ -5,5 +5,4 @@
 	default_value = FALSE
 
 /datum/preference/toggle/allow_bodywriting/apply_to_client(client/client, value)
-	// No special client-side application needed
 	return
