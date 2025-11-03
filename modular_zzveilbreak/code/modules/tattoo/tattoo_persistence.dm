@@ -10,11 +10,15 @@
     var/mob/living/carbon/human/H = parent?.mob
     var/list/tattoos_to_save = H?.body_tattoos || LAZYACCESS(features, "tattoos") || list()
 
+    world.log << "DEBUG SAVE: Starting save_tattoo_data for [parent?.ckey]"
+    world.log << "DEBUG SAVE: Mob has [length(H?.body_tattoos || list())] tattoos, features has [length(LAZYACCESS(features, "tattoos") || list())]"
+
     var/list/tattoo_data = list()
     for(var/datum/tattoo/T as anything in tattoos_to_save)
         if(istype(T) && !QDELETED(T))
             // Convert body part to string description for saving
             var/body_part_description = get_specific_body_part_description(T.body_part)
+            world.log << "DEBUG SAVE: Saving tattoo '[T.design]' on [T.body_part] -> '[body_part_description]'"
             tattoo_data += list(list(
                 "artist" = T.artist,
                 "design" = T.design,
@@ -31,6 +35,8 @@
     if(save_data)
         save_data["tattoos_data"] = tattoo_data
 
+    world.log << "DEBUG SAVE: Saved [length(tattoo_data)] tattoos to features and save_data"
+
     // Trigger character save to ensure persistence
     save_character()
 
@@ -43,23 +49,31 @@
     if(!features)
         features = list()
 
+    world.log << "DEBUG LOAD: Starting load_tattoo_data for [parent?.ckey]"
+
     var/list/tattoo_data
     if(save_data && LAZYACCESS(save_data, "tattoos_data"))
         tattoo_data = save_data["tattoos_data"]
+        world.log << "DEBUG LOAD: Found tattoo_data in save_data: [length(tattoo_data)] entries"
     else if(LAZYACCESS(features, "tattoos_data"))
         tattoo_data = features["tattoos_data"]
+        world.log << "DEBUG LOAD: Found tattoo_data in features: [length(tattoo_data)] entries"
     else
-        // No tattoo data found
+        world.log << "DEBUG LOAD: No tattoo_data found anywhere"
         features["tattoos"] = list()
         return
 
     if(!islist(tattoo_data))
+        world.log << "DEBUG LOAD: tattoo_data is not a list: [tattoo_data]"
         features["tattoos"] = list()
         return
 
     features["tattoos"] = list()
+    world.log << "DEBUG LOAD: Processing [length(tattoo_data)] tattoo entries"
+
     for(var/list/tattoo_info as anything in tattoo_data)
         if(!islist(tattoo_info))
+            world.log << "DEBUG LOAD: Skipping non-list tattoo_info: [tattoo_info]"
             continue
 
         // Sanitize and validate all data
@@ -70,16 +84,29 @@
         var/layer = sanitize_integer(tattoo_info["layer"], 1, 3, 2)
         var/date_applied = sanitize_text(tattoo_info["date_applied"], time2text(world.realtime, "YYYY-MM-DD"))
 
+        world.log << "DEBUG LOAD: Processing tattoo: '[design]' on '[body_part_string]'"
+
         // Convert body part string back to define
         var/body_part_define = get_body_part_from_description(body_part_string)
+        world.log << "DEBUG LOAD: Conversion: '[body_part_string]' -> [body_part_define]"
+
         if(!body_part_define)
             // If conversion failed, try to use as-is (might be a valid define string)
+            world.log << "DEBUG LOAD: Conversion failed, using as-is"
             body_part_define = body_part_string
+
+        world.log << "DEBUG LOAD: Final body part: [body_part_define]"
+        world.log << "DEBUG LOAD: Is valid tattoo bodypart? [is_valid_tattoo_bodypart(body_part_define)]"
 
         if(body_part_define && is_valid_tattoo_bodypart(body_part_define))
             var/datum/tattoo/T = new(artist, design, body_part_define, color, layer)
             T.date_applied = date_applied
             features["tattoos"] += T
+            world.log << "DEBUG LOAD: Successfully created tattoo datum"
+        else
+            world.log << "DEBUG LOAD: FAILED to create tattoo - invalid body part"
+
+    world.log << "DEBUG LOAD: Loaded [length(features["tattoos"])] tattoos total"
 
 // LEGACY SUPPORT - If your code is calling the wrong proc name
 /datum/preferences/proc/load_tattoos_data(list/save_data)
@@ -88,30 +115,41 @@
 /// Applies saved tattoos to a mob
 /datum/preferences/proc/apply_tattoos_to_mob(mob/living/carbon/human/character)
     if(!istype(character) || !features)
+        world.log << "DEBUG APPLY: apply_tattoos_to_mob failed - no character or features"
         return
+
+    world.log << "DEBUG APPLY: Starting apply_tattoos_to_mob for [character.ckey]"
 
     // Ensure tattoo data is loaded
     if(!LAZYACCESS(features, "tattoos"))
+        world.log << "DEBUG APPLY: No tattoos in features, loading data"
         load_tattoo_data()
+
+    world.log << "DEBUG APPLY: Features has [length(features["tattoos"])] tattoos to apply"
 
     character.body_tattoos = list()
     for(var/datum/tattoo/T as anything in features["tattoos"])
         if(istype(T) && !QDELETED(T))
             character.body_tattoos += T
+            world.log << "DEBUG APPLY: Applied tattoo: '[T.design]' on [T.body_part]"
+
+    world.log << "DEBUG APPLY: Mob now has [length(character.body_tattoos)] tattoos"
+
+    // Test visibility of first tattoo
+    if(length(character.body_tattoos))
+        var/datum/tattoo/first_tattoo = character.body_tattoos[1]
+        world.log << "DEBUG APPLY: Testing visibility of first tattoo:"
+        world.log << "DEBUG APPLY: - Design: [first_tattoo.design]"
+        world.log << "DEBUG APPLY: - Body part: [first_tattoo.body_part]"
+        world.log << "DEBUG APPLY: - Is visible to self: [first_tattoo.is_visible(character, character)]"
+
+        // Test examine text
+        var/examine_text = first_tattoo.get_examine_text(character, character)
+        world.log << "DEBUG APPLY: - Examine text: [examine_text ? examine_text : "EMPTY"]"
 
     // Update examine text and icons
     character.regenerate_icons()
-
-// =====================
-// COMPATIBILITY WRAPPERS
-// =====================
-
-// Additional legacy support procs for backward compatibility
-/datum/preferences/proc/save_tattoos_modular(list/save_data)
-    save_tattoo_data(save_data)
-
-/datum/preferences/proc/load_tattoos_modular(list/save_data)
-    load_tattoo_data(save_data)
+    world.log << "DEBUG APPLY: apply_tattoos_to_mob completed"
 
 // =====================
 // HOOKS
@@ -119,15 +157,20 @@
 
 /// Hook to load tattoos when preferences are loaded
 /hook/character_setup/proc/load_character_tattoos(datum/preferences/prefs)
+    world.log << "DEBUG HOOK: load_character_tattoos hook called"
     if(istype(prefs))
         prefs.load_tattoo_data()
-    return TRUE
+        return TRUE
+    return FALSE
 
 /// Hook to apply tattoos when a new human mob is created
 /hook/mob_new/proc/apply_saved_tattoos(mob/living/carbon/human/H)
+    world.log << "DEBUG HOOK: apply_saved_tattoos hook called for [H?.ckey]"
     if(istype(H) && H.client?.prefs)
         H.client.prefs.apply_tattoos_to_mob(H)
-    return TRUE
+        return TRUE
+    world.log << "DEBUG HOOK: apply_saved_tattoos hook failed - not human or no client/prefs"
+    return FALSE
 
 // =====================
 // MANAGEMENT TOOLS
