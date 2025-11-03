@@ -37,37 +37,64 @@
 	if(!features)
 		features = list()
 
+	world.log << "DEBUG: load_tattoo_data called for [parent?.ckey]"
+
 	var/list/tattoo_data
 	if(save_data && LAZYACCESS(save_data, "tattoos_data"))
 		tattoo_data = save_data["tattoos_data"]
+		world.log << "DEBUG: Found tattoo_data in save_data: [length(tattoo_data)] entries"
 	else if(LAZYACCESS(features, "tattoos_data"))
 		tattoo_data = features["tattoos_data"]
+		world.log << "DEBUG: Found tattoo_data in features: [length(tattoo_data)] entries"
 	else
-		// No tattoo data found
+		world.log << "DEBUG: No tattoo_data found anywhere"
 		features["tattoos"] = list()
 		return
 
 	if(!islist(tattoo_data))
+		world.log << "DEBUG: tattoo_data is not a list: [tattoo_data]"
 		features["tattoos"] = list()
 		return
 
 	features["tattoos"] = list()
+	world.log << "DEBUG: Processing [length(tattoo_data)] tattoo entries"
+
 	for(var/list/tattoo_info as anything in tattoo_data)
 		if(!islist(tattoo_info))
+			world.log << "DEBUG: Skipping non-list tattoo_info: [tattoo_info]"
 			continue
 
-		// Sanitize and validate all data using your functions
+		// Sanitize and validate all data
 		var/artist = sanitize_text(tattoo_info["artist"], "Unknown Artist")
 		var/design = sanitize_text(tattoo_info["design"], "An intricate design")
-		var/body_part = sanitize_inlist(tattoo_info["body_part"], GLOB.tattooable_body_parts, BODY_ZONE_CHEST)
+		var/body_part_string = tattoo_info["body_part"]
 		var/color = sanitize_hexcolor(tattoo_info["color"], default = "#000000")
 		var/layer = sanitize_integer(tattoo_info["layer"], 1, 3, 2)
 		var/date_applied = sanitize_text(tattoo_info["date_applied"], time2text(world.realtime, "YYYY-MM-DD"))
 
-		if(is_valid_tattoo_bodypart(body_part))
-			var/datum/tattoo/T = new(artist, design, body_part, color, layer)
+		world.log << "DEBUG: Loading tattoo: [design] on [body_part_string]"
+
+		// === ADD THIS SECTION HERE ===
+		var/body_part_define
+		if(isnum(body_part_string) || (body_part_string in GLOB.tattooable_body_parts))
+			// It's already a define
+			body_part_define = body_part_string
+			world.log << "DEBUG: Body part is already a define: [body_part_string]"
+		else
+			// It's a string that needs conversion
+			body_part_define = get_body_part_from_description(body_part_string)
+			world.log << "DEBUG: Converted body part string '[body_part_string]' to define: [body_part_define]"
+		// === END OF ADDED SECTION ===
+
+		if(body_part_define && is_valid_tattoo_bodypart(body_part_define))
+			var/datum/tattoo/T = new(artist, design, body_part_define, color, layer)
 			T.date_applied = date_applied
 			features["tattoos"] += T
+			world.log << "DEBUG: Successfully created tattoo datum for [body_part_define]"
+		else
+			world.log << "DEBUG: Invalid body part for tattoo: [body_part_string] -> [body_part_define]"
+
+	world.log << "DEBUG: Loaded [length(features["tattoos"])] tattoos total"
 
 /// Applies saved tattoos to a mob
 /datum/preferences/proc/apply_tattoos_to_mob(mob/living/carbon/human/character)

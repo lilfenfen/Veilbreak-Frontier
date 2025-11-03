@@ -178,3 +178,32 @@
         if(ORGAN_SLOT_WINGS) return "wing membranes"
         else
             return get_body_zone_display_name(body_zone)
+
+/// Converts body part descriptions back to their original defines
+/proc/get_body_part_from_description(description)
+    switch(description)
+        if("head") return BODY_ZONE_HEAD
+        if("chest") return BODY_ZONE_CHEST
+        if("left arm") return BODY_ZONE_L_ARM
+        if("right arm") return BODY_ZONE_R_ARM
+        if("left leg") return BODY_ZONE_L_LEG
+        if("right leg") return BODY_ZONE_R_LEG
+        if("left hand") return BODY_ZONE_PRECISE_L_HAND
+        if("right hand") return BODY_ZONE_PRECISE_R_HAND
+        if("left foot") return BODY_ZONE_PRECISE_L_FOOT
+        if("right foot") return BODY_ZONE_PRECISE_R_FOOT
+        if("groin area") return BODY_ZONE_PRECISE_GROIN
+        // REVERSE ORGAN MAPPINGS
+        if("stomach") return ORGAN_SLOT_BELLY
+        if("backside") return ORGAN_SLOT_BUTT
+        if("tail") return ORGAN_SLOT_EXTERNAL_TAIL
+        if("spine ridge") return ORGAN_SLOT_EXTERNAL_SPINES
+        if("head frills") return ORGAN_SLOT_EXTERNAL_FRILLS
+        if("horns") return ORGAN_SLOT_EXTERNAL_HORNS
+        if("wings") return ORGAN_SLOT_EXTERNAL_WINGS
+        if("wing membranes") return ORGAN_SLOT_WINGS
+        else
+            // Try to parse as a body zone define
+            if(description in GLOB.tattooable_body_parts)
+                return description
+            return null
