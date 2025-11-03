@@ -120,7 +120,13 @@
 
 			// STRICT coverage check - no exceptions
 			if(is_bodypart_covered(current_target, zone, usr))
-				to_chat(usr, span_warning("[current_target == usr ? "Your" : "[current_target]'s"] [get_body_zone_display_name(zone)] is covered by clothing! Expose it first."))
+				var/body_part_name = get_body_zone_display_name(zone)
+				// Different message for organ-based parts vs standard body parts
+				if(zone in list(ORGAN_SLOT_EXTERNAL_TAIL, ORGAN_SLOT_EXTERNAL_SPINES, ORGAN_SLOT_EXTERNAL_FRILLS,
+								ORGAN_SLOT_EXTERNAL_HORNS, ORGAN_SLOT_EXTERNAL_WINGS, ORGAN_SLOT_WINGS))
+					to_chat(usr, span_warning("[current_target == usr ? "Your" : "[current_target]'s"] [body_part_name] is covered or inaccessible! Make sure it's exposed."))
+				else
+					to_chat(usr, span_warning("[current_target == usr ? "Your" : "[current_target]'s"] [body_part_name] is covered by clothing! Expose it first."))
 				return FALSE
 
 			// Check tattoo limit

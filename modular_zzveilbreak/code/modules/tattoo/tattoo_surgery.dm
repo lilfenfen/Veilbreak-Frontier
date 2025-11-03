@@ -18,8 +18,12 @@
         to_chat(user, "<span class='warning'>[H] doesn't allow bodywriting modifications!</span>")
         return FALSE
 
-    var/obj/item/bodypart/BP = H.get_bodypart(user.zone_selected)
-    return BP && length(H.get_tattoos(BP.body_zone))
+    // Check if the selected zone exists (either as bodypart or organ)
+    if(!body_part_exists(H, user.zone_selected))
+        return FALSE
+
+    // Check if there are tattoos to remove
+    return length(H.get_tattoos(user.zone_selected))
 
 /datum/surgery_step/cauterize_tattoo
     name = "cauterize tattoo"

@@ -31,7 +31,10 @@
     if(!display_artist || display_artist == "")
         display_artist = "an unknown artist"
 
-    return "<span style='color:[color]'>- \"[display_design]\" (by [display_artist])</span>"
+    // Use the enhanced body part descriptions
+    var/body_part_description = get_specific_body_part_description(body_part)
+
+    return "<span style='color:[color]'>- [body_part_description]: \"[display_design]\" (by [display_artist])</span>"
 
 /datum/tattoo/proc/is_visible(mob/viewer, mob/living/carbon/human/victim)
     if(!victim || !viewer)
@@ -48,60 +51,83 @@
     return !is_hidden_by_clothes(victim, viewer)
 
 /datum/tattoo/proc/is_hidden_by_clothes(mob/living/carbon/human/target_mob, mob/viewer)
-	if(!target_mob)
-		return TRUE
+    if(!target_mob)
+        return TRUE
 
-	var/obj/item/bodypart/BP = target_mob.get_bodypart(body_part)
-	if(!BP)
-		return TRUE
+    // Special handling for organ-based body parts
+    if(body_part in list(ORGAN_SLOT_EXTERNAL_TAIL, ORGAN_SLOT_EXTERNAL_SPINES, ORGAN_SLOT_EXTERNAL_FRILLS,
+                        ORGAN_SLOT_EXTERNAL_HORNS, ORGAN_SLOT_EXTERNAL_WINGS, ORGAN_SLOT_WINGS))
+        // These are usually always visible unless specifically covered by certain clothing
+        var/obj/item/organ/organ = target_mob.get_organ_slot(body_part)
+        if(!organ)
+            return TRUE
 
-	var/check_flags = body_zone_to_flag(body_part)
-	if(!check_flags)
-		return FALSE // If we can't map it to a flag, assume it's visible
+        // Check for specific clothing that might cover these features
+        if(target_mob.wear_suit)
+            // Some suits might cover wings/tails specifically
+            if(istype(target_mob.wear_suit, /obj/item/clothing/suit) && target_mob.wear_suit.flags_inv & HIDETAIL)
+                if(body_part == ORGAN_SLOT_EXTERNAL_TAIL)
+                    return TRUE
+            if(target_mob.wear_suit.flags_inv & HIDEJUMPSUIT)
+                if(body_part == ORGAN_SLOT_EXTERNAL_SPINES)
+                    return TRUE
 
-	// STRICT clothing check - NO EXCEPTIONS
-	// Check all possible clothing layers
+        return FALSE
 
-	// Outer suit coverage
-	if(target_mob.wear_suit)
-		if(target_mob.wear_suit.body_parts_covered & check_flags)
-			return TRUE
-		// Check if suit has flags that might cover the area
-		if(target_mob.wear_suit.flags_inv & HIDEJUMPSUIT)
-			if(check_flags & (CHEST|GROIN|ARMS|LEGS))
-				return TRUE
+    var/obj/item/bodypart/BP = target_mob.get_bodypart(body_part)
+    if(!BP)
+        // Check if it's an organ instead
+        var/obj/item/organ/organ = target_mob.get_organ_slot(body_part)
+        if(!organ)
+            return TRUE
 
-	// Uniform coverage
-	if(target_mob.w_uniform)
-		if(target_mob.w_uniform.body_parts_covered & check_flags)
-			return TRUE
+    var/check_flags = body_zone_to_flag(body_part)
+    if(!check_flags)
+        return FALSE // If we can't map it to a flag, assume it's visible
 
-	// Special cases for specific clothing types
-	if(istype(target_mob.wear_suit, /obj/item/clothing/suit/toggle/labcoat/hospitalgown))
-		return TRUE
+    // STRICT clothing check - NO EXCEPTIONS
+    // Check all possible clothing layers
 
-	// Additional clothing layers (SPLURT EDIT compatibility)
-	if(target_mob.w_shirt && !target_mob.undershirt_hidden())
-		if(target_mob.w_shirt.body_parts_covered & check_flags)
-			return TRUE
+    // Outer suit coverage
+    if(target_mob.wear_suit)
+        if(target_mob.wear_suit.body_parts_covered & check_flags)
+            return TRUE
+        // Check if suit has flags that might cover the area
+        if(target_mob.wear_suit.flags_inv & HIDEJUMPSUIT)
+            if(check_flags & (CHEST|GROIN|ARMS|LEGS))
+                return TRUE
 
-	if(target_mob.w_underwear && !target_mob.underwear_hidden())
-		if(target_mob.w_underwear.body_parts_covered & check_flags)
-			return TRUE
+    // Uniform coverage
+    if(target_mob.w_uniform)
+        if(target_mob.w_uniform.body_parts_covered & check_flags)
+            return TRUE
 
-	// Gloves for hands
-	if((check_flags & (HAND_LEFT|HAND_RIGHT)) && target_mob.gloves)
-		return TRUE
+    // Special cases for specific clothing types
+    if(istype(target_mob.wear_suit, /obj/item/clothing/suit/toggle/labcoat/hospitalgown))
+        return TRUE
 
-	// Shoes for feet
-	if((check_flags & (FOOT_LEFT|FOOT_RIGHT)) && target_mob.shoes)
-		return TRUE
+    // Additional clothing layers (SPLURT EDIT compatibility)
+    if(target_mob.w_shirt && !target_mob.undershirt_hidden())
+        if(target_mob.w_shirt.body_parts_covered & check_flags)
+            return TRUE
 
-	// Headwear for head
-	if((check_flags & HEAD) && target_mob.head)
-		return TRUE
+    if(target_mob.w_underwear && !target_mob.underwear_hidden())
+        if(target_mob.w_underwear.body_parts_covered & check_flags)
+            return TRUE
 
-	return FALSE
+    // Gloves for hands
+    if((check_flags & (HAND_LEFT|HAND_RIGHT)) && target_mob.gloves)
+        return TRUE
+
+    // Shoes for feet
+    if((check_flags & (FOOT_LEFT|FOOT_RIGHT)) && target_mob.shoes)
+        return TRUE
+
+    // Headwear for head
+    if((check_flags & HEAD) && target_mob.head)
+        return TRUE
+
+    return FALSE
 
 /proc/body_zone_to_flag(body_zone)
     switch(body_zone)
@@ -116,4 +142,39 @@
         if(BODY_ZONE_PRECISE_L_FOOT) return FOOT_LEFT
         if(BODY_ZONE_PRECISE_R_FOOT) return FOOT_RIGHT
         if(BODY_ZONE_PRECISE_GROIN) return GROIN
+        // ADD COVERAGE FOR ORGAN SLOTS
+        if(ORGAN_SLOT_BELLY) return CHEST // Stomach is covered by chest clothing
+        if(ORGAN_SLOT_BUTT) return GROIN // Backside is covered by groin clothing
+        if(ORGAN_SLOT_EXTERNAL_TAIL) return null // Tails are usually exposed
+        if(ORGAN_SLOT_EXTERNAL_SPINES) return null // Spines are usually exposed
+        if(ORGAN_SLOT_EXTERNAL_FRILLS) return null // Frills are usually exposed
+        if(ORGAN_SLOT_EXTERNAL_HORNS) return null // Horns are usually exposed
+        if(ORGAN_SLOT_EXTERNAL_WINGS) return null // Wings are usually exposed
+        if(ORGAN_SLOT_WINGS) return null // Wings are usually exposed
         else return null
+
+/// Returns more specific descriptions for body parts
+/proc/get_specific_body_part_description(body_zone)
+    switch(body_zone)
+        if(BODY_ZONE_HEAD) return "head"
+        if(BODY_ZONE_CHEST) return "chest"
+        if(BODY_ZONE_L_ARM) return "left arm"
+        if(BODY_ZONE_R_ARM) return "right arm"
+        if(BODY_ZONE_L_LEG) return "left leg"
+        if(BODY_ZONE_R_LEG) return "right leg"
+        if(BODY_ZONE_PRECISE_L_HAND) return "left hand"
+        if(BODY_ZONE_PRECISE_R_HAND) return "right hand"
+        if(BODY_ZONE_PRECISE_L_FOOT) return "left foot"
+        if(BODY_ZONE_PRECISE_R_FOOT) return "right foot"
+        if(BODY_ZONE_PRECISE_GROIN) return "groin area"
+        // ENHANCED ORGAN DESCRIPTIONS
+        if(ORGAN_SLOT_BELLY) return "stomach"
+        if(ORGAN_SLOT_BUTT) return "backside"
+        if(ORGAN_SLOT_EXTERNAL_TAIL) return "tail"
+        if(ORGAN_SLOT_EXTERNAL_SPINES) return "spine ridge"
+        if(ORGAN_SLOT_EXTERNAL_FRILLS) return "head frills"
+        if(ORGAN_SLOT_EXTERNAL_HORNS) return "horns"
+        if(ORGAN_SLOT_EXTERNAL_WINGS) return "wings"
+        if(ORGAN_SLOT_WINGS) return "wing membranes"
+        else
+            return get_body_zone_display_name(body_zone)

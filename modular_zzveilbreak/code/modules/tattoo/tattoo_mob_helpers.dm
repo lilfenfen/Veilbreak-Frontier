@@ -53,7 +53,6 @@
 /proc/cmp_tattoo_layer_asc(datum/tattoo/A, datum/tattoo/B)
     return A.layer - B.layer
 
-// Enhanced examine that properly respects clothing coverage for everyone
 /mob/living/carbon/human/examine(mob/user)
     . = ..()
 
@@ -63,7 +62,8 @@
         for(var/datum/tattoo/T as anything in visible_tattoos)
             var/tattoo_text = T.get_examine_text(user, src)
             if(tattoo_text)
-                . += " • [tattoo_text]" // Indented bullet points
+                . += " [tattoo_text]" // Indented bullet points
+				
 
 // Verb for players to check their own tattoos
 /mob/living/carbon/human/verb/examine_my_tattoos()
