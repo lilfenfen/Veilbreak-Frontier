@@ -122,16 +122,23 @@ const DesignTattooStep = (props) => {
     selected_layer = 2,
   } = data;
 
-  // More robust check for valid inputs
-  const hasValidName = tattoo_name && tattoo_name.trim().length > 0;
-  const hasValidDesc = tattoo_desc && tattoo_desc.trim().length > 0;
-  const canApply = hasValidName && hasValidDesc;
+  // Debug logging to see what values we're getting
+  console.log('Tattoo data:', { tattoo_name, tattoo_desc, selected_layer });
+
+  // Simple check - if both fields have any content
+  const canApply =
+    tattoo_name &&
+    tattoo_name.length > 0 &&
+    tattoo_desc &&
+    tattoo_desc.length > 0;
 
   const handleNameChange = (value) => {
+    console.log('Name changed to:', value);
     act('update_tattoo_name', { name: value });
   };
 
   const handleDescChange = (value) => {
+    console.log('Desc changed to:', value);
     act('update_tattoo_desc', { desc: value });
   };
 
@@ -190,6 +197,16 @@ const DesignTattooStep = (props) => {
 
             <Stack.Item>
               <LabeledList>
+                <LabeledList.Item label="Current Values">
+                  <Box>
+                    Name: "{tattoo_name}" ({tattoo_name?.length || 0} chars)
+                    <br />
+                    Desc: "{tattoo_desc}" ({tattoo_desc?.length || 0} chars)
+                    <br />
+                    Can Apply: {canApply ? 'YES' : 'NO'}
+                  </Box>
+                </LabeledList.Item>
+
                 <LabeledList.Item label="Ink Color">
                   <Flex align="center">
                     <Flex.Item>

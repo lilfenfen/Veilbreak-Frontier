@@ -140,26 +140,32 @@
 
 		if("update_tattoo_name")
 			tattoo_name = params["name"]
+			// Force UI update by sending data immediately
+			SStgui.update_uis(src)
 			. = TRUE
 
 		if("update_tattoo_desc")
 			tattoo_desc = params["desc"]
+			// Force UI update by sending data immediately
+			SStgui.update_uis(src)
 			. = TRUE
 
 		if("update_tattoo_layer")
 			selected_layer = text2num(params["layer"])
+			// Force UI update by sending data immediately
+			SStgui.update_uis(src)
 			. = TRUE
 
 		if("apply_tattoo")
-			var/apply_name = tattoo_name // Use the stored values, not params
+			var/apply_name = tattoo_name
 			var/apply_desc = tattoo_desc
 			var/apply_layer = selected_layer
 
-			if(!apply_name || !apply_desc || !selected_zone)
+			if(!apply_name || apply_name == "" || !apply_desc || apply_desc == "")
 				to_chat(usr, "<span class='warning'>Please fill in both the name and description!</span>")
 				return
 
-			// Sanitize inputs and ensure they're not empty
+			// Sanitize inputs
 			apply_name = sanitize(apply_name, max_length = 100)
 			apply_desc = sanitize(apply_desc, max_length = 500)
 
