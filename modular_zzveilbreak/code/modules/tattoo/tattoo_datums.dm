@@ -54,7 +54,7 @@
     if(!target_mob)
         return TRUE
 
-    // Special handling for organ-based body parts
+    // Special handling for external organ slots (tails, wings, etc.)
     if(body_part in list(ORGAN_SLOT_EXTERNAL_TAIL, ORGAN_SLOT_EXTERNAL_SPINES, ORGAN_SLOT_EXTERNAL_FRILLS,
                         ORGAN_SLOT_EXTERNAL_HORNS, ORGAN_SLOT_EXTERNAL_WINGS, ORGAN_SLOT_WINGS))
         // These are usually always visible unless specifically covered by certain clothing
@@ -131,6 +131,18 @@
     return FALSE
 
 /proc/body_zone_to_flag(body_zone)
+    // Handle string organ slots first
+    if(body_zone == ORGAN_SLOT_BELLY)
+        return CHEST // Stomach is covered by chest clothing
+    if(body_zone == ORGAN_SLOT_BUTT)
+        return GROIN // Backside is covered by groin clothing
+
+    // External organs are usually exposed
+    if(body_zone in list(ORGAN_SLOT_EXTERNAL_TAIL, ORGAN_SLOT_EXTERNAL_SPINES, ORGAN_SLOT_EXTERNAL_FRILLS,
+                        ORGAN_SLOT_EXTERNAL_HORNS, ORGAN_SLOT_EXTERNAL_WINGS, ORGAN_SLOT_WINGS))
+        return null
+
+    // Handle numeric body zones
     switch(body_zone)
         if(BODY_ZONE_HEAD) return HEAD
         if(BODY_ZONE_CHEST) return CHEST
@@ -143,19 +155,29 @@
         if(BODY_ZONE_PRECISE_L_FOOT) return FOOT_LEFT
         if(BODY_ZONE_PRECISE_R_FOOT) return FOOT_RIGHT
         if(BODY_ZONE_PRECISE_GROIN) return GROIN
-        // ADD COVERAGE FOR ORGAN SLOTS
-        if(ORGAN_SLOT_BELLY) return CHEST // Stomach is covered by chest clothing
-        if(ORGAN_SLOT_BUTT) return GROIN // Backside is covered by groin clothing
-        if(ORGAN_SLOT_EXTERNAL_TAIL) return null // Tails are usually exposed
-        if(ORGAN_SLOT_EXTERNAL_SPINES) return null // Spines are usually exposed
-        if(ORGAN_SLOT_EXTERNAL_FRILLS) return null // Frills are usually exposed
-        if(ORGAN_SLOT_EXTERNAL_HORNS) return null // Horns are usually exposed
-        if(ORGAN_SLOT_EXTERNAL_WINGS) return null // Wings are usually exposed
-        if(ORGAN_SLOT_WINGS) return null // Wings are usually exposed
         else return null
 
 /// Returns more specific descriptions for body parts
 /proc/get_specific_body_part_description(body_zone)
+    // Handle string organ slots
+    if(body_zone == ORGAN_SLOT_BELLY)
+        return "stomach"
+    if(body_zone == ORGAN_SLOT_BUTT)
+        return "backside"
+    if(body_zone == ORGAN_SLOT_EXTERNAL_TAIL)
+        return "tail"
+    if(body_zone == ORGAN_SLOT_EXTERNAL_SPINES)
+        return "spine ridge"
+    if(body_zone == ORGAN_SLOT_EXTERNAL_FRILLS)
+        return "head frills"
+    if(body_zone == ORGAN_SLOT_EXTERNAL_HORNS)
+        return "horns"
+    if(body_zone == ORGAN_SLOT_EXTERNAL_WINGS)
+        return "wings"
+    if(body_zone == ORGAN_SLOT_WINGS)
+        return "wing membranes"
+
+    // Handle numeric body zones
     switch(body_zone)
         if(BODY_ZONE_HEAD) return "head"
         if(BODY_ZONE_CHEST) return "chest"
@@ -168,88 +190,27 @@
         if(BODY_ZONE_PRECISE_L_FOOT) return "left foot"
         if(BODY_ZONE_PRECISE_R_FOOT) return "right foot"
         if(BODY_ZONE_PRECISE_GROIN) return "groin area"
-        // ENHANCED ORGAN DESCRIPTIONS
-        if(ORGAN_SLOT_BELLY) return "stomach"
-        if(ORGAN_SLOT_BUTT) return "backside"
-        if(ORGAN_SLOT_EXTERNAL_TAIL) return "tail"
-        if(ORGAN_SLOT_EXTERNAL_SPINES) return "spine ridge"
-        if(ORGAN_SLOT_EXTERNAL_FRILLS) return "head frills"
-        if(ORGAN_SLOT_EXTERNAL_HORNS) return "horns"
-        if(ORGAN_SLOT_EXTERNAL_WINGS) return "wings"
-        if(ORGAN_SLOT_WINGS) return "wing membranes"
         else
             return get_body_zone_display_name(body_zone)
 
-/// Converts body part descriptions back to their original defines
-/proc/get_body_part_from_description(description)
-    if(!description)
-        return null
+/// Converts body part strings to standardized organ slot defines
+/proc/get_standardized_body_part(body_part_string)
+    var/lower_part = lowertext(body_part_string)
 
-    // Handle both exact matches and case variations
-    var/lower_description = lowertext(description)
-
-    world.log << "DEBUG CONVERSION: Converting '[description]' (lower: '[lower_description]')"
-
-    switch(lower_description)
-        if("head")
-            world.log << "DEBUG CONVERSION: Matched 'head' to BODY_ZONE_HEAD"
-            return BODY_ZONE_HEAD
-        if("chest")
-            world.log << "DEBUG CONVERSION: Matched 'chest' to BODY_ZONE_CHEST"
-            return BODY_ZONE_CHEST
-        if("left arm")
-            world.log << "DEBUG CONVERSION: Matched 'left arm' to BODY_ZONE_L_ARM"
-            return BODY_ZONE_L_ARM
-        if("right arm")
-            world.log << "DEBUG CONVERSION: Matched 'right arm' to BODY_ZONE_R_ARM"
-            return BODY_ZONE_R_ARM
-        if("left leg")
-            world.log << "DEBUG CONVERSION: Matched 'left leg' to BODY_ZONE_L_LEG"
-            return BODY_ZONE_L_LEG
-        if("right leg")
-            world.log << "DEBUG CONVERSION: Matched 'right leg' to BODY_ZONE_R_LEG"
-            return BODY_ZONE_R_LEG
-        if("left hand")
-            world.log << "DEBUG CONVERSION: Matched 'left hand' to BODY_ZONE_PRECISE_L_HAND"
-            return BODY_ZONE_PRECISE_L_HAND
-        if("right hand")
-            world.log << "DEBUG CONVERSION: Matched 'right hand' to BODY_ZONE_PRECISE_R_HAND"
-            return BODY_ZONE_PRECISE_R_HAND
-        if("left foot")
-            world.log << "DEBUG CONVERSION: Matched 'left foot' to BODY_ZONE_PRECISE_L_FOOT"
-            return BODY_ZONE_PRECISE_L_FOOT
-        if("right foot")
-            world.log << "DEBUG CONVERSION: Matched 'right foot' to BODY_ZONE_PRECISE_R_FOOT"
-            return BODY_ZONE_PRECISE_R_FOOT
-        if("groin area", "groin")
-            world.log << "DEBUG CONVERSION: Matched '[lower_description]' to BODY_ZONE_PRECISE_GROIN"
-            return BODY_ZONE_PRECISE_GROIN
-        // REVERSE ORGAN MAPPINGS
+    switch(lower_part)
+        if("butt", "backside", "ass", "rear")
+            return ORGAN_SLOT_BUTT
         if("stomach", "belly")
-            world.log << "DEBUG CONVERSION: Matched '[lower_description]' to ORGAN_SLOT_BELLY"
             return ORGAN_SLOT_BELLY
-        if("backside", "butt", "ass", "rear")
-            world.log << "DEBUG CONVERSION: Matched '[lower_description]' to ORGAN_SLOT_BUTT"
-            return ORGAN_SLOT_BUTT  // ← THIS WAS MISSING THE RETURN!
         if("tail")
-            world.log << "DEBUG CONVERSION: Matched 'tail' to ORGAN_SLOT_EXTERNAL_TAIL"
             return ORGAN_SLOT_EXTERNAL_TAIL
-        if("spine ridge", "spines")
-            world.log << "DEBUG CONVERSION: Matched '[lower_description]' to ORGAN_SLOT_EXTERNAL_SPINES"
+        if("spines", "spine ridge")
             return ORGAN_SLOT_EXTERNAL_SPINES
-        if("head frills", "frills")
-            world.log << "DEBUG CONVERSION: Matched '[lower_description]' to ORGAN_SLOT_EXTERNAL_FRILLS"
+        if("frills", "head frills")
             return ORGAN_SLOT_EXTERNAL_FRILLS
         if("horns")
-            world.log << "DEBUG CONVERSION: Matched 'horns' to ORGAN_SLOT_EXTERNAL_HORNS"
             return ORGAN_SLOT_EXTERNAL_HORNS
         if("wings", "wing membranes")
-            world.log << "DEBUG CONVERSION: Matched '[lower_description]' to ORGAN_SLOT_EXTERNAL_WINGS"
             return ORGAN_SLOT_EXTERNAL_WINGS
         else
-            // Try to parse as a body zone define
-            if(description in GLOB.tattooable_body_parts)
-                world.log << "DEBUG CONVERSION: '[description]' is already a valid define"
-                return description
-            world.log << "DEBUG CONVERSION: Failed to convert '[description]' to any known define"
-            return null
+            return body_part_string
