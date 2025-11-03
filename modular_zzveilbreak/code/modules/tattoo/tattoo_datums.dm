@@ -15,7 +15,7 @@
     src.design = sanitize_text(design, "An intricate design")
     src.body_part = body_part
     src.color = sanitize_hexcolor(color, default = "#000000")
-    src.layer = clamp(layer, 1, 3)
+    src.layer = sanitize_integer(layer, 1, 3, 2)
     src.date_applied = time2text(world.realtime, "YYYY-MM-DD")
 
 /datum/tattoo/proc/get_examine_text(mob/viewer, mob/living/carbon/human/victim)

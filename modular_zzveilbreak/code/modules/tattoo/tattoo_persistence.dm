@@ -56,7 +56,7 @@
 		if(!islist(tattoo_info))
 			continue
 
-		// Sanitize and validate all data
+		// Sanitize and validate all data using your functions
 		var/artist = sanitize_text(tattoo_info["artist"], "Unknown Artist")
 		var/design = sanitize_text(tattoo_info["design"], "An intricate design")
 		var/body_part = sanitize_inlist(tattoo_info["body_part"], GLOB.tattooable_body_parts, BODY_ZONE_CHEST)
