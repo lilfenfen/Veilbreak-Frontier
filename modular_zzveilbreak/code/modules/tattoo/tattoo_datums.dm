@@ -273,23 +273,33 @@
             return get_body_zone_display_name(body_zone)
 
 /// Converts body part strings to standardized organ slot defines
+/// Converts body part strings to standardized organ slot defines
 /proc/get_standardized_body_part(body_part_string)
     var/lower_part = lowertext(body_part_string)
+    world.log << "DEBUG: Converting body part string: [body_part_string] -> [lower_part]"
 
     switch(lower_part)
         if("butt", "backside", "ass", "rear")
+            world.log << "DEBUG: Converted to ORGAN_SLOT_BUTT: [ORGAN_SLOT_BUTT]"
             return ORGAN_SLOT_BUTT
         if("stomach", "belly")
+            world.log << "DEBUG: Converted to ORGAN_SLOT_BELLY: [ORGAN_SLOT_BELLY]"
             return ORGAN_SLOT_BELLY
         if("tail")
+            world.log << "DEBUG: Converted to ORGAN_SLOT_EXTERNAL_TAIL: [ORGAN_SLOT_EXTERNAL_TAIL]"
             return ORGAN_SLOT_EXTERNAL_TAIL
         if("spines", "spine ridge")
+            world.log << "DEBUG: Converted to ORGAN_SLOT_EXTERNAL_SPINES: [ORGAN_SLOT_EXTERNAL_SPINES]"
             return ORGAN_SLOT_EXTERNAL_SPINES
         if("frills", "head frills")
+            world.log << "DEBUG: Converted to ORGAN_SLOT_EXTERNAL_FRILLS: [ORGAN_SLOT_EXTERNAL_FRILLS]"
             return ORGAN_SLOT_EXTERNAL_FRILLS
         if("horns")
+            world.log << "DEBUG: Converted to ORGAN_SLOT_EXTERNAL_HORNS: [ORGAN_SLOT_EXTERNAL_HORNS]"
             return ORGAN_SLOT_EXTERNAL_HORNS
         if("wings", "wing membranes")
+            world.log << "DEBUG: Converted to ORGAN_SLOT_EXTERNAL_WINGS: [ORGAN_SLOT_EXTERNAL_WINGS]"
             return ORGAN_SLOT_EXTERNAL_WINGS
         else
+            world.log << "DEBUG: No conversion found, returning original: [body_part_string]"
             return body_part_string

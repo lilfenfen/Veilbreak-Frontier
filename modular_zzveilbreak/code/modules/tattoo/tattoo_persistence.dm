@@ -139,6 +139,8 @@
 	world.log << "=== TATTOO LOAD COMPLETE ==="
 
 /// Applies saved tattoos to a mob - called when mob is created
+/// Applies saved tattoos to a mob - called when mob is created
+/// Applies saved tattoos to a mob - called when mob is created
 /datum/preferences/proc/apply_tattoos_to_mob(mob/living/carbon/human/character)
 	world.log << "=== TATTOO APPLY START ==="
 
@@ -170,25 +172,24 @@
 	// Apply tattoos to mob
 	character.body_tattoos = tattoos_to_apply.Copy()
 
-	// Verify application
-	if(length(character.body_tattoos) > 0)
-		world.log << "DEBUG: Successfully applied [length(character.body_tattoos)] tattoos"
+	// Verify application - check each tattoo individually
+	world.log << "DEBUG: Mob now has [length(character.body_tattoos)] tattoos"
+	for(var/datum/tattoo/T as anything in character.body_tattoos)
+		world.log << "DEBUG: Applied tattoo: '[T.design]' on [T.body_part]"
+		world.log << "DEBUG: Tattoo details - Artist: [T.artist], Color: [T.color], Layer: [T.layer]"
 
-		// Test the first tattoo
-		var/datum/tattoo/first = character.body_tattoos[1]
-		world.log << "DEBUG: First tattoo: '[first.design]' on [first.body_part]"
-		world.log << "DEBUG: Tattoo details - Artist: [first.artist], Color: [first.color], Layer: [first.layer]"
+		// Test the body part
+		var/body_part_define = T.body_part
+		world.log << "DEBUG: Body part define: [body_part_define]"
+		world.log << "DEBUG: Is valid tattoo bodypart: [is_valid_tattoo_bodypart(body_part_define)]"
 
-		// Test visibility and examine text
-		var/visible = first.is_visible(character, character)
-		var/examine_text = first.get_examine_text(character, character)
-		world.log << "DEBUG: Tattoo visible to self: [visible]"
-		world.log << "DEBUG: Examine text: [examine_text ? "PRESENT" : "MISSING"]"
+		// Test if body part exists on mob
+		var/body_part_exists = body_part_exists(character, body_part_define)
+		world.log << "DEBUG: Body part exists on mob: [body_part_exists]"
 
-		if(examine_text)
-			world.log << "DEBUG: Full examine text: [examine_text]"
-	else
-		world.log << "DEBUG: WARNING: No tattoos were applied to character"
+		// Test visibility immediately
+		var/visible = T.is_visible(character, character)
+		world.log << "DEBUG: Immediate visibility check: [visible]"
 
 	character.regenerate_icons()
 	world.log << "DEBUG: Character icons regenerated"

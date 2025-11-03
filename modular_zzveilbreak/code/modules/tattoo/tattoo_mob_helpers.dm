@@ -38,9 +38,18 @@
 
 /mob/living/carbon/human/proc/get_visible_tattoos(mob/viewer)
     . = list()
+    world.log << "=== GET VISIBLE TATTOOS DEBUG ==="
+    world.log << "DEBUG: Checking [length(body_tattoos)] total tattoos on [src]"
+
     for(var/datum/tattoo/T as anything in body_tattoos)
-        if(T.is_visible(viewer, src))
+        world.log << "DEBUG: Checking tattoo: [T.design] on [T.body_part]"
+        var/visible = T.is_visible(viewer, src)
+        world.log << "DEBUG: Tattoo [T.design] visible: [visible]"
+        if(visible)
             . += T
+            world.log << "DEBUG: Added tattoo [T.design] to visible list"
+
+    world.log << "DEBUG: Total visible tattoos: [length(.)]"
     . = sortTim(., GLOBAL_PROC_REF(cmp_tattoo_layer_asc))
 
 /mob/living/carbon/human/proc/can_see_own_tattoo(body_zone)
