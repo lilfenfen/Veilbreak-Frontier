@@ -1,5 +1,3 @@
-// modular_zzveilbreak/code/modules/tattoo/tattoo_bodyparts.dm
-
 // Global list to store all tattooable body parts
 GLOBAL_LIST_INIT(tattooable_body_parts, populate_tattooable_body_parts())
 

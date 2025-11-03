@@ -1,5 +1,3 @@
-// modular_zzveilbreak/code/modules/tattoo/tattoo_mob_helpers.dm
-
 /mob/living/carbon/human
     var/list/datum/tattoo/body_tattoos = list()
 

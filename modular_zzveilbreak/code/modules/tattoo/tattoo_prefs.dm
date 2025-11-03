@@ -1,14 +1,9 @@
-// modular_zzveilbreak/code/modules/tattoo/tattoo_prefs.dm
-
 /datum/preference/toggle/allow_bodywriting
 	category = PREFERENCE_CATEGORY_GAME_PREFERENCES
 	savefile_identifier = PREFERENCE_PLAYER
 	savefile_key = "allow_bodywriting"
-	default_value = TRUE
+	default_value = FALSE
 
 /datum/preference/toggle/allow_bodywriting/apply_to_client(client/client, value)
 	// No special client-side application needed
 	return
-
-/datum/preference/toggle/allow_bodywriting/init_possible_values()
-	return list(TRUE, FALSE)

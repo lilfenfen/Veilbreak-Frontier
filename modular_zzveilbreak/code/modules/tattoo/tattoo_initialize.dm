@@ -1,5 +1,3 @@
-// modular_zzveilbreak/code/modules/tattoo/tattoo_initialize.dm
-
 /proc/initialize_tattoo_system()
     // Global list is already defined in tattoo_bodyparts.dm, just populate it
     GLOB.tattooable_body_parts = populate_tattooable_body_parts()

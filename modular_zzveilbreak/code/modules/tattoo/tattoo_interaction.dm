@@ -1,5 +1,3 @@
-// modular_zzveilbreak/code/modules/tattoo/tattoo_interaction.dm
-
 // Extend the interactable component to include tattoo preferences
 /datum/component/interactable
     /// Add tattoo preference to the list

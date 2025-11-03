@@ -1,5 +1,3 @@
-// modular_zzveilbreak/code/modules/tattoo/tattoo_persistence.dm
-
 /mob/living/carbon/human/proc/update_tattoo_persistence()
     if(!client?.prefs)
         return

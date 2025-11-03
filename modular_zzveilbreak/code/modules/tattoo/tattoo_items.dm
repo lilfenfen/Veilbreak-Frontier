@@ -1,5 +1,3 @@
-// modular_zzveilbreak/code/modules/tattoo/tattoo_items.dm
-
 /obj/item/tattoo_kit
 	name = "tattoo kit"
 	desc = "A kit with all the tools necessary for losing a bet, or making otherwise incredibly indelible decisions."
@@ -164,3 +162,16 @@
 	qdel(temp_tattoo)
 
 	start_tattoo_application(M, user, target_part)
+
+// Override examine for advanced kit to prevent duplicate text
+/obj/item/tattoo_kit/advanced/examine(mob/user)
+	. = ..()
+	// Remove the base class examine text and replace with our own
+	. = list()
+	. += "[icon2html(src, user)] [desc]"
+	. += "It is a small item."
+	if(!tattoo_uses)
+		. += "<span class='warning'>This kit has no uses left!</span>"
+	else
+		. += "<span class='notice'>This kit has enough ink for [tattoo_uses] use\s.</span>"
+	. += "<span class='boldnotice'>You can use a toner cartridge to refill this.</span>"

@@ -1,5 +1,3 @@
-// modular_zzveilbreak/code/modules/tattoo/tattoo_examine.dm
-
 // Override examine to show visible tattoos
 /mob/living/carbon/human/examine(mob/user)
     . = ..()

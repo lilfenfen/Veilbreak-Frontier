@@ -1,5 +1,3 @@
-// modular_zzveilbreak/code/modules/tattoo/tattoo_surgery.dm
-
 /datum/surgery/tattoo_removal
     name = "Tattoo Removal"
     steps = list(/datum/surgery_step/cauterize_tattoo)
