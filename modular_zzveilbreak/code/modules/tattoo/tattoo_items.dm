@@ -1,8 +1,8 @@
 /obj/item/tattoo_kit
 	name = "tattoo kit"
 	desc = "A professional tattoo application kit with various inks and precision tools."
-	icon = 'icons/obj/maintenance_loot.dmi'
-	icon_state = "tattoo_kit"
+	icon = 'modular_zzveilbreak/icons/item_icons/tattoo.dmi'
+	icon_state = "tgun"
 	force = 0
 	throwforce = 0
 	w_class = WEIGHT_CLASS_SMALL
