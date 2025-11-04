@@ -88,7 +88,7 @@
 	desc = "A very common gas that used to pad artificial atmospheres to habitable pressure."
 	primary_color = "#ffff00"
 
-/datum/gas/carbon_dioxide //what the fuck is this?
+/datum/gas/carbon_dioxide
 	id = GAS_CO2
 	specific_heat = 30
 	name = "Carbon Dioxide"
@@ -304,20 +304,6 @@
 	base_value = 10
 	desc = "We still don't know what it does, but it sells for a lot."
 	primary_color = COLOR_MAROON
-
-/datum/gas/delirium
-	id = GAS_DELIRIUM
-	specific_heat = 4000
-	dangerous = TRUE
-	name = "Delirium"
-	gas_overlay = "delirium_2"
-	moles_visible = MOLES_GAS_VISIBLE * 10
-	rarity = 1
-	fusion_power = 25
-	base_value = 5
-	desc = "A gas that induces hallucinations and madness. Said to be the breath of the void itself."
-	primary_color = "#7b0f9c"
-
 
 /obj/effect/overlay/gas
 	icon = 'icons/effects/atmospherics.dmi'

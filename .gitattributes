@@ -1,4 +1,5 @@
 * text=auto
+*.dmm -text
 
 ## Enforce text mode and LF line breaks
 *.bat text eol=lf

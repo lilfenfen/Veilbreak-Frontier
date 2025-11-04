@@ -16,8 +16,15 @@
 	/// If TRUE, gains TRAIT_MOPABLE on init - thus this cleanable will cleaned if its turf is cleaned
 	/// Set to FALSE for things that hang high on the walls or things which generally shouldn't be mopped up
 	var/is_mopped = TRUE
+	//VENUS ADDITION START - Persistent cleanables
+	/// Was this cleanable loaded from the map file? If TRUE, don't persist it (it's already in the map)
+	var/maploaded = FALSE
+	/// How many rounds has this cleanable persisted? Used for janitor examine text
+	var/rounds_persisted = 0
+	//VENUS ADDITION END - Persistent cleanables
 
 /obj/effect/decal/cleanable/Initialize(mapload, list/datum/disease/diseases)
+	maploaded = mapload //VENUS ADDITION - Persistent cleanables
 	. = ..()
 	if (LAZYLEN(random_icon_states))
 		icon_state = pick(random_icon_states)
@@ -139,3 +146,46 @@
 /turf/proc/spawn_glitter(glitter_colors)
 	var/obj/effect/decal/cleanable/glitter/new_glitter = spawn_unique_cleanable(/obj/effect/decal/cleanable/glitter)
 	new_glitter.color = pick_weight(glitter_colors)
+
+//VENUS ADDITION START - Persistent cleanables janitor examine
+/// Override examine to add janitor-specific text for persistent cleanables
+/obj/effect/decal/cleanable/examine(mob/user)
+	. = ..()
+
+	if(!rounds_persisted)
+		return
+
+	var/time_text
+	if(rounds_persisted <= 1)
+		time_text = "a shift or two"
+	else if(rounds_persisted <= 5)
+		time_text = "between one and five shifts"
+	else if(rounds_persisted <= 10)
+		time_text = "between five and ten shifts"
+	else if(rounds_persisted <= 20)
+		time_text = "between ten and twenty shifts"
+	else if(rounds_persisted <= 50)
+		time_text = "between twenty and fifty shifts"
+	else if(rounds_persisted <= 100)
+		time_text = "between fifty and a hundred shifts"
+	else
+		time_text = "more than a hundred shifts"
+
+	// General message for everyone
+	var/general_text
+	if(rounds_persisted <= 5)
+		general_text = "multiple shifts"
+	else if(rounds_persisted <= 20)
+		general_text = "many shifts"
+	else
+		general_text = "many, many shifts"
+
+	// Show specific details for janitors, generic text for everyone else
+	if(ishuman(user))
+		var/mob/living/carbon/human/human_user = user
+		if(istype(human_user.mind?.assigned_role, /datum/job/janitor))
+			. += span_notice("Your experience in janitoring tells you that this has been here for [time_text].")
+			return
+
+	. += span_notice("It looks like it has been here for [general_text]... A janitor might be able to tell more.")
+//VENUS ADDITION END - Persistent cleanables janitor examine

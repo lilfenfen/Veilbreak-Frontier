@@ -1,0 +1,1 @@
+#define VOID_ATMOS GAS_O2 + "=22;" + GAS_DELIRIUM + "=2;" + GAS_N2 + "=60;TEMP=293.15"

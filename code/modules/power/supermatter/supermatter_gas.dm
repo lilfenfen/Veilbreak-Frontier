@@ -60,6 +60,7 @@
 /// Assoc of sm_gas_behavior[/datum/gas (path)] = datum/sm_gas (instance)
 GLOBAL_LIST_INIT(sm_gas_behavior, init_sm_gas())
 
+GLOBAL_LIST_EMPTY(void_tile_cooldowns)
 /// Contains effects of gases when absorbed by the sm.
 /// If the gas has no effects you do not need to add another sm_gas subtype,
 /// We already guard for nulls in [/obj/machinery/power/supermatter_crystal/proc/calculate_gases]
@@ -237,16 +238,56 @@ GLOBAL_LIST_INIT(sm_gas_behavior, init_sm_gas())
 
 /datum/sm_gas/delirium
 	gas_path = /datum/gas/delirium
-	heat_modifier = 4
-	power_transmission = 0.6
-	heat_power_generation = 11
-	powerloss_inhibition = 1
+	heat_modifier = 15
+	power_transmission = 6
+	heat_power_generation = 1.7
+	powerloss_inhibition = 2
 	desc = "Strong fuel with unknown properties. Be extremely careful while testing."
 
-/datum/sm_gas/delirium/extra_effects(obj/machinery/power/supermatter_crystal/sm)
-	if(sm.gas_percentage[/datum/gas/delirium] > 0.5)
-		var/range = min(sm.gas_percentage[/datum/gas/delirium] * 200)  // Cap at 20 tiles for balance
-		for(var/mob/living/victim in range(range, sm))
-			var/hallucination_type = pick(GLOB.delirious_table)
-			victim.apply_status_effect(hallucination_type, "delirium supermatter")
+GLOBAL_LIST_EMPTY(delirium_warnings)
 
+/datum/sm_gas/delirium/proc/transform_and_summon(obj/machinery/power/supermatter_crystal/sm)
+	if(QDELETED(sm) || sm.gas_percentage[/datum/gas/delirium] <= 0.1)
+		return
+
+	var/turf/open/floor/target_turf
+	// Iterate from the closest distance outwards to the max range to find a tile to convert.
+	for(var/dist in 4 to 8)
+		var/list/possible_turfs_at_dist = list()
+		for(var/turf/open/floor/floor in range(dist, sm))
+			if(get_dist(floor, sm) == dist && !istype(floor, /turf/open/floor/void_tile))
+				possible_turfs_at_dist += floor
+
+		if(length(possible_turfs_at_dist))
+			target_turf = pick(possible_turfs_at_dist)
+			break // Found a tile at the closest possible distance, so we stop searching.
+
+	if(target_turf)
+		target_turf.ChangeTurf(/turf/open/floor/void_tile, flags = CHANGETURF_INHERIT_AIR)
+
+		if(prob(25))
+			var/mob_type = pick(/mob/living/simple_animal/hostile/Voidling, /mob/living/simple_animal/hostile/Consumed_Pathfinder, /mob/living/simple_animal/hostile/Voidbug, /mob/living/simple_animal/hostile/Void_Healer)
+			new mob_type(target_turf)
+
+		// Schedule the next transformation and summon
+		addtimer(CALLBACK(src, PROC_REF(transform_and_summon), sm), 5 SECONDS)
+
+/datum/sm_gas/delirium/extra_effects(obj/machinery/power/supermatter_crystal/sm)
+	if(sm.gas_percentage[/datum/gas/delirium] > 0.1)
+		if(!GLOB.delirium_warnings[sm])
+			for(var/mob/M in range(150, sm)) // Wide range warning
+				to_chat(M, span_warning("The fabric of reality shudders as the Void begins to manifest around the supermatter!"))
+				to_chat(M, )
+			GLOB.delirium_warnings[sm] = world.time
+			// Start the transformation and summoning loop
+			INVOKE_ASYNC(src, PROC_REF(transform_and_summon), sm)
+		if(!sm.get_filter("delirium_glow"))
+			sm.add_filter("delirium_glow", 1, list("type" = "outline", "color" = "#8a2be2", "size" = 1))
+			var/filter = sm.get_filter("delirium_glow")
+			animate(filter, size = 3, time = 10, loop = -1)
+			animate(size = 1, time = 10)
+		visible_hallucination_pulse_delirium(sm, 150, 50 SECONDS)
+	else
+		if(GLOB.delirium_warnings[sm])
+			GLOB.delirium_warnings -= sm
+		sm.remove_filter("delirium_glow")

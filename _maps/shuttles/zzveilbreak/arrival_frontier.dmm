@@ -1,0 +1,182 @@
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"a" = (
+/obj/machinery/light/directional/east,
+/obj/structure/chair/sofa/bench/left{
+	dir = 8
+	},
+/turf/open/floor/iron/shuttle/arrivals{
+	icon_state = "sign_1"
+	},
+/area/shuttle/arrival)
+"b" = (
+/obj/structure/chair/sofa/bench/right{
+	dir = 8
+	},
+/turf/open/floor/iron/shuttle/arrivals{
+	icon_state = "sign_1"
+	},
+/area/shuttle/arrival)
+"h" = (
+/obj/structure/chair/sofa/bench/right{
+	dir = 4
+	},
+/turf/open/floor/iron/shuttle/arrivals{
+	icon_state = "sign_1"
+	},
+/area/shuttle/arrival)
+"i" = (
+/obj/machinery/light/directional/west,
+/obj/structure/chair/sofa/bench/right{
+	dir = 4
+	},
+/turf/open/floor/iron/shuttle/arrivals{
+	icon_state = "sign_1"
+	},
+/area/shuttle/arrival)
+"k" = (
+/obj/docking_port/mobile/arrivals{
+	width = 5;
+	height = 10
+	},
+/obj/machinery/door/airlock/titanium/glass,
+/turf/open/floor/iron/dark,
+/area/shuttle/arrival)
+"o" = (
+/turf/open/floor/iron/shuttle/arrivals,
+/area/shuttle/arrival)
+"q" = (
+/turf/open/floor/iron/shuttle/arrivals{
+	icon_state = "sign_2";
+	dir = 8
+	},
+/area/shuttle/arrival)
+"v" = (
+/obj/structure/chair/sofa/bench{
+	dir = 8
+	},
+/turf/open/floor/iron/shuttle/arrivals{
+	icon_state = "sign_1"
+	},
+/area/shuttle/arrival)
+"z" = (
+/turf/open/floor/iron/shuttle/arrivals{
+	icon_state = "sign_2";
+	dir = 4
+	},
+/area/shuttle/arrival)
+"A" = (
+/obj/structure/chair/sofa/bench/left{
+	dir = 4
+	},
+/turf/open/floor/iron/shuttle/arrivals{
+	icon_state = "sign_1"
+	},
+/area/shuttle/arrival)
+"B" = (
+/obj/machinery/power/shuttle_engine/propulsion,
+/turf/closed/wall/mineral/plastitanium,
+/area/shuttle/arrival)
+"C" = (
+/obj/machinery/light/directional/east,
+/turf/open/floor/iron/shuttle/arrivals{
+	icon_state = "sign_3"
+	},
+/area/shuttle/arrival)
+"F" = (
+/obj/machinery/door/airlock/titanium/glass,
+/turf/open/floor/iron/dark,
+/area/shuttle/arrival)
+"I" = (
+/obj/machinery/light/directional/west,
+/turf/open/floor/iron/shuttle/arrivals{
+	icon_state = "sign_3"
+	},
+/area/shuttle/arrival)
+"K" = (
+/turf/closed/wall/mineral/plastitanium,
+/area/shuttle/arrival)
+"M" = (
+/obj/effect/spawner/structure/window/reinforced/plasma/plastitanium,
+/turf/open/floor/iron/dark,
+/area/shuttle/arrival)
+"Q" = (
+/obj/structure/chair/sofa/bench/left{
+	dir = 8
+	},
+/turf/open/floor/iron/shuttle/arrivals{
+	icon_state = "sign_1"
+	},
+/area/shuttle/arrival)
+"T" = (
+/obj/structure/chair/sofa/bench{
+	dir = 4
+	},
+/turf/open/floor/iron/shuttle/arrivals{
+	icon_state = "sign_1"
+	},
+/area/shuttle/arrival)
+"V" = (
+/obj/machinery/power/shuttle_engine/heater,
+/turf/closed/wall/mineral/plastitanium,
+/area/shuttle/arrival)
+
+(1,1,1) = {"
+K
+M
+M
+K
+F
+K
+M
+M
+V
+B
+"}
+(2,1,1) = {"
+M
+A
+T
+i
+q
+I
+A
+h
+V
+B
+"}
+(3,1,1) = {"
+M
+o
+o
+o
+o
+o
+o
+o
+V
+B
+"}
+(4,1,1) = {"
+M
+b
+v
+a
+z
+C
+b
+Q
+V
+B
+"}
+(5,1,1) = {"
+K
+M
+M
+K
+k
+K
+M
+M
+V
+B
+"}

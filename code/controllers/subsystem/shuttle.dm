@@ -149,6 +149,9 @@ SUBSYSTEM_DEF(shuttle)
 	/// List of express consoles that are waiting for pack initialization
 	var/list/obj/machinery/computer/cargo/express/express_consoles = list()
 
+	/// Ensures setup_shuttles is only called once
+	var/setup_done = FALSE
+
 /datum/controller/subsystem/shuttle/Initialize()
 	order_number = rand(1, 9000)
 
@@ -189,7 +192,6 @@ SUBSYSTEM_DEF(shuttle)
 	for (var/obj/machinery/computer/cargo/express/console as anything in express_consoles)
 		console.packin_up(TRUE)
 
-	setup_shuttles(stationary_docking_ports)
 	has_purchase_shuttle_access = init_has_purchase_shuttle_access()
 
 	if(!arrivals)
@@ -208,6 +210,11 @@ SUBSYSTEM_DEF(shuttle)
 		CHECK_TICK
 
 /datum/controller/subsystem/shuttle/fire()
+	if(!setup_done)
+		setup_shuttles(SSshuttle.stationary_docking_ports)
+		setup_done = TRUE
+		return
+
 	for(var/thing in mobile_docking_ports)
 		if(!thing)
 			mobile_docking_ports.Remove(thing)

@@ -14,3 +14,4 @@
 	prefix = "_maps/shuttles/zzvenus/"
 	suffix = "kilo_venus"
 	name = "arrival shuttle (Kilo)"
+

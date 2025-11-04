@@ -1,8 +1,12 @@
 /mob/living/simple_animal/hostile/megafauna/inai
 	name = "Inai"
 	desc = "Spirit of the Void, enduring the mortal indignities of the coil."
-	icon = 'modular_zzveilbreak/icons/bosses/inai.dmi'
+	icon = 'modular_zzveilbreak/icons/bosses/inai_model.dmi'
 	icon_state = "inai"
+	pixel_x = 0
+	pixel_y = 0
+	bound_width = 48
+	bound_height = 48
 	maxHealth = 3000
 	health = 3000
 	attack_verb_continuous = "slashes"
@@ -14,7 +18,7 @@
 	attack_sound = 'modular_zzveilbreak/sound/weapons/inai_attack.ogg'
 	speak_emote = list("says", "declares", "utters")
 	speak_chance = 100
-	faction = list("hostile")
+	faction = list("Void")
 	speed = 1.1
 	rapid_melee = 1
 	melee_queue_distance = 12
@@ -26,7 +30,7 @@
 	dodging = TRUE
 	dodge_prob = 40
 	move_to_delay = 1.1
-	loot = list(/obj/item/voidshard)  // Fixed drop for now; can use table later
+	loot = /obj/item/voidshard
 
 	// List of death messages
 	var/list/death_messages = list(
@@ -43,8 +47,7 @@
 		"Behind you.",
 		"You're already too late.",
 		"I'm everywhere and nowhere.",
-		"A merry chase you lead."
-
+		"I cannot let you live."
 	)
 
 	// List of resonant pulse messages
@@ -87,6 +90,9 @@
 	// Life regeneration: 1 HP per tick when below max health and not dead
 	/mob/living/simple_animal/hostile/megafauna/inai/Life()
 		. = ..()
+		if(channeling)
+			return
+
 		if(stat != DEAD && health < maxHealth)
 			adjustBruteLoss(-1)
 		// Spell casting logic
@@ -102,7 +108,7 @@
 		if(loot)
 			new loot(loc)
 		var/msg = pick(death_messages)
-		visible_message("<span style='color:#8a2be2; font-style:italic; font-size: 1.2em; text-shadow: 0 0 5px #8a2be2;'>[msg]</span>")
+		visible_message("<span style='color:#8a2be2; font-style:italic; '>[msg]</span>")
 		..()
 
 // Astral Step ability
@@ -151,7 +157,7 @@
 				if(L != inai)  // Exclude Inai from the mark
 					L.apply_status_effect(/datum/status_effect/astral_mark)
 	var/msg = pick(inai.astral_messages)
-	inai.visible_message("<span style='color:#8a2be2; font-style:italic; font-size: 1.2em; text-shadow: 0 0 5px #8a2be2;'>[msg]</span>")
+	inai.visible_message("<span style='color:#8a2be2; font-style:italic; '>[msg]</span>")
 	StartCooldown()
 
 // Inai Wave ability
@@ -191,7 +197,7 @@
 	// After channeling
 	inai.visible_message(span_danger("[inai] finishes channeling the resonant wave!"))
 	var/msg = pick(inai.pulse_messages)
-	inai.visible_message("<span style='color:#8a2be2; font-style:italic; font-size: 1.2em; text-shadow: 0 0 5px #8a2be2;'>[msg]</span>")
+	inai.visible_message("<span style='color:#8a2be2; font-style:italic; '>[msg]</span>")
 	inai.channeling = FALSE  // Reset flag
 	StartCooldown()
 

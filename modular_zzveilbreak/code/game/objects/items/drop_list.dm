@@ -1,6 +1,3 @@
-// Example loot drop lists for mobs, inspired by existing SS13 patterns (e.g., megafauna or hostile animals).
-// These can be used in mob definitions like loot = list(/obj/item/your_loot) or with probabilities.
-
 
 // Weighted loot table (e.g., for random drops with chances)
 /var/list/voidling_loot_table = list(
@@ -15,11 +12,34 @@
 )
 
 /var/list/inai_drops = list(
-	/obj/item/voidshard = 100,
-	/obj/item/clothing/neck/aether_pendant = 33,  // 33% chance
-	/obj/item/clothing/neck/life_pendant = 33  // 33% chance
+	/obj/item/clothing/neck/aether_pendant = 50,
+	/obj/item/clothing/neck/life_pendant = 50,
+	/obj/item/clothing/gloves/ring/voidring = 50
 )
 
+/var/list/void_healer_table = list(
+	/obj/item/clothing/neck/life_pendant = 30,
+	/obj/item/food/donkpocket = 70
+)
+
+var/list/melos_vecare_drops = list(
+	/obj/item/clothing/neck/aether_pendant = 50,
+	/obj/item/clothing/neck/life_pendant = 50,
+	/obj/item/clothing/gloves/ring/voidring = 50
+)
+
+/var/list/voidbug_loot_table = list(
+	/obj/item/clothing/neck/aether_pendant = 30,
+	/obj/item/food/appleslice = 70
+)
+
+/var/list/consumed_pathfinder_drops = list(
+	/obj/item/voidshard = 1,
+	/obj/item/clothing/neck/aether_pendant = 5,
+	/obj/item/clothing/neck/life_pendant = 5,
+	/obj/item/clothing/gloves/ring/voidring = 29,
+	/obj/item/stack/sheet/bluespace_crystal = 60
+)
 // Function to pick loot from a table (call this in mob death proc if needed)
 /proc/pick_loot_from_table(list/loot_table)
     var/total_weight = 0

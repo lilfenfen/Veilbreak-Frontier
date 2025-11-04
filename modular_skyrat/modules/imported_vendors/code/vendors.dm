@@ -38,6 +38,7 @@
 				/obj/item/food/pistachios = 6,
 				/obj/item/food/cornchips/random = 6,
 				/obj/item/food/sosjerky = 6,
+				/obj/item/food/protein_bar/base = 6, //VENUS ADDITION - Protein Bars
 				/obj/item/reagent_containers/cup/soda_cans/cola = 6,
 				/obj/item/reagent_containers/cup/soda_cans/lemon_lime = 6,
 				/obj/item/reagent_containers/cup/soda_cans/starkist = 6,

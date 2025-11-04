@@ -9,8 +9,15 @@
 	resistance_flags = FLAMMABLE
 	item_flags = NOBLUDGEON|SKIP_FANTASY_ON_SPAWN
 	custom_materials = list(/datum/material/plastic=SMALL_MATERIAL_AMOUNT*2)
+	//VENUS ADDITION START - Persistent trash
+	/// Was this trash loaded from the map file? If TRUE, don't persist it (it's already in the map)
+	var/maploaded = FALSE
+	/// How many rounds has this trash persisted? Used for janitor examine text
+	var/rounds_persisted = 0
+	//VENUS ADDITION END - Persistent trash
 
 /obj/item/trash/Initialize(mapload)
+	maploaded = mapload //VENUS ADDITION - Persistent trash
 	var/turf/T = get_turf(src)
 	if(T && is_station_level(T.z))
 		SSblackbox.record_feedback("tally", "station_mess_created", 1, name)
@@ -240,3 +247,47 @@
 
 /obj/item/trash/shok_roks/lanternfruit
 	icon_state = "shok_roks_lanternfruit"
+
+//VENUS ADDITION START - Persistent trash janitor examine
+/// Override examine to add janitor-specific text for persistent trash
+/obj/item/trash/examine(mob/user)
+	. = ..()
+
+	if(!rounds_persisted)
+		return
+
+	var/time_text
+	if(rounds_persisted <= 1)
+		time_text = "a shift or two"
+	else if(rounds_persisted <= 5)
+		time_text = "between one and five shifts"
+	else if(rounds_persisted <= 10)
+		time_text = "between five and ten shifts"
+	else if(rounds_persisted <= 20)
+		time_text = "between ten and twenty shifts"
+	else if(rounds_persisted <= 50)
+		time_text = "between twenty and fifty shifts"
+	else if(rounds_persisted <= 100)
+		time_text = "between fifty and a hundred shifts"
+	else
+		time_text = "more than a hundred shifts"
+
+	// General message for everyone
+	var/general_text
+	if(rounds_persisted <= 5)
+		general_text = "multiple shifts"
+	else if(rounds_persisted <= 20)
+		general_text = "many shifts"
+	else
+		general_text = "many, many shifts"
+
+	// Show specific details for janitors, generic text for everyone else
+	if(ishuman(user))
+		var/mob/living/carbon/human/human_user = user
+		if(istype(human_user.mind?.assigned_role, /datum/job/janitor))
+			. += span_notice("Your experience in janitoring tells you that this has been here for [time_text].")
+			. += span_notice("You should probably dispose of this properly - you could try abandoning it in maintenance or using the disposals system.")
+			return
+
+	. += span_notice("It looks like it has been here for [general_text]... A janitor might be able to tell more.")
+//VENUS ADDITION END - Persistent trash janitor examine

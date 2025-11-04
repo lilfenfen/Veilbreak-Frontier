@@ -176,7 +176,6 @@ SUBSYSTEM_DEF(ticker)
 				send2chat(new /datum/tgs_message_content("<@&[CONFIG_GET(string/game_alert_role_id)]> Round **[GLOB.round_id]** starting on [SSmapping.current_map.map_name], [CONFIG_GET(string/servername)]! \nIf you wish to be pinged for game related stuff, go to <#[CONFIG_GET(string/role_assign_channel_id)]> and assign yourself the roles."), channel_tag)
 			current_state = GAME_STATE_PREGAME
 		// BUBBERSTATION EDIT START
-			var/storyteller = CONFIG_GET(string/default_storyteller)
 			/*
 			if(storyteller && !SSgamemode.storyteller_vote_can_override()) // SPLURT EDIT - Original: if(storyteller)
 				SSgamemode.set_storyteller(text2path(storyteller), TRUE)

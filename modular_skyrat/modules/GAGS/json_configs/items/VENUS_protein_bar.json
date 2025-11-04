@@ -1,0 +1,11 @@
+{
+	"protein_bar": [
+		{
+			"type": "icon_state",
+			"icon_state": "protein_bar",
+			"blend_mode": "overlay",
+			"color_ids": [1]
+		}
+	]
+}
+

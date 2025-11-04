@@ -6,6 +6,7 @@
 	gender = NEUTER
 	mergeable_decal = FALSE
 	flags_1 = ALLOW_DARK_PAINTS_1
+	clean_type = CLEAN_TYPE_HARD_DECAL //VENUS ADDITION - Graffiti is harder to clean
 	var/do_icon_rotate = TRUE
 	var/rotation = 0
 	var/paint_colour = COLOR_WHITE

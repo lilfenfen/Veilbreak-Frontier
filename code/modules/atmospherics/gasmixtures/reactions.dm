@@ -1251,9 +1251,7 @@
         if(temperature > FIRE_DELIRIUM_MINTEMP)
             location.hotspot_expose(temperature, CELL_VOLUME)
             // Apply hallucinations directly
-            for(var/mob/living/victim in range(10, location))
-                var/hallucination_type = pick(GLOB.delirious_table)
-                victim.apply_status_effect(hallucination_type, "delirium_fire")
+            visible_hallucination_pulse_delirium(location, 15, 50 SECONDS)
 
     if(total_burned)
         return REACTING

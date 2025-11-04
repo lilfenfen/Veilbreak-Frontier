@@ -1,14 +1,14 @@
 /turf/open/floor/void_tile
-	name = "Void Tile"
+	name = "Void Floor"
 	desc = "A tile made from the very fabric of void itself. How are you even standing on this..."
-	icon = 'icons/turf/floors.dmi'
+	icon = 'modular_zzveilbreak/icons/tiles/void_tile.dmi'
 	icon_state = "void_tile"
 	initial_gas_mix = VOID_ATMOS
 	planetary_atmos = TRUE
-	light_range = 2.0 //slightly less range than lava
-	light_power = 0.65 //less bright, too
+	light_range = 2.0
+	light_power = 0.9
 	light_color = LIGHT_COLOR_DEFAULT
-	thermal_conductivity = 0.5
+	thermal_conductivity = 0.1
 	heat_capacity = INFINITY
 	footstep = FOOTSTEP_PLATING
 	barefootstep = FOOTSTEP_HARD_BAREFOOT
@@ -18,6 +18,17 @@
 	rcd_proof = TRUE
 	rust_resistance = RUST_RESISTANCE_ABSOLUTE
 	resistance_flags = FIRE
+
+	// Glass floor properties for proper layering and transparency
+	layer = GLASS_FLOOR_LAYER
+	underfloor_accessibility = UNDERFLOOR_VISIBLE
+
+/turf/open/floor/void_tile/Initialize(mapload)
+	. = ..()
+	return INITIALIZE_HINT_LATELOAD
+
+/turf/open/floor/void_tile/LateInitialize()
+	ADD_TURF_TRANSPARENCY(src, INNATE_TRAIT)
 
 /turf/open/floor/void_tile/break_tile()
 	return //unbreakable

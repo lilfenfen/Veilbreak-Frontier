@@ -4,19 +4,19 @@
 	icon = 'modular_zzveilbreak/icons/item_icons/pendants.dmi'
 	worn_icon = 'modular_zzveilbreak/icons/item_icons/pendants.dmi'
 	post_init_icon_state = "aether_pendant"
-	worn_icon_state = "aether_pendant"
+	worn_icon_state = "aether_worn"
 	icon_state = "aether_pendant"
 	w_class = WEIGHT_CLASS_SMALL
 	slot_flags = ITEM_SLOT_NECK
-	pixel_x = 4  // Offset towards neck (up)
 
-	var/active = FALSE  // For active ability
+	supports_variations_flags = CLOTHING_DIGITIGRADE_VARIATION | CLOTHING_SNOUTED_VARIATION
+
+	var/active = FALSE
 	var/on_cooldown = FALSE
 	var/cooldown_time = 20 SECONDS
 
 /obj/item/clothing/neck/aether_pendant/Initialize()
 	. = ..()
-	// Removed action grant here
 
 /obj/item/clothing/neck/aether_pendant/equipped(mob/user, slot)
 	. = ..()
@@ -57,13 +57,15 @@
 
 /obj/item/clothing/neck/aether_pendant/proc/on_damage(datum/source, damage, damagetype, def_zone, blocked, forced)
 	SIGNAL_HANDLER
-	if(prob(1) || active)  // 1% chance or active
-		damage = 0  // Nullify damage
+	if(active || prob(5))
 		if(active)
 			active = FALSE
-			to_chat(source, span_notice("The void fully blocks the damage!"))
+			if(ismob(loc))
+				to_chat(loc, span_notice("The void fully blocks the damage!"))
 		else
-			to_chat(source, span_notice("The void passively blocks the damage!"))
+			if(ismob(loc))
+				to_chat(loc, span_notice("The void passively blocks the damage!"))
+		return -damage
 
 /obj/item/clothing/neck/aether_pendant/proc/end_cooldown()
 	on_cooldown = FALSE
@@ -83,29 +85,31 @@
 	worn_icon = 'modular_zzveilbreak/icons/item_icons/pendants.dmi'
 	post_init_icon_state = "life_pendant"
 	icon_state = "life_pendant"
-	worn_icon_state = "life_pendant"
+	worn_icon_state = "life_worn"
 	w_class = WEIGHT_CLASS_SMALL
 	slot_flags = ITEM_SLOT_NECK
-	pixel_x = 4  // Offset towards neck (up)
+
+	// Skyrat scaling integration - same as ashwalker necklace
+	supports_variations_flags = CLOTHING_DIGITIGRADE_VARIATION | CLOTHING_SNOUTED_VARIATION
+	// NO custom scaling, NO custom build_worn_icon override
 
 	var/on_cooldown = FALSE
 	var/cooldown_time = 35 SECONDS
 
 /obj/item/clothing/neck/life_pendant/Initialize()
 	. = ..()
-	// Removed action grant here
 
 /obj/item/clothing/neck/life_pendant/equipped(mob/user, slot)
 	. = ..()
 	if(slot == ITEM_SLOT_NECK)
-		START_PROCESSING(SSobj, src)  // Start passive healing
+		START_PROCESSING(SSobj, src)
 		if(!locate(/datum/action/item_action/life_heal) in user.actions)
 			var/datum/action/item_action/life_heal/action = new(src)
 			action.Grant(user)
 
 /obj/item/clothing/neck/life_pendant/dropped(mob/user)
 	. = ..()
-	STOP_PROCESSING(SSobj, src)  // Stop passive healing
+	STOP_PROCESSING(SSobj, src)
 	var/datum/action/item_action/life_heal/action = locate() in user.actions
 	if(action)
 		action.Remove(user)
@@ -142,7 +146,7 @@
 		return
 	var/mob/living/user = loc
 	if(user.health < user.maxHealth)
-		user.adjustBruteLoss(-0.5 * seconds_per_tick)  // Heal 1 per second, scaled by tick
+		user.adjustBruteLoss(-0.5 * seconds_per_tick)
 		user.adjustFireLoss(-0.5 * seconds_per_tick)
 		user.adjustToxLoss(-0.5 * seconds_per_tick)
 		user.adjustOxyLoss(-0.5 * seconds_per_tick)
@@ -151,4 +155,3 @@
 	on_cooldown = FALSE
 	if(ismob(loc))
 		to_chat(loc, span_notice("The Life Pendant is ready to use again."))
-
