@@ -12,3 +12,6 @@
   - rscadd: Added examine text to research scrap, showing what materials are required to complete it.
   - rscdel: Disabled cleanbot's ability to clean graffiti.
   - rscadd: Added CLEAN_TYPE_HARD_DECAL to graffiti to make them harder to clean.
+2025-10-29:
+  Goku:
+  - rscadd: Added a new negative quirk, Void-Touched. Applies a spacey limb texture and mutism.

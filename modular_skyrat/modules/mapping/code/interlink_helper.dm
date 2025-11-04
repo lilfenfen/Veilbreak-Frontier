@@ -5,6 +5,7 @@
 
 /datum/controller/subsystem/mapping/loadWorld()
 	. = ..()
+#ifndef ABSOLUTE_MINIMUM
 	var/list/FailedZsRat = list()
 	LoadGroup(FailedZsRat, "The Interlink", "map_files/generic", "CentCom_skyrat_z2.dmm", default_traits = ZTRAITS_CENTCOM)
 	if(LAZYLEN(FailedZsRat)) //but seriously, unless the server's filesystem is messed up this will never happen
@@ -14,6 +15,7 @@
 				msg += ", [FailedZsRat[I]]"
 		msg += ". Yell at your server host!"
 		INIT_ANNOUNCE(msg)
+#endif
 
 #undef INIT_ANNOUNCE
 */

@@ -783,8 +783,9 @@
 	/// List of gases we will assert, and possibly garbage collect.
 	var/list/asserted_gases = list(/datum/gas/hypernoblium, /datum/gas/bz)
 	air.assert_gases(arglist(asserted_gases))
-	var/reduction_factor = clamp(cached_gases[/datum/gas/tritium][MOLES] / (cached_gases[/datum/gas/tritium][MOLES] + cached_gases[/datum/gas/bz][MOLES]), 0.001 , 1) //reduces trit consumption in presence of bz upward to 0.1% reduction
-	var/nob_formed = min((cached_gases[/datum/gas/nitrogen][MOLES] + cached_gases[/datum/gas/tritium][MOLES]) * 0.01, cached_gases[/datum/gas/tritium][MOLES] * INVERSE(5 * reduction_factor), cached_gases[/datum/gas/nitrogen][MOLES] * INVERSE(10))
+	var/list/bz = cached_gases[/datum/gas/bz]
+	var/reduction_factor = clamp(tritium[MOLES] / (tritium[MOLES] + bz[MOLES]), 0.001 , 1) //reduces trit consumption in presence of bz upward to 0.1% reduction
+	var/nob_formed = min((nitrogen[MOLES] + tritium[MOLES]) * 0.01, tritium[MOLES] * INVERSE(5 * reduction_factor), nitrogen[MOLES] * INVERSE(10))
 
 	//calling QUANTIZE on results to round very small floating point values.
 	if (QUANTIZE(nob_formed) <= 0 || (QUANTIZE(cached_gases[/datum/gas/tritium][MOLES] - 5 * nob_formed * reduction_factor) < 0) || (QUANTIZE(cached_gases[/datum/gas/nitrogen][MOLES] - 10 * nob_formed) < 0))
