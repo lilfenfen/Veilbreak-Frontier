@@ -1,0 +1,10 @@
+{
+	"void_ring": [
+		{
+			"type": "icon_state",
+			"icon_state": "voidring",
+			"blend_mode": "overlay",
+			"color_ids": [1]
+		}
+	]
+}
