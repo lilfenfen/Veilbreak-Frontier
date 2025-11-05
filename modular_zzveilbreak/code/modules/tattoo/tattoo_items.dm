@@ -136,7 +136,7 @@
 			// Check tattoo limit
 			var/current_tattoos = current_target.get_tattoos(zone)
 			if(length(current_tattoos) >= max_tattoos_per_part)
-				to_chat(usr, span_warning("This body part already has the maximum number of tattoos! (Max: [max_tattoos_per_part])")
+				to_chat(usr, span_warning("This body part already has the maximum number of tattoos! (Max: [max_tattoos_per_part])"))
 				return FALSE
 
 			selected_zone = zone
