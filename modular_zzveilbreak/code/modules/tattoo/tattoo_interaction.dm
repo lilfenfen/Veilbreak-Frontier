@@ -11,7 +11,9 @@
 	// Add tattoo preferences to the UI data
 	if(user.client?.prefs)
 		for(var/entry in tattoo_preference_paths)
-			.[entry] = cached_preferences[entry]
+			var/pref_path = tattoo_preference_paths[entry]
+			if(pref_path)
+				.[entry] = user.client.prefs.read_preference(pref_path)
 
 /datum/component/interactable/update_cached_preferences(mob/living/user, list/preferences)
 	if(LAZYLEN(preferences))
