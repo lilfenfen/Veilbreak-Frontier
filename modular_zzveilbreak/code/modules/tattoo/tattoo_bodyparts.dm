@@ -40,7 +40,7 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 	// ADD THE ORGAN SLOTS AS TATTOOABLE BODY PARTS
 	var/list/organ_slots = list(
 		ORGAN_SLOT_BELLY = "stomach",
-		ORGAN_SLOT_BUTT = "backside",
+		ORGAN_SLOT_BUTT = "butt", // CHANGED: backside -> butt
 		ORGAN_SLOT_EXTERNAL_TAIL = "tail",
 		ORGAN_SLOT_EXTERNAL_SPINES = "spines",
 		ORGAN_SLOT_EXTERNAL_FRILLS = "frills",
@@ -75,7 +75,7 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 		if(BODY_ZONE_PRECISE_GROIN) name = "Groin"
 		// ADD THE ORGAN SLOT DISPLAY NAMES
 		if(ORGAN_SLOT_BELLY) name = "Stomach"
-		if(ORGAN_SLOT_BUTT) name = "Backside"
+		if(ORGAN_SLOT_BUTT) name = "Butt" // CHANGED: Backside -> Butt
 		if(ORGAN_SLOT_EXTERNAL_TAIL) name = "Tail"
 		if(ORGAN_SLOT_EXTERNAL_SPINES) name = "Spines"
 		if(ORGAN_SLOT_EXTERNAL_FRILLS) name = "Frills"

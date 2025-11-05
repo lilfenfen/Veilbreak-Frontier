@@ -30,16 +30,16 @@
 /obj/item/tattoo_kit/attack(mob/living/carbon/human/target, mob/living/user)
 	if(!istype(target))
 		return ..()
-/*
+
 	if(target == user)
 		to_chat(user, span_warning("You can't tattoo yourself!"))
 		return TRUE
-*/
+
 	if(tattoo_uses <= 0)
 		to_chat(user, span_warning("This tattoo kit is out of ink!"))
 		return TRUE
 
-	// Check if target allows bodywriting
+	// FIXED: Check if target allows bodywriting - use the actual preference
 	if(!target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
 		to_chat(user, span_warning("[target] doesn't allow body modifications!"))
 		return TRUE
@@ -136,7 +136,7 @@
 			// Check tattoo limit
 			var/current_tattoos = current_target.get_tattoos(zone)
 			if(length(current_tattoos) >= max_tattoos_per_part)
-				to_chat(usr, span_warning("This body part already has the maximum number of tattoos! (Max: [max_tattoos_per_part])"))
+				to_chat(usr, span_warning("This body part already has the maximum number of tattoos! (Max: [max_tattoos_per_part])")
 				return FALSE
 
 			selected_zone = zone
@@ -196,6 +196,11 @@
 				selected_layer = 2
 				return FALSE
 
+			// FIXED: Final preference check before applying
+			if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
+				to_chat(usr, span_warning("[current_target] doesn't allow body modifications!"))
+				return FALSE
+
 			// Close UI during application
 			if(ui)
 				ui.close()
@@ -209,13 +214,21 @@
 					to_chat(usr, span_warning("The body part became covered during application! Tattoo failed."))
 					return FALSE
 
-				var/datum/tattoo/new_tattoo = new(apply_artist, apply_design, selected_zone, ink_color, apply_layer)
+				// FIXED: Final preference check after delay
+				if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
+					to_chat(usr, span_warning("[current_target] revoked body modification consent during application!"))
+					return FALSE
+
+				// NEW: Parse emojis in the tattoo design
+				var/parsed_design = emoji_parse(apply_design)
+
+				var/datum/tattoo/new_tattoo = new(apply_artist, parsed_design, selected_zone, ink_color, apply_layer)
 				if(current_target.add_tattoo(new_tattoo))
 					// Save to preferences
 					if(current_target.client?.prefs)
 						current_target.client.prefs.save_tattoo_data()
 
-					to_chat(usr, span_green("You successfully apply \"[apply_design]\" to [current_target == usr ? "your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)]."))
+					to_chat(usr, span_green("You successfully apply \"[parsed_design]\" to [current_target == usr ? "your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)]."))
 					if(current_target != usr)
 						to_chat(current_target, span_notice("You feel a stinging sensation as [usr] tattoos your [get_body_zone_display_name(selected_zone)]."))
 

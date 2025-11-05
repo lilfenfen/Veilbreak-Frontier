@@ -62,7 +62,7 @@
     if(body_zone == ORGAN_SLOT_BELLY)
         return "stomach"
     if(body_zone == ORGAN_SLOT_BUTT)
-        return "butt"
+        return "butt" // CHANGED: backside -> butt
     if(body_zone == ORGAN_SLOT_EXTERNAL_TAIL)
         return "tail"
     if(body_zone == ORGAN_SLOT_EXTERNAL_SPINES)
