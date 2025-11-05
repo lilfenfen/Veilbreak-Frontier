@@ -1,4 +1,4 @@
-// Tattoo Persistence System - SIMPLIFIED AND WORKING
+// Tattoo Persistence System
 
 /// Saves tattoo data to preferences
 /datum/preferences/proc/save_tattoo_data()

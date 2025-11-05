@@ -50,9 +50,8 @@
 		to_chat(user, span_warning("You can't perform this surgery on that body part on yourself!"))
 		return FALSE
 
-	// Check if target allows bodywriting (for removal consent) using preferences
-	if(!H.allows_bodywriting())
-		to_chat(user, span_warning("[H] doesn't allow bodywriting modifications!"))
+	// Check if target allows bodywriting (for removal consent) - USING ROBUST VERSION
+	if(!can_mob_have_bodywriting(H, user))
 		return FALSE
 
 	// Check if the selected zone exists (either as bodypart or organ)

@@ -39,9 +39,8 @@
 		to_chat(user, span_warning("This tattoo kit is out of ink!"))
 		return TRUE
 
-	// Check if target allows bodywriting
-	if(!target.allows_bodywriting())
-		to_chat(user, span_warning("[target] doesn't allow body modifications!"))
+	// Check if target allows bodywriting - USING ROBUST VERSION
+	if(!can_mob_have_bodywriting(target, user))
 		return TRUE
 
 	current_target = target
@@ -58,6 +57,11 @@
 		return
 
 	if(istype(user, /mob/living/carbon/human))
+		// Check if user allows bodywriting on themselves - USING ROBUST VERSION
+		if(!can_mob_have_bodywriting(user, user))
+			to_chat(user, span_warning("You don't allow body modifications on yourself!"))
+			return
+
 		current_target = user
 		current_step = "select_part"
 		artist_name = ""
@@ -133,8 +137,7 @@
 				return FALSE
 
 			// Check if target allows bodywriting
-			if(!current_target.allows_bodywriting())
-				to_chat(usr, span_warning("[current_target] doesn't allow body modifications!"))
+			if(!can_mob_have_bodywriting(current_target, usr))
 				return FALSE
 
 			// STRICT coverage check - no exceptions

@@ -1,9 +1,9 @@
 /mob/living/carbon/human
 	var/list/datum/tattoo/body_tattoos = list()
 
-// Helper proc for bodywriting preference check
+// Helper proc for bodywriting preference check - MOVED HERE FROM UTILS TO AVOID DUPLICATE
 /mob/living/carbon/human/proc/allows_bodywriting()
-	return client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting)
+	return can_mob_have_bodywriting(src)
 
 /mob/living/carbon/human/proc/add_tattoo(datum/tattoo/new_tattoo)
 	if(!new_tattoo || QDELETED(new_tattoo) || !istype(new_tattoo))
@@ -115,23 +115,79 @@
 	if(client?.prefs)
 		client.prefs.apply_tattoos_to_mob(src)
 
-// Debug verb to check tattoo state
-/mob/living/carbon/human/verb/debug_tattoos()
-	set name = "Debug Tattoos"
+// Debug verb to check preference state
+/mob/living/carbon/human/verb/check_bodywriting_pref()
+	set name = "Check Bodywriting Pref"
 	set category = "Debug"
 
-	to_chat(src, span_notice("=== TATTOO DEBUG ==="))
-	to_chat(src, span_notice("Total tattoos: [length(body_tattoos)]"))
-	to_chat(src, span_notice("Allows bodywriting: [allows_bodywriting() ? "YES" : "NO"]"))
+	if(!client?.prefs)
+		to_chat(src, span_warning("No client or prefs found!"))
+		return
 
-	if(client?.prefs)
-		var/list/tattoo_data = client.prefs.load_tattoo_data()
-		to_chat(src, span_notice("Saved tattoo data entries: [length(tattoo_data)]"))
+	to_chat(src, span_notice("=== BODYWRITING CONSENT DEBUG ==="))
 
-	for(var/zone in GLOB.tattooable_body_parts)
-		var/list/tats = get_tattoos(zone)
-		if(length(tats) > 0)
-			to_chat(src, span_notice("[get_body_zone_display_name(zone)]: [length(tats)] tattoos"))
+	// Check through the preference system
+	var/pref_value = client.prefs.read_preference(/datum/preference/toggle/allow_bodywriting)
+	to_chat(src, span_notice("Preference system value: [isnull(pref_value) ? "NOT SET" : (pref_value ? "ALLOWED" : "DENIED")]"))
+
+	// Check raw savefile data
+	var/raw_value = client.prefs.read_preference("allow_bodywriting_pref")
+	to_chat(src, span_notice("Raw savefile value: [isnull(raw_value) ? "NOT SET" : (raw_value ? "ALLOWED" : "DENIED")]"))
+
+	// Check what our helper proc returns
+	var/helper_result = allows_bodywriting()
+	to_chat(src, span_notice("Consent status: [helper_result ? "GRANTED" : "DENIED"]"))
+
+	// Check detailed consent status
+	var/consent_status = get_bodywriting_consent_status(src)
+	to_chat(src, span_notice("Detailed status: [consent_status]"))
+
+	// Explain what this means
+	switch(consent_status)
+		if("EXPLICIT_ALLOW")
+			to_chat(src, span_green("You have EXPLICITLY ALLOWED bodywriting/tattoos."))
+		if("EXPLICIT_DENY")
+			to_chat(src, span_alert("You have EXPLICITLY DENIED bodywriting/tattoos."))
+		if("NOT_SET")
+			to_chat(src, span_warning("You have NOT SET your bodywriting preference. It will default to DENIED."))
+		if("NO_PREFS")
+			to_chat(src, span_warning("No preference data found."))
+
+// Debug verb to force enable bodywriting
+/mob/living/carbon/human/verb/force_enable_bodywriting()
+	set name = "Force Enable Bodywriting"
+	set category = "Debug"
+
+	if(!client?.prefs)
+		to_chat(src, span_warning("No client or prefs found!"))
+		return
+
+	client.prefs.write_preference(GLOB.preference_entries[/datum/preference/toggle/allow_bodywriting], TRUE)
+	to_chat(src, span_green("Bodywriting preference explicitly set to ALLOWED"))
+
+	// Also set raw savefile value for compatibility
+	client.prefs.write_preference("allow_bodywriting_pref", TRUE)
+	to_chat(src, span_green("Raw savefile value also set to ALLOWED"))
+
+	to_chat(src, span_notice("You have now EXPLICITLY CONSENTED to bodywriting/tattoos."))
+
+// Debug verb to force disable bodywriting
+/mob/living/carbon/human/verb/force_disable_bodywriting()
+	set name = "Force Disable Bodywriting"
+	set category = "Debug"
+
+	if(!client?.prefs)
+		to_chat(src, span_warning("No client or prefs found!"))
+		return
+
+	client.prefs.write_preference(GLOB.preference_entries[/datum/preference/toggle/allow_bodywriting], FALSE)
+	to_chat(src, span_alert("Bodywriting preference explicitly set to DENIED"))
+
+	// Also set raw savefile value for compatibility
+	client.prefs.write_preference("allow_bodywriting_pref", FALSE)
+	to_chat(src, span_alert("Raw savefile value also set to DENIED"))
+
+	to_chat(src, span_notice("You have now EXPLICITLY DENIED bodywriting/tattoos."))
 
 // Debug verb to clear all tattoos
 /mob/living/carbon/human/verb/clear_all_tattoos()
