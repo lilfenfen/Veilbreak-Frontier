@@ -11,31 +11,26 @@
 		BODY_ZONE_L_ARM,
 		BODY_ZONE_R_ARM,
 		BODY_ZONE_L_LEG,
-		BODY_ZONE_R_LEG,
-		BODY_ZONE_PRECISE_L_HAND,
-		BODY_ZONE_PRECISE_R_HAND,
-		BODY_ZONE_PRECISE_L_FOOT,
-		BODY_ZONE_PRECISE_R_FOOT,
-		BODY_ZONE_PRECISE_GROIN,
-		ORGAN_SLOT_BELLY,
-		ORGAN_SLOT_BUTT
+		BODY_ZONE_R_LEG
 	)
+	// Allow self-surgery and don't require lying down for tattoo removal
+	surgery_flags = SURGERY_SELF_OPERABLE
+	target_mobtypes = list(/mob/living/carbon/human)
+	// VENUS ADDITION - Self Surgery locations
 	self_surgery_possible_locs = list(
 		BODY_ZONE_HEAD,
 		BODY_ZONE_CHEST,
 		BODY_ZONE_L_ARM,
 		BODY_ZONE_R_ARM,
 		BODY_ZONE_L_LEG,
-		BODY_ZONE_R_LEG,
-		BODY_ZONE_PRECISE_L_HAND,
-		BODY_ZONE_PRECISE_R_HAND,
-		BODY_ZONE_PRECISE_L_FOOT,
-		BODY_ZONE_PRECISE_R_FOOT,
-		BODY_ZONE_PRECISE_GROIN,
-		ORGAN_SLOT_BELLY,
-		ORGAN_SLOT_BUTT
+		BODY_ZONE_R_LEG
 	)
-	surgery_flags = SURGERY_REQUIRE_RESTING | SURGERY_REQUIRE_LIMB | SURGERY_SELF_OPERABLE
+
+/datum/surgery/tattoo_removal/New(atom/surgery_target, surgery_location, surgery_bodypart)
+	. = ..()
+	// If the global exists and is populated, use it instead of fallback
+	if(GLOB.tattooable_body_parts && length(GLOB.tattooable_body_parts))
+		src.possible_locs = GLOB.tattooable_body_parts.Copy()
 
 /datum/surgery/tattoo_removal/can_start(mob/user, mob/living/patient)
 	if(!..())
@@ -46,12 +41,9 @@
 
 	var/mob/living/carbon/human/H = patient
 
-	if(user == H && self_surgery_possible_locs && !(user.zone_selected in self_surgery_possible_locs))
-		to_chat(user, span_warning("You can't perform this surgery on that body part on yourself!"))
-		return FALSE
-
-	// Check if target allows bodywriting (for removal consent) - USING ROBUST VERSION
-	if(!can_mob_have_bodywriting(H, user))
+	// Check if target allows bodywriting (for removal consent) using preferences
+	if(!H.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
+		to_chat(user, span_warning("[H] doesn't allow bodywriting modifications!"))
 		return FALSE
 
 	// Check if the selected zone exists (either as bodypart or organ)
@@ -68,41 +60,39 @@
 /datum/surgery_step/cauterize_tattoo
 	name = "cauterize tattoo"
 	implements = list(
-		/obj/item/cautery = 100,
-		/obj/item/cigarette = 75,
-		/obj/item/lighter = 50,
-		/obj/item/weldingtool = 125,
-		TOOL_SCALPEL = 25
+		/obj/item/cautery = 100,           // Best tool - medical grade
+		/obj/item/cigarette = 75,          // Controlled small flame
+		/obj/item/lighter = 50,            // Open flame, less controlled
+		TOOL_SCALPEL = 40,                 // Wrong tool for the job
+		/obj/item/weldingtool = 25         // Worst tool - catastrophic damage
 	)
-	time = 4.5 SECONDS
+	time = 4 SECONDS
 	var/datum/tattoo/operated_tattoo
 
 /datum/surgery_step/cauterize_tattoo/tool_check(mob/user, obj/item/tool)
 	// Check if tools need to be activated first
-	if(istype(tool, /obj/item/weldingtool))
-		var/obj/item/weldingtool/welder = tool
-		if(!welder.isOn())
-			to_chat(user, span_warning("You need to turn [tool] on first!"))
-			return FALSE
+	switch(tool.type)
+		if(/obj/item/weldingtool)
+			var/obj/item/weldingtool/welder = tool
+			if(!welder.isOn())
+				to_chat(user, span_warning("You need to turn [tool] on first!"))
+				return FALSE
 
-	else if(istype(tool, /obj/item/lighter))
-		var/obj/item/lighter/lighter = tool
-		if(!lighter.lit)
-			to_chat(user, span_warning("You need to light [tool] first!"))
-			return FALSE
+		if(/obj/item/lighter)
+			var/obj/item/lighter/lighter = tool
+			if(!lighter.lit)
+				to_chat(user, span_warning("You need to light [tool] first!"))
+				return FALSE
 
-	else if(istype(tool, /obj/item/cigarette))
-		var/obj/item/cigarette/cig = tool
-		if(!cig.lit)
-			to_chat(user, span_warning("You need to light [tool] first!"))
-			return FALSE
+		if(/obj/item/cigarette)
+			var/obj/item/cigarette/cig = tool
+			if(!cig.lit)
+				to_chat(user, span_warning("You need to light [tool] first!"))
+				return FALSE
 
 	return TRUE
 
-/datum/surgery_step/cauterize_tattoo/preop(mob/user, mob/living/target, target_zone, obj/item/tool, datum/surgery/surgery)
-	if(!istype(target, /mob/living/carbon/human))
-		return
-
+/datum/surgery_step/cauterize_tattoo/preop(mob/user, mob/living/carbon/target, target_zone, obj/item/tool, datum/surgery/surgery)
 	var/mob/living/carbon/human/H = target
 	var/list/tattoos = H.get_tattoos(target_zone)
 
@@ -110,9 +100,6 @@
 	if(!length(tattoos))
 		to_chat(user, span_warning("No tattoos found to remove!"))
 		return
-
-	if(user == H)
-		to_chat(user, span_warning("Performing surgery on yourself is difficult and will take longer. Be careful!"))
 
 	// Handle single vs multiple tattoo selection
 	var/datum/tattoo/to_remove
@@ -130,107 +117,116 @@
 
 	operated_tattoo = to_remove
 
-	// Generate appropriate message based on tool and whether it's self-surgery
+	// Generate appropriate message based on tool
 	var/burn_message
-	if(user == H)
-		if(istype(tool, /obj/item/cautery))
-			burn_message = "You begin carefully cauterizing the tattoo from your own [parse_zone(target_zone)]..."
-		else if(istype(tool, /obj/item/weldingtool))
-			burn_message = "You begin burning away the tattoo from your own [parse_zone(target_zone)] with the welding tool..."
-		else if(istype(tool, /obj/item/cigarette) || istype(tool, /obj/item/lighter))
-			burn_message = "You begin carefully burning the tattoo from your own [parse_zone(target_zone)]..."
-		else
-			burn_message = "You begin scraping away the tattoo from your own [parse_zone(target_zone)]..."
+	if(istype(tool, /obj/item/cautery))
+		burn_message = "You begin carefully cauterizing the tattoo from [target]'s [target.parse_zone_with_bodypart(target_zone)]..."
+	else if(istype(tool, /obj/item/cigarette))
+		burn_message = "You begin carefully burning the tattoo from [target]'s [target.parse_zone_with_bodypart(target_zone)] with the cigarette..."
+	else if(istype(tool, /obj/item/lighter))
+		burn_message = "You begin burning the tattoo from [target]'s [target.parse_zone_with_bodypart(target_zone)] with the lighter..."
+	else if(istype(tool, /obj/item/weldingtool))
+		burn_message = "You begin aggressively burning away the tattoo from [target]'s [target.parse_zone_with_bodypart(target_zone)] with the welding tool..."
 	else
-		if(istype(tool, /obj/item/cautery))
-			burn_message = "You begin carefully cauterizing the tattoo from [target]'s [parse_zone(target_zone)]..."
-		else if(istype(tool, /obj/item/weldingtool))
-			burn_message = "You begin burning away the tattoo from [target]'s [parse_zone(target_zone)] with the welding tool..."
-		else if(istype(tool, /obj/item/cigarette) || istype(tool, /obj/item/lighter))
-			burn_message = "You begin carefully burning the tattoo from [target]'s [parse_zone(target_zone)]..."
-		else
-			burn_message = "You begin scraping away the tattoo from [target]'s [parse_zone(target_zone)]..."
+		burn_message = "You begin scraping away the tattoo from [target]'s [target.parse_zone_with_bodypart(target_zone)]..."
 
 	display_results(
 		user,
 		target,
 		span_notice("[burn_message]"),
-		span_notice("[user] begins removing a tattoo from [target == user ? "their own" : "[target]'s"] [parse_zone(target_zone)] with [tool]."),
-		span_notice("[user] begins working on [target == user ? "their own" : "[target]'s"] [parse_zone(target_zone)] with [tool].")
+		span_notice("[user] begins removing a tattoo from [target]'s [target.parse_zone_with_bodypart(target_zone)] with [tool]."),
+		span_notice("[user] begins working on [target]'s [target.parse_zone_with_bodypart(target_zone)] with [tool]."),
 	)
 
-/datum/surgery_step/cauterize_tattoo/success(mob/user, mob/living/target, target_zone, obj/item/tool, datum/surgery/surgery, default_display_results = TRUE)
-	if(!istype(target, /mob/living/carbon/human) || !operated_tattoo)
+	display_pain(target, "Your [target.parse_zone_with_bodypart(target_zone)] burns with intense heat!")
+
+/datum/surgery_step/cauterize_tattoo/success(mob/living/user, mob/living/carbon/target, target_zone, obj/item/tool, datum/surgery/surgery, default_display_results = FALSE)
+	if(!operated_tattoo)
+		to_chat(user, span_warning("There is no tattoo to remove!"))
 		return FALSE
 
 	var/mob/living/carbon/human/H = target
 
-	// Determine success chance based on tool quality
-	var/success_chance = 100
-	if(istype(tool, /obj/item/weldingtool))
-		success_chance = 90  // Powerful but imprecise
-	else if(istype(tool, /obj/item/cautery))
-		success_chance = 95  // Medical grade tool
-	else if(istype(tool, /obj/item/cigarette) || istype(tool, /obj/item/lighter))
-		success_chance = 70  // Improvised tools
+	// Calculate burn damage based on tool quality (best to worst)
+	var/burn_damage = 5
+	var/tool_message = "carefully"
+
+	if(istype(tool, /obj/item/cautery))
+		burn_damage = 8  // Best tool - medical grade precision
+		tool_message = "precisely with the cautery"
+	else if(istype(tool, /obj/item/cigarette))
+		burn_damage = 15  // Controlled small flame
+		tool_message = "carefully with the cigarette"
+	else if(istype(tool, /obj/item/lighter))
+		burn_damage = 25  // Open flame, less controlled
+		tool_message = "crudely with the lighter"
 	else if(tool.tool_behaviour == TOOL_SCALPEL)
-		success_chance = 60  // Not designed for this purpose
+		burn_damage = 12  // Wrong tool for burning
+		tool_message = "inefficiently with the scalpel"
+	else if(istype(tool, /obj/item/weldingtool))
+		burn_damage = 35  // Worst tool - catastrophic damage
+		tool_message = "aggressively with the welding tool, causing severe burns"
 
-	if(!prob(success_chance))
-		display_results(
-			user,
-			target,
-			span_warning("You accidentally burn [target] badly while trying to remove the tattoo!"),
-			span_userdanger("[user] accidentally burns you badly while trying to remove the tattoo!"),
-			span_warning("[user] accidentally causes a bad burn on [target]'s [parse_zone(target_zone)]!")
-		)
-		var/obj/item/bodypart/BP = H.get_bodypart(target_zone)
-		if(BP)
-			BP.receive_damage(burn = 25)
-		return TRUE
-
+	// Attempt tattoo removal
 	if(H.remove_tattoo(operated_tattoo))
-		var/success_message
-		if(istype(tool, /obj/item/cautery))
-			success_message = "You successfully cauterize away the tattoo."
-		else if(istype(tool, /obj/item/weldingtool))
-			success_message = "You successfully burn away the tattoo."
-		else
-			success_message = "You successfully remove the tattoo."
-
 		display_results(
 			user,
 			target,
-			span_notice("[success_message]"),
-			span_notice("[user] successfully removes the tattoo from your [parse_zone(target_zone)]."),
-			span_notice("[user] successfully works on your [parse_zone(target_zone)].")
+			span_notice("You successfully remove the tattoo [tool_message]."),
+			span_notice("[user] successfully removes the tattoo from your [target.parse_zone_with_bodypart(target_zone)] [tool_message]!"),
+			span_notice("[user] successfully works on your [target.parse_zone_with_bodypart(target_zone)]!"),
 		)
 
+		// Apply burn damage
 		var/obj/item/bodypart/BP = H.get_bodypart(target_zone)
 		if(BP)
-			BP.receive_damage(burn = 5)
-		return TRUE
+			BP.receive_damage(burn = burn_damage)
+			// Check for burn wounds based on damage level
+			if(burn_damage >= 30)
+				BP.check_wounding(60, WOUND_BURN, target_zone) // Critical burn wound (welding tool)
+			else if(burn_damage >= 20)
+				BP.check_wounding(40, WOUND_BURN, target_zone) // Severe burn wound (lighter)
+			else if(burn_damage >= 10)
+				BP.check_wounding(25, WOUND_BURN, target_zone) // Moderate burn wound
+
+		log_combat(user, target, "removed a tattoo from", addition="TATTOO: [operated_tattoo.design] | TOOL: [tool.name]")
 	else
-		display_results(
-			user,
-			target,
-			span_warning("You fail to remove the tattoo!"),
-			span_warning("[user] fails to remove the tattoo from your [parse_zone(target_zone)]!"),
-			span_warning("[user] fails to work on your [parse_zone(target_zone)]!")
-		)
-		return FALSE
+		to_chat(user, span_warning("Failed to remove the tattoo!"))
+
+	return ..()
 
 /datum/surgery_step/cauterize_tattoo/failure(mob/user, mob/living/target, target_zone, obj/item/tool, datum/surgery/surgery, fail_prob = 0)
-	var/obj/item/bodypart/BP = target.get_bodypart(target_zone)
-	if(BP)
-		BP.receive_damage(burn = 35)
+	var/screwedmessage = ""
+	switch(fail_prob)
+		if(0 to 24)
+			screwedmessage = " You almost had it, though."
+		if(50 to 74)
+			screwedmessage = " This is hard to get right in these conditions..."
+		if(75 to 99)
+			screwedmessage = " This is practically impossible in these conditions..."
 
 	display_results(
 		user,
 		target,
-		span_warning("You mess up the tattoo removal procedure, severely burning the area!"),
-		span_userdanger("[user] messes up the tattoo removal procedure on your [parse_zone(target_zone)], causing severe burns!"),
-		span_warning("[user] messes up the procedure on [target == user ? "their own" : "[target]'s"] [parse_zone(target_zone)], leaving it badly burned!")
+		span_warning("You screw up![screwedmessage]"),
+		span_warning("[user] screws up!"),
+		span_notice("[user] finishes."),
 	)
+
+	// Apply significant burn damage on failure, scaled by tool quality
+	var/obj/item/bodypart/BP = target.get_bodypart(target_zone)
+	if(BP)
+		var/failure_damage = 20
+		if(istype(tool, /obj/item/weldingtool))
+			failure_damage = 50  // Catastrophic failure with welding tool
+		else if(istype(tool, /obj/item/lighter))
+			failure_damage = 35  // Bad failure with lighter
+		else if(istype(tool, /obj/item/cigarette))
+			failure_damage = 25  // Moderate failure with cigarette
+		else if(istype(tool, /obj/item/cautery))
+			failure_damage = 15  // Minor failure with cautery
+
+		BP.receive_damage(burn = failure_damage)
+		BP.check_wounding(50, WOUND_BURN, target_zone) // Force severe burn wound on failure
 
 	return FALSE

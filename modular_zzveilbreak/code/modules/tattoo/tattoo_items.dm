@@ -30,17 +30,18 @@
 /obj/item/tattoo_kit/attack(mob/living/carbon/human/target, mob/living/user)
 	if(!istype(target))
 		return ..()
-/*
+
 	if(target == user)
 		to_chat(user, span_warning("You can't tattoo yourself!"))
 		return TRUE
-*/
+
 	if(tattoo_uses <= 0)
 		to_chat(user, span_warning("This tattoo kit is out of ink!"))
 		return TRUE
 
-	// Check if target allows bodywriting - USING ROBUST VERSION
-	if(!can_mob_have_bodywriting(target, user))
+	// Check if target allows bodywriting
+	if(!target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
+		to_chat(user, span_warning("[target] doesn't allow body modifications!"))
 		return TRUE
 
 	current_target = target
@@ -57,11 +58,6 @@
 		return
 
 	if(istype(user, /mob/living/carbon/human))
-		// Check if user allows bodywriting on themselves - USING ROBUST VERSION
-		if(!can_mob_have_bodywriting(user, user))
-			to_chat(user, span_warning("You don't allow body modifications on yourself!"))
-			return
-
 		current_target = user
 		current_step = "select_part"
 		artist_name = ""
@@ -70,15 +66,6 @@
 		ui_interact(user)
 	else
 		to_chat(user, span_warning("Only humans can use this!"))
-
-/obj/item/tattoo_kit/ui_state(mob/user)
-	return GLOB.inventory_state
-
-/obj/item/tattoo_kit/ui_static_data(mob/user)
-	var/list/data = list()
-	data["max_tattoo_length"] = 500
-	data["max_artist_length"] = 50
-	return data
 
 /obj/item/tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
 	ui = SStgui.try_update_ui(user, src, ui)
@@ -97,7 +84,6 @@
 	data["max_uses"] = tattoo_max_uses
 	data["ink_color"] = ink_color
 	data["selected_zone"] = selected_zone
-	data["selected_zone_name"] = get_body_zone_display_name(selected_zone)
 	data["current_step"] = current_step
 	data["artist_name"] = artist_name
 	data["tattoo_design"] = tattoo_design
@@ -134,10 +120,6 @@
 		if("select_bodypart")
 			var/zone = params["zone"]
 			if(!zone || !body_part_exists(current_target, zone))
-				return FALSE
-
-			// Check if target allows bodywriting
-			if(!can_mob_have_bodywriting(current_target, usr))
 				return FALSE
 
 			// STRICT coverage check - no exceptions
@@ -191,9 +173,9 @@
 			return TRUE
 
 		if("apply_tattoo")
-			var/apply_artist = params["artist"] || artist_name
-			var/apply_design = params["design"] || tattoo_design
-			var/apply_layer = text2num(params["layer"]) || selected_layer
+			var/apply_artist = artist_name
+			var/apply_design = tattoo_design
+			var/apply_layer = selected_layer
 
 			// Final validation
 			if(!apply_artist || length(apply_artist) == 0 || !apply_design || length(apply_design) == 0)
@@ -225,15 +207,10 @@
 				// ONE FINAL CHECK - clothing could have been put on during the delay
 				if(is_bodypart_covered(current_target, selected_zone, usr))
 					to_chat(usr, span_warning("The body part became covered during application! Tattoo failed."))
-					// Apply 10 brute damage for interruption
-					apply_tattoo_damage(current_target, selected_zone, 10, usr)
 					return FALSE
 
 				var/datum/tattoo/new_tattoo = new(apply_artist, apply_design, selected_zone, ink_color, apply_layer)
 				if(current_target.add_tattoo(new_tattoo))
-					// Apply 15 brute damage for successful application
-					apply_tattoo_damage(current_target, selected_zone, 15, usr)
-
 					// Save to preferences
 					if(current_target.client?.prefs)
 						current_target.client.prefs.save_tattoo_data()
@@ -253,8 +230,6 @@
 					qdel(new_tattoo)
 			else
 				to_chat(usr, span_warning("Tattoo application interrupted!"))
-				// Apply 10 brute damage for interruption
-				apply_tattoo_damage(current_target, selected_zone, 10, usr)
 
 			// Reset for next use
 			current_step = "select_part"
@@ -265,39 +240,12 @@
 
 	return FALSE
 
-/// Applies bruise damage from tattoo application
-/obj/item/tattoo_kit/proc/apply_tattoo_damage(mob/living/carbon/human/target, body_zone, damage_amount, mob/user)
-	if(!istype(target) || damage_amount <= 0)
-		return
-
-	var/obj/item/bodypart/BP = target.get_bodypart(body_zone)
-	if(BP)
-		BP.receive_damage(brute = damage_amount, wound_bonus = CANT_WOUND)
-		target.visible_message(
-			span_warning("The tattoo needle leaves a painful-looking mark on [target]'s [get_body_zone_display_name(body_zone)]!"),
-			span_userdanger("The tattoo needle stings painfully!")
-		)
-
-		// Force pain reaction
-		target.emote("scream")
-		target.do_jitter_animation(300) // Use do_jitter_animation instead of Jitter()
-
-		// Update health and check for crit
-		target.updatehealth()
-		if(target.health <= target.crit_threshold && target.stat == CONSCIOUS)
-			to_chat(user, span_danger("[target] has been knocked unconscious by the pain!"))
-			target.Unconscious(100)
-
-		// Show different message based on who is being tattooed
-		if(target == user)
-			to_chat(user, span_warning("The tattoo process leaves a painful bruise on your [get_body_zone_display_name(body_zone)]."))
-		else
-			to_chat(user, span_warning("The tattoo process leaves a painful bruise on [target]'s [get_body_zone_display_name(body_zone)]."))
-
-// Helper proc to check if a bodypart is covered by clothing
+// Helper proc to check if a bodypart is covered by clothing - USING SURGERY SYSTEM PROC
 /proc/is_bodypart_covered(mob/living/carbon/human/target, body_zone, mob/user)
 	if(!target || !body_zone)
 		return TRUE
+
+	// Use the same accessibility check as surgery system
 	return !get_location_accessible(target, body_zone)
 
 /obj/item/tattoo_kit/examine(mob/user)

@@ -5,6 +5,7 @@ GLOBAL_LIST_INIT(tattooable_body_parts, populate_tattooable_body_parts())
 GLOBAL_LIST_INIT(tattoo_blacklist, list(
 	BODY_ZONE_PRECISE_EYES,
 	BODY_ZONE_PRECISE_MOUTH,
+	// Add more blacklisted zones here as needed
 ))
 
 /proc/populate_tattooable_body_parts()
@@ -36,16 +37,16 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 		if(!(zone in parts) && !(zone in GLOB.tattoo_blacklist))
 			parts |= zone
 
-	// Add the organ slots as tattooable body parts
+	// ADD THE ORGAN SLOTS AS TATTOOABLE BODY PARTS
 	var/list/organ_slots = list(
-		ORGAN_SLOT_BELLY,
-		ORGAN_SLOT_BUTT,
-		ORGAN_SLOT_EXTERNAL_TAIL,
-		ORGAN_SLOT_EXTERNAL_SPINES,
-		ORGAN_SLOT_EXTERNAL_FRILLS,
-		ORGAN_SLOT_EXTERNAL_HORNS,
-		ORGAN_SLOT_EXTERNAL_WINGS,
-		ORGAN_SLOT_WINGS,
+		ORGAN_SLOT_BELLY = "stomach",
+		ORGAN_SLOT_BUTT = "backside",
+		ORGAN_SLOT_EXTERNAL_TAIL = "tail",
+		ORGAN_SLOT_EXTERNAL_SPINES = "spines",
+		ORGAN_SLOT_EXTERNAL_FRILLS = "frills",
+		ORGAN_SLOT_EXTERNAL_HORNS = "horns",
+		ORGAN_SLOT_EXTERNAL_WINGS = "wings",
+		ORGAN_SLOT_WINGS = "wings",
 	)
 
 	for(var/organ_slot in organ_slots)
@@ -72,9 +73,9 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 		if(BODY_ZONE_PRECISE_L_FOOT) name = "Left Foot"
 		if(BODY_ZONE_PRECISE_R_FOOT) name = "Right Foot"
 		if(BODY_ZONE_PRECISE_GROIN) name = "Groin"
-		// Organ slot display names
+		// ADD THE ORGAN SLOT DISPLAY NAMES
 		if(ORGAN_SLOT_BELLY) name = "Stomach"
-		if(ORGAN_SLOT_BUTT) name = "Butt"
+		if(ORGAN_SLOT_BUTT) name = "Backside"
 		if(ORGAN_SLOT_EXTERNAL_TAIL) name = "Tail"
 		if(ORGAN_SLOT_EXTERNAL_SPINES) name = "Spines"
 		if(ORGAN_SLOT_EXTERNAL_FRILLS) name = "Frills"
@@ -110,7 +111,7 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 		if(BP)
 			exists = TRUE
 		else
-			// Check if it's an organ slot that exists on the mob
+			// Check if it's an organ slot that exists on the mob - FIXED PROC NAME
 			var/obj/item/organ/organ = H.get_organ_slot(zone)
 			if(organ)
 				exists = TRUE
@@ -141,7 +142,7 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 	if(H.get_bodypart(body_zone))
 		return TRUE
 
-	// Check organ slots
+	// Check organ slots - FIXED PROC NAME
 	if(H.get_organ_slot(body_zone))
 		return TRUE
 
