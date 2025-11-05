@@ -1,10 +1,8 @@
 /obj/item/clothing/gloves/ring/voidring
 	name = "Void Ring"
 	desc = "A ring pulsing with void energy, automatically retaliating against threats."
-	icon = 'modular_zzveilbreak/icons/item_icons/voidring.dmi'
-	icon_state = "voidring"
-	worn_icon = 'modular_zzveilbreak/icons/item_icons/voidring.dmi'
-	worn_icon_state = "voidring"
+	greyscale_config = /datum/greyscale_config/voidring
+    greyscale_colors = "#555555"
 	var/active = FALSE
 	var/timer_id
 	var/list/item_faction = list()
