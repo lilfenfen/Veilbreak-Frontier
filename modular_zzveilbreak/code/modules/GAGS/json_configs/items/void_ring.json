@@ -2,7 +2,7 @@
 	"void_ring": [
 		{
 			"type": "icon_state",
-			"icon_state": "voidring",
+			"icon_state": "ring_base",
 			"blend_mode": "overlay",
 			"color_ids": [1]
 		}

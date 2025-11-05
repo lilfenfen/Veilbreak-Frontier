@@ -31,6 +31,10 @@
 	if(!istype(target))
 		return ..()
 
+	if(target == user)
+		to_chat(user, span_warning("You can't tattoo yourself!"))
+		return TRUE
+
 	if(tattoo_uses <= 0)
 		to_chat(user, span_warning("This tattoo kit is out of ink!"))
 		return TRUE
