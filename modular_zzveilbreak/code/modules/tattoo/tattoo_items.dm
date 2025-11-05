@@ -30,17 +30,17 @@
 /obj/item/tattoo_kit/attack(mob/living/carbon/human/target, mob/living/user)
 	if(!istype(target))
 		return ..()
-
+/*
 	if(target == user)
 		to_chat(user, span_warning("You can't tattoo yourself!"))
 		return TRUE
-
+*/
 	if(tattoo_uses <= 0)
 		to_chat(user, span_warning("This tattoo kit is out of ink!"))
 		return TRUE
 
 	// Check if target allows bodywriting
-	if(!target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
+	if(!target.allows_bodywriting())
 		to_chat(user, span_warning("[target] doesn't allow body modifications!"))
 		return TRUE
 
@@ -67,6 +67,15 @@
 	else
 		to_chat(user, span_warning("Only humans can use this!"))
 
+/obj/item/tattoo_kit/ui_state(mob/user)
+	return GLOB.inventory_state
+
+/obj/item/tattoo_kit/ui_static_data(mob/user)
+	var/list/data = list()
+	data["max_tattoo_length"] = 500
+	data["max_artist_length"] = 50
+	return data
+
 /obj/item/tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
 	ui = SStgui.try_update_ui(user, src, ui)
 	if(!ui)
@@ -83,7 +92,8 @@
 	data["ink_uses"] = tattoo_uses
 	data["max_uses"] = tattoo_max_uses
 	data["ink_color"] = ink_color
-	data["selected_zone"] = get_body_zone_display_name(selected_zone)
+	data["selected_zone"] = selected_zone
+	data["selected_zone_name"] = get_body_zone_display_name(selected_zone)
 	data["current_step"] = current_step
 	data["artist_name"] = artist_name
 	data["tattoo_design"] = tattoo_design
@@ -120,6 +130,11 @@
 		if("select_bodypart")
 			var/zone = params["zone"]
 			if(!zone || !body_part_exists(current_target, zone))
+				return FALSE
+
+			// Check if target allows bodywriting
+			if(!current_target.allows_bodywriting())
+				to_chat(usr, span_warning("[current_target] doesn't allow body modifications!"))
 				return FALSE
 
 			// STRICT coverage check - no exceptions
@@ -255,18 +270,26 @@
 	var/obj/item/bodypart/BP = target.get_bodypart(body_zone)
 	if(BP)
 		BP.receive_damage(brute = damage_amount, wound_bonus = CANT_WOUND)
-		to_chat(target, span_warning("The tattoo needle stings painfully!"))
+		target.visible_message(
+			span_warning("The tattoo needle leaves a painful-looking mark on [target]'s [get_body_zone_display_name(body_zone)]!"),
+			span_userdanger("The tattoo needle stings painfully!")
+		)
+
+		// Force pain reaction
+		target.emote("scream")
+		target.do_jitter_animation(300) // Use do_jitter_animation instead of Jitter()
+
+		// Update health and check for crit
+		target.updatehealth()
+		if(target.health <= target.crit_threshold && target.stat == CONSCIOUS)
+			to_chat(user, span_danger("[target] has been knocked unconscious by the pain!"))
+			target.Unconscious(100)
 
 		// Show different message based on who is being tattooed
 		if(target == user)
 			to_chat(user, span_warning("The tattoo process leaves a painful bruise on your [get_body_zone_display_name(body_zone)]."))
 		else
 			to_chat(user, span_warning("The tattoo process leaves a painful bruise on [target]'s [get_body_zone_display_name(body_zone)]."))
-
-		// Update health and check for crit
-		target.updatehealth()
-		if(target.stat == UNCONSCIOUS && target.health <= target.crit_threshold)
-			to_chat(user, span_danger("[target == user ? "You" : target] [target == user ? "have" : "has"] been knocked unconscious by the pain!"))
 
 // Helper proc to check if a bodypart is covered by clothing
 /proc/is_bodypart_covered(mob/living/carbon/human/target, body_zone, mob/user)
@@ -305,7 +328,7 @@
 /obj/item/tattoo_kit/advanced
 	name = "advanced tattoo kit"
 	desc = "A professional-grade tattoo kit with precision tools and a wider color selection."
-	icon_state = "tattoo_kit_advanced"
+	icon_state = "tgun"
 	tattoo_uses = 30
 	tattoo_max_uses = 100
 	max_tattoos_per_part = 8

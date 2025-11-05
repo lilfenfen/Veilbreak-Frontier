@@ -1,7 +1,7 @@
 /datum/preference/toggle/allow_bodywriting
 	category = PREFERENCE_CATEGORY_GAME_PREFERENCES
 	savefile_identifier = PREFERENCE_PLAYER
-	savefile_key = "allow_bodywriting"
+	savefile_key = "allow_bodywriting_pref"  // Match the TGUI key
 	default_value = FALSE
 
 /datum/preference/toggle/allow_bodywriting/apply_to_client(client/client, value)

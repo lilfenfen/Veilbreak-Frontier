@@ -74,7 +74,7 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 		if(BODY_ZONE_PRECISE_GROIN) name = "Groin"
 		// Organ slot display names
 		if(ORGAN_SLOT_BELLY) name = "Stomach"
-		if(ORGAN_SLOT_BUTT) name = "Backside"
+		if(ORGAN_SLOT_BUTT) name = "Butt" // Changed from "Backside" to "Butt"
 		if(ORGAN_SLOT_EXTERNAL_TAIL) name = "Tail"
 		if(ORGAN_SLOT_EXTERNAL_SPINES) name = "Spines"
 		if(ORGAN_SLOT_EXTERNAL_FRILLS) name = "Frills"

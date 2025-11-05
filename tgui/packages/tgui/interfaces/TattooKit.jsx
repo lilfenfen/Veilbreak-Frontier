@@ -18,7 +18,7 @@ export const TattooKit = (props) => {
     max_uses,
     ink_color,
     body_parts,
-    selected_zone,
+    selected_zone_name,
     current_step,
     artist_name = '',
     tattoo_design = '',
@@ -108,7 +108,7 @@ const DesignTattooStep = (props) => {
   const {
     target_name,
     ink_color,
-    selected_zone,
+    selected_zone_name,
     artist_name = '',
     tattoo_design = '',
     selected_layer = 2,
@@ -124,7 +124,7 @@ const DesignTattooStep = (props) => {
     <Window width={500} height={600}>
       <Window.Content scrollable>
         <Section
-          title={`Design Tattoo for ${selected_zone}`}
+          title={`Design Tattoo for ${selected_zone_name}`}
           buttons={
             <Button icon="arrow-left" onClick={() => act('back_to_selection')}>
               Back

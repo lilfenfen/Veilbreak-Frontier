@@ -1,6 +1,10 @@
 /mob/living/carbon/human
 	var/list/datum/tattoo/body_tattoos = list()
 
+// Helper proc for bodywriting preference check
+/mob/living/carbon/human/proc/allows_bodywriting()
+	return client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting)
+
 /mob/living/carbon/human/proc/add_tattoo(datum/tattoo/new_tattoo)
 	if(!new_tattoo || QDELETED(new_tattoo) || !istype(new_tattoo))
 		return FALSE
@@ -110,6 +114,35 @@
 	// Load tattoos from preferences
 	if(client?.prefs)
 		client.prefs.apply_tattoos_to_mob(src)
+
+// Debug verb to check tattoo state
+/mob/living/carbon/human/verb/debug_tattoos()
+	set name = "Debug Tattoos"
+	set category = "Debug"
+
+	to_chat(src, span_notice("=== TATTOO DEBUG ==="))
+	to_chat(src, span_notice("Total tattoos: [length(body_tattoos)]"))
+	to_chat(src, span_notice("Allows bodywriting: [allows_bodywriting() ? "YES" : "NO"]"))
+
+	if(client?.prefs)
+		var/list/tattoo_data = client.prefs.load_tattoo_data()
+		to_chat(src, span_notice("Saved tattoo data entries: [length(tattoo_data)]"))
+
+	for(var/zone in GLOB.tattooable_body_parts)
+		var/list/tats = get_tattoos(zone)
+		if(length(tats) > 0)
+			to_chat(src, span_notice("[get_body_zone_display_name(zone)]: [length(tats)] tattoos"))
+
+// Debug verb to clear all tattoos
+/mob/living/carbon/human/verb/clear_all_tattoos()
+	set name = "Clear All Tattoos"
+	set category = "Debug"
+
+	body_tattoos = list()
+	if(client?.prefs)
+		client.prefs.save_tattoo_data()
+	regenerate_icons()
+	to_chat(src, span_notice("All tattoos cleared."))
 
 // =============================================
 // HOOKS FOR TATTOO REMOVAL ON LIMB LOSS

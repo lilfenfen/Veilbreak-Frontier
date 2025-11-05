@@ -51,7 +51,7 @@
 		return FALSE
 
 	// Check if target allows bodywriting (for removal consent) using preferences
-	if(!H.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
+	if(!H.allows_bodywriting())
 		to_chat(user, span_warning("[H] doesn't allow bodywriting modifications!"))
 		return FALSE
 

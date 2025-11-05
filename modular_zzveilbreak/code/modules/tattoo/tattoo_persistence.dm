@@ -25,20 +25,31 @@
 	// Store in character data
 	write_preference(GLOB.preference_entries[/datum/preference/text_list/tattoos], tattoo_data)
 
+	// Debug message
+	if(parent)
+		to_chat(parent, span_notice("Tattoo data saved: [length(tattoo_data)] tattoos"))
+
 /// Loads tattoo data from preferences
-/datum/preferences/proc/load_tattoo_data(list/save_data)
+/datum/preferences/proc/load_tattoo_data()
 	if(!parent?.mob)
-		return
-
-	var/mob/living/carbon/human/H = parent.mob
-	if(!istype(H))
-		return
-
-	// Clear existing tattoos
-	H.body_tattoos = list()
+		return list()
 
 	var/list/tattoo_data = read_preference(/datum/preference/text_list/tattoos)
 	if(!tattoo_data || !islist(tattoo_data))
+		return list()
+
+	return tattoo_data
+
+/// Apply saved tattoos to a mob
+/datum/preferences/proc/apply_tattoos_to_mob(mob/living/carbon/human/character)
+	if(!istype(character))
+		return
+
+	// Clear existing tattoos
+	character.body_tattoos = list()
+
+	var/list/tattoo_data = load_tattoo_data()
+	if(!length(tattoo_data))
 		return
 
 	// Convert loaded data back to tattoo datums
@@ -58,11 +69,11 @@
 			continue
 
 		// Set defaults for missing values
-		if(!artist) artist = "Unknown Artist"
-		if(!design) design = "An intricate design"
-		if(!color) color = "#000000"
+		if(!artist || artist == "") artist = "Unknown Artist"
+		if(!design || design == "") design = "An intricate design"
+		if(!color || color == "") color = "#000000"
 		if(!layer) layer = 2
-		if(!date_applied) date_applied = time2text(world.realtime, "YYYY-MM-DD")
+		if(!date_applied || date_applied == "") date_applied = time2text(world.realtime, "YYYY-MM-DD")
 
 		// Create the tattoo datum
 		var/datum/tattoo/T = new(
@@ -74,12 +85,8 @@
 		)
 		T.date_applied = sanitize_text(date_applied)
 
-		H.body_tattoos += T
+		character.body_tattoos += T
 
-	H.regenerate_icons()
-
-/// Apply saved tattoos to a mob
-/datum/preferences/proc/apply_tattoos_to_mob(mob/living/carbon/human/character)
-	if(!istype(character))
-		return
-	load_tattoo_data()
+	// Debug message
+	to_chat(character, span_notice("Loaded [length(character.body_tattoos)] tattoos"))
+	character.regenerate_icons()
