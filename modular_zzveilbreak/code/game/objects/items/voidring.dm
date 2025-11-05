@@ -2,7 +2,7 @@
 	name = "Void Ring"
 	desc = "A ring pulsing with void energy, automatically retaliating against threats."
 	greyscale_config = /datum/greyscale_config/voidring
-	greyscale_colors = "#555555"
+	greyscale_colors = "#c9a2e7#2700ff#fa00b9"
 	var/active = FALSE
 	var/timer_id
 	var/list/item_faction = list()
