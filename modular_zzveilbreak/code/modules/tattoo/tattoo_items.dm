@@ -83,7 +83,7 @@
 	data["ink_uses"] = tattoo_uses
 	data["max_uses"] = tattoo_max_uses
 	data["ink_color"] = ink_color
-	data["selected_zone"] = selected_zone
+	data["selected_zone"] = get_body_zone_display_name(selected_zone)
 	data["current_step"] = current_step
 	data["artist_name"] = artist_name
 	data["tattoo_design"] = tattoo_design
@@ -173,9 +173,9 @@
 			return TRUE
 
 		if("apply_tattoo")
-			var/apply_artist = artist_name
-			var/apply_design = tattoo_design
-			var/apply_layer = selected_layer
+			var/apply_artist = params["artist"] || artist_name
+			var/apply_design = params["design"] || tattoo_design
+			var/apply_layer = text2num(params["layer"]) || selected_layer
 
 			// Final validation
 			if(!apply_artist || length(apply_artist) == 0 || !apply_design || length(apply_design) == 0)
@@ -207,10 +207,15 @@
 				// ONE FINAL CHECK - clothing could have been put on during the delay
 				if(is_bodypart_covered(current_target, selected_zone, usr))
 					to_chat(usr, span_warning("The body part became covered during application! Tattoo failed."))
+					// Apply 10 brute damage for interruption
+					apply_tattoo_damage(current_target, selected_zone, 10, usr)
 					return FALSE
 
 				var/datum/tattoo/new_tattoo = new(apply_artist, apply_design, selected_zone, ink_color, apply_layer)
 				if(current_target.add_tattoo(new_tattoo))
+					// Apply 15 brute damage for successful application
+					apply_tattoo_damage(current_target, selected_zone, 15, usr)
+
 					// Save to preferences
 					if(current_target.client?.prefs)
 						current_target.client.prefs.save_tattoo_data()
@@ -230,6 +235,8 @@
 					qdel(new_tattoo)
 			else
 				to_chat(usr, span_warning("Tattoo application interrupted!"))
+				// Apply 10 brute damage for interruption
+				apply_tattoo_damage(current_target, selected_zone, 10, usr)
 
 			// Reset for next use
 			current_step = "select_part"
@@ -240,16 +247,32 @@
 
 	return FALSE
 
+/// Applies bruise damage from tattoo application
+/obj/item/tattoo_kit/proc/apply_tattoo_damage(mob/living/carbon/human/target, body_zone, damage_amount, mob/user)
+	if(!istype(target) || damage_amount <= 0)
+		return
+
+	var/obj/item/bodypart/BP = target.get_bodypart(body_zone)
+	if(BP)
+		BP.receive_damage(brute = damage_amount, wound_bonus = CANT_WOUND)
+		to_chat(target, span_warning("The tattoo needle stings painfully!"))
+
+		// Show different message based on who is being tattooed
+		if(target == user)
+			to_chat(user, span_warning("The tattoo process leaves a painful bruise on your [get_body_zone_display_name(body_zone)]."))
+		else
+			to_chat(user, span_warning("The tattoo process leaves a painful bruise on [target]'s [get_body_zone_display_name(body_zone)]."))
+
+		// Update health and check for crit
+		target.updatehealth()
+		if(target.stat == UNCONSCIOUS && target.health <= target.crit_threshold)
+			to_chat(user, span_danger("[target == user ? "You" : target] [target == user ? "have" : "has"] been knocked unconscious by the pain!"))
+
 // Helper proc to check if a bodypart is covered by clothing
 /proc/is_bodypart_covered(mob/living/carbon/human/target, body_zone, mob/user)
 	if(!target || !body_zone)
 		return TRUE
-
-	// Create a temporary tattoo to use its visibility checking
-	var/datum/tattoo/temp_tattoo = new("temp", "temp", body_zone)
-	var/covered = temp_tattoo.is_hidden_by_clothes(target, user)
-	qdel(temp_tattoo)
-	return covered
+	return !get_location_accessible(target, body_zone)
 
 /obj/item/tattoo_kit/examine(mob/user)
 	. = ..()

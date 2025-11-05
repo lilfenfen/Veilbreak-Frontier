@@ -1,14 +1,12 @@
 import {
   Box,
   Button,
-  Flex,
   Input,
   LabeledList,
   Section,
   Stack,
   TextArea,
 } from 'tgui-core/components';
-
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
 
@@ -61,7 +59,7 @@ export const TattooKit = (props) => {
             </LabeledList.Item>
           </LabeledList>
         </Section>
-        <Section title="Available Body Parts" fill>
+        <Section title="Available Body Parts">
           {body_parts.length === 0 && (
             <Box color="bad" textAlign="center">
               {ink_uses <= 0
@@ -69,7 +67,7 @@ export const TattooKit = (props) => {
                 : 'No available body parts found! Target may be fully clothed or have no valid body parts.'}
             </Box>
           )}
-          <Stack vertical fill>
+          <Stack vertical>
             {body_parts.map((part) => (
               <Stack.Item key={part.zone}>
                 <Button
@@ -91,12 +89,10 @@ export const TattooKit = (props) => {
                   }
                   color={part.covered ? 'bad' : 'default'}
                 >
-                  <Flex align="center" justify="space-between">
-                    <Box>
-                      {part.name} ({part.current_tattoos}/{part.max_tattoos})
-                    </Box>
-                    <Box>{part.covered ? '🔒 Covered' : '🔓 Exposed'}</Box>
-                  </Flex>
+                  <Box>
+                    {part.name} ({part.current_tattoos}/{part.max_tattoos})
+                  </Box>
+                  <Box>{part.covered ? '🔒 Covered' : '🔓 Exposed'}</Box>
                 </Button>
               </Stack.Item>
             ))}
@@ -141,7 +137,9 @@ const DesignTattooStep = (props) => {
                 fluid
                 value={artist_name}
                 placeholder="Enter your name or signature..."
-                onChange={(value) => act('update_artist_name', { name: value })}
+                onChange={(e, value) =>
+                  act('update_artist_name', { name: value })
+                }
                 maxLength={50}
               />
             </LabeledList.Item>
@@ -151,7 +149,7 @@ const DesignTattooStep = (props) => {
                 value={tattoo_design}
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
-                onChange={(value) =>
+                onChange={(e, value) =>
                   act('update_tattoo_design', { design: value })
                 }
                 maxLength={500}
@@ -180,31 +178,35 @@ const DesignTattooStep = (props) => {
               </Box>
             </LabeledList.Item>
             <LabeledList.Item label="Layer">
-              <Flex>
-                <Button
-                  selected={selected_layer === 1}
-                  onClick={() => act('update_tattoo_layer', { layer: 1 })}
-                  tooltip="Under layer - appears behind other tattoos"
-                >
-                  Under
-                </Button>
-                <Button
-                  selected={selected_layer === 2}
-                  onClick={() => act('update_tattoo_layer', { layer: 2 })}
-                  tooltip="Normal layer - standard placement"
-                  ml={1}
-                >
-                  Normal
-                </Button>
-                <Button
-                  selected={selected_layer === 3}
-                  onClick={() => act('update_tattoo_layer', { layer: 3 })}
-                  tooltip="Over layer - appears in front of other tattoos"
-                  ml={1}
-                >
-                  Over
-                </Button>
-              </Flex>
+              <Stack>
+                <Stack.Item>
+                  <Button
+                    selected={selected_layer === 1}
+                    onClick={() => act('update_tattoo_layer', { layer: 1 })}
+                    tooltip="Under layer - appears behind other tattoos"
+                  >
+                    Under
+                  </Button>
+                </Stack.Item>
+                <Stack.Item>
+                  <Button
+                    selected={selected_layer === 2}
+                    onClick={() => act('update_tattoo_layer', { layer: 2 })}
+                    tooltip="Normal layer - standard placement"
+                  >
+                    Normal
+                  </Button>
+                </Stack.Item>
+                <Stack.Item>
+                  <Button
+                    selected={selected_layer === 3}
+                    onClick={() => act('update_tattoo_layer', { layer: 3 })}
+                    tooltip="Over layer - appears in front of other tattoos"
+                  >
+                    Over
+                  </Button>
+                </Stack.Item>
+              </Stack>
             </LabeledList.Item>
             <LabeledList.Item>
               <Button
