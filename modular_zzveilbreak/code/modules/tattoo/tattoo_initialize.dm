@@ -7,7 +7,7 @@
         GLOB.surgeries_list = list()
     GLOB.surgeries_list += typesof(/datum/surgery/tattoo_removal)
 
-    // Register tattoo preference
+    // Register tattoo preference - ADD THIS
     if(!GLOB.preference_entries[/datum/preference/toggle/allow_bodywriting])
         GLOB.preference_entries[/datum/preference/toggle/allow_bodywriting] = new /datum/preference/toggle/allow_bodywriting
 

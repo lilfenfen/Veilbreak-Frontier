@@ -30,11 +30,11 @@
 /obj/item/tattoo_kit/attack(mob/living/carbon/human/target, mob/living/user)
 	if(!istype(target))
 		return ..()
-
+/*
 	if(target == user)
 		to_chat(user, span_warning("You can't tattoo yourself!"))
 		return TRUE
-
+*/
 	if(tattoo_uses <= 0)
 		to_chat(user, span_warning("This tattoo kit is out of ink!"))
 		return TRUE
@@ -196,7 +196,7 @@
 				selected_layer = 2
 				return FALSE
 
-			// FIXED: Final preference check before applying
+			// FIXED: Final preference check before applying - CORRECTED PATH
 			if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
 				to_chat(usr, span_warning("[current_target] doesn't allow body modifications!"))
 				return FALSE
@@ -214,7 +214,7 @@
 					to_chat(usr, span_warning("The body part became covered during application! Tattoo failed."))
 					return FALSE
 
-				// FIXED: Final preference check after delay
+				// FIXED: Final preference check after delay - CORRECTED PATH
 				if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
 					to_chat(usr, span_warning("[current_target] revoked body modification consent during application!"))
 					return FALSE
