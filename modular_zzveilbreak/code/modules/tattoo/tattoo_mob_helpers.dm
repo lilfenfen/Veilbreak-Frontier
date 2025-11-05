@@ -66,8 +66,6 @@
 			var/tattoo_text = T.get_examine_text(user, src)
 			if(tattoo_text)
 				. += " [tattoo_text]" // Indented bullet points
-			else
-
 
 // Verb for players to check their own tattoos
 /mob/living/carbon/human/verb/examine_my_tattoos()
@@ -85,7 +83,6 @@
         var/tattoo_text = T.get_examine_text(src, src)
         if(tattoo_text)
             to_chat(src, " • [tattoo_text]")
-
 
 /mob/living/carbon/human/Login()
 	. = ..()

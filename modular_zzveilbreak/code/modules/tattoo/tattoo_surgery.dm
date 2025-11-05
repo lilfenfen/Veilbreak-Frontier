@@ -41,7 +41,7 @@
 
 	var/mob/living/carbon/human/H = patient
 
-	// Check if target allows bodywriting (for removal consent) using preferences
+	// Check if target allows bodywriting (for removal consent) using CORRECT preference
 	if(!H.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
 		to_chat(user, span_warning("[H] doesn't allow bodywriting modifications!"))
 		return FALSE

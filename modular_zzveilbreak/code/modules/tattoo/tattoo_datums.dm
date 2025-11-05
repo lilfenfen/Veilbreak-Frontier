@@ -11,8 +11,14 @@
     var/layer = TATTOO_LAYER_NORMAL
 
 /datum/tattoo/New(artist, design, body_part, color, layer = TATTOO_LAYER_NORMAL)
-    src.artist = sanitize_text(artist, "Unknown Artist")
-    src.design = sanitize_text(design, "An intricate design")
+    src.artist = sanitize_text(artist)
+    if(src.artist == "")
+        src.artist = "Unknown Artist"
+
+    src.design = sanitize_text(design)
+    if(src.design == "")
+        src.design = "An intricate design"
+
     src.body_part = body_part
     src.color = sanitize_hexcolor(color, default = "#000000")
     src.layer = sanitize_integer(layer, 1, 3, 2)
@@ -22,12 +28,13 @@
 	if(!is_visible(viewer, victim))
 		return ""
 
-	// Make sure we have valid text
+	// Use the actual stored values - don't reassign to defaults
 	var/display_design = design
+	var/display_artist = artist
+
+	// Only use defaults if the stored values are truly empty
 	if(!display_design || display_design == "")
 		display_design = "an intricate design"
-
-	var/display_artist = artist
 	if(!display_artist || display_artist == "")
 		display_artist = "an unknown artist"
 

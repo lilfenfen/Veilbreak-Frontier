@@ -30,16 +30,12 @@
 /obj/item/tattoo_kit/attack(mob/living/carbon/human/target, mob/living/user)
 	if(!istype(target))
 		return ..()
-/*
-	if(target == user)
-		to_chat(user, span_warning("You can't tattoo yourself!"))
-		return TRUE
-*/
+
 	if(tattoo_uses <= 0)
 		to_chat(user, span_warning("This tattoo kit is out of ink!"))
 		return TRUE
 
-	// FIXED: Check if target allows bodywriting - use the actual preference
+	// Check if target allows bodywriting - use the CORRECT preference key
 	if(!target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
 		to_chat(user, span_warning("[target] doesn't allow body modifications!"))
 		return TRUE
@@ -145,12 +141,16 @@
 
 		if("update_artist_name")
 			var/name = params["name"]
-			artist_name = sanitize_text(name, "Unknown Artist")
+			artist_name = sanitize_text(name)
+			if(artist_name == "")
+				artist_name = "Unknown Artist"
 			return TRUE
 
 		if("update_tattoo_design")
 			var/design = params["design"]
-			tattoo_design = sanitize_text(design, "An intricate design")
+			tattoo_design = sanitize_text(design)
+			if(tattoo_design == "")
+				tattoo_design = "An intricate design"
 			return TRUE
 
 		if("update_tattoo_layer")
@@ -177,15 +177,21 @@
 			var/apply_design = tattoo_design
 			var/apply_layer = selected_layer
 
-			// Final validation
-			if(!apply_artist || length(apply_artist) == 0 || !apply_design || length(apply_design) == 0)
+			// Final validation with proper trimming
+			if(!apply_artist || trim(apply_artist) == "" || !apply_design || trim(apply_design) == "")
 				to_chat(usr, span_warning("Please fill in both the artist name and tattoo design!"))
 				return FALSE
 
-			// Sanitize inputs using your functions
-			apply_artist = sanitize_text(apply_artist, "Unknown Artist")
-			apply_design = sanitize_text(apply_design, "An intricate design")
+			// Sanitize inputs using proper functions
+			apply_artist = trim(sanitize_text(apply_artist))
+			apply_design = trim(sanitize_text(apply_design))
 			apply_layer = sanitize_integer(apply_layer, 1, 3, 2)
+
+			// Ensure we have values after sanitization
+			if(apply_artist == "")
+				apply_artist = "Unknown Artist"
+			if(apply_design == "")
+				apply_design = "An intricate design"
 
 			// STRICT FINAL CHECK - cannot proceed if covered
 			if(is_bodypart_covered(current_target, selected_zone, usr))
@@ -196,7 +202,7 @@
 				selected_layer = 2
 				return FALSE
 
-			// FIXED: Final preference check before applying - CORRECTED PATH
+			// Final preference check before applying - CORRECTED PATH
 			if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
 				to_chat(usr, span_warning("[current_target] doesn't allow body modifications!"))
 				return FALSE
@@ -214,12 +220,12 @@
 					to_chat(usr, span_warning("The body part became covered during application! Tattoo failed."))
 					return FALSE
 
-				// FIXED: Final preference check after delay - CORRECTED PATH
-				if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
-					to_chat(usr, span_warning("[current_target] revoked body modification consent during application!"))
-					return FALSE
+				// Final preference check after delay - CORRECTED PATH
+			if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
+				to_chat(usr, span_warning("[current_target] revoked body modification consent during application!"))
+				return FALSE
 
-				// NEW: Parse emojis in the tattoo design
+				// Parse emojis in the tattoo design
 				var/parsed_design = emoji_parse(apply_design)
 
 				var/datum/tattoo/new_tattoo = new(apply_artist, parsed_design, selected_zone, ink_color, apply_layer)
