@@ -1,3 +1,13 @@
+// Tattoo/Bodywriting Preference - Following ERP preference pattern
+/datum/preference/toggle/allow_bodywriting
+	category = PREFERENCE_CATEGORY_GAME_PREFERENCES
+	savefile_identifier = PREFERENCE_PLAYER
+	savefile_key = "allow_bodywriting_pref"
+	default_value = FALSE
+
+/datum/preference/toggle/allow_bodywriting/apply_to_client(client/client, value)
+	return
+
 // Extend the interactable component to include tattoo preferences
 /datum/component/interactable
 	/// Add tattoo preference to the list
