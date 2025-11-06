@@ -88,12 +88,9 @@
 
 	// Calculate if we can apply the tattoo (both fields have content)
 	var/can_apply = TRUE
-	var/trimmed_artist = trimtext(artist_name)
-	var/trimmed_design = trimtext(tattoo_design)
-
-	if(!trimmed_artist || trimmed_artist == "")
+	if(!artist_name || artist_name == "")
 		can_apply = FALSE
-	if(!trimmed_design || trimmed_design == "")
+	if(!tattoo_design || tattoo_design == "")
 		can_apply = FALSE
 	data["can_apply"] = can_apply
 
@@ -278,6 +275,10 @@
 			tattoo_design = ""
 			selected_layer = 2
 			. = TRUE
+
+	// Force UI update after any action that changes data
+	if(.)
+		SStgui.update_uis(src)
 
 	return .
 

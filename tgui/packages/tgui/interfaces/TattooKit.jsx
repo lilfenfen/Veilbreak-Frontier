@@ -121,16 +121,6 @@ const DesignTattooStep = (props) => {
     can_apply = false,
   } = data;
 
-  // Safe handling of potential null values
-  const safeArtistName = artist_name || '';
-  const safeTattooDesign = tattoo_design || '';
-
-  // Simple check: if both fields have any content (even just spaces), enable the button
-  // We'll do the actual trimming validation on the backend when applying
-  const hasArtistName = safeArtistName.length > 0;
-  const hasTattooDesign = safeTattooDesign.length > 0;
-  const canApply = hasArtistName && hasTattooDesign;
-
   return (
     <Window width={500} height={600}>
       <Window.Content scrollable>
@@ -146,7 +136,7 @@ const DesignTattooStep = (props) => {
             <LabeledList.Item label="Artist Name">
               <Input
                 fluid
-                value={safeArtistName}
+                value={artist_name}
                 placeholder="Enter your name or signature..."
                 onChange={(e, value) =>
                   act('update_artist_name', { name: value })
@@ -157,7 +147,7 @@ const DesignTattooStep = (props) => {
             <LabeledList.Item label="Tattoo Design">
               <TextArea
                 fluid
-                value={safeTattooDesign}
+                value={tattoo_design}
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
                 onChange={(e, value) =>
@@ -223,11 +213,11 @@ const DesignTattooStep = (props) => {
               <Button
                 fluid
                 icon="check"
-                color={canApply ? 'good' : 'default'}
-                disabled={!canApply}
+                color={can_apply ? 'good' : 'default'}
+                disabled={!can_apply}
                 onClick={() => act('apply_tattoo')}
                 tooltip={
-                  canApply
+                  can_apply
                     ? 'Apply the tattoo to the selected body part'
                     : 'Fill in both artist name and tattoo design first'
                 }
