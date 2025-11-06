@@ -24,7 +24,7 @@ export const TattooKit = (props) => {
     artist_name = '',
     tattoo_design = '',
     selected_layer = 2,
-    can_apply = false, // ADDED: Use backend can_apply calculation
+    can_apply = false,
   } = data;
 
   if (current_step === 'design_tattoo') {
@@ -91,10 +91,14 @@ export const TattooKit = (props) => {
                   }
                   color={part.covered ? 'bad' : 'default'}
                 >
-                  <Box>
-                    {part.name} ({part.current_tattoos}/{part.max_tattoos})
-                  </Box>
-                  <Box>{part.covered ? '🔒 Covered' : '🔓 Exposed'}</Box>
+                  <Stack>
+                    <Stack.Item grow>
+                      {part.name} ({part.current_tattoos}/{part.max_tattoos})
+                    </Stack.Item>
+                    <Stack.Item>
+                      {part.covered ? '🔒 Covered' : '🔓 Exposed'}
+                    </Stack.Item>
+                  </Stack>
                 </Button>
               </Stack.Item>
             ))}
@@ -114,7 +118,7 @@ const DesignTattooStep = (props) => {
     artist_name = '',
     tattoo_design = '',
     selected_layer = 2,
-    can_apply = false, // CHANGED: Use backend calculation instead of frontend
+    can_apply = false,
   } = data;
 
   return (
@@ -211,7 +215,7 @@ const DesignTattooStep = (props) => {
                 icon="check"
                 color={can_apply ? 'good' : 'default'}
                 disabled={!can_apply}
-                onClick={() => act('apply_tattoo')} // CHANGED: Remove params - backend has the data
+                onClick={() => act('apply_tattoo')}
                 tooltip={
                   can_apply
                     ? 'Apply the tattoo to the selected body part'

@@ -80,7 +80,7 @@
 	data["max_uses"] = tattoo_max_uses
 	data["ink_color"] = ink_color
 	data["selected_zone"] = selected_zone
-	data["selected_zone_name"] = get_body_zone_display_name(selected_zone) // ADDED: This was missing!
+	data["selected_zone_name"] = get_body_zone_display_name(selected_zone)
 	data["current_step"] = current_step
 	data["artist_name"] = artist_name
 	data["tattoo_design"] = tattoo_design
@@ -124,6 +124,8 @@
 	if(.)
 		return
 
+	var/mob/user = usr
+
 	switch(action)
 		if("select_bodypart")
 			var/zone = params["zone"]
@@ -131,20 +133,20 @@
 				return FALSE
 
 			// STRICT coverage check - no exceptions
-			if(is_bodypart_covered(current_target, zone, usr))
+			if(is_bodypart_covered(current_target, zone, user))
 				var/body_part_name = get_body_zone_display_name(zone)
 				// Different message for organ-based parts vs standard body parts
 				if(zone in list(ORGAN_SLOT_EXTERNAL_TAIL, ORGAN_SLOT_EXTERNAL_SPINES, ORGAN_SLOT_EXTERNAL_FRILLS,
 								ORGAN_SLOT_EXTERNAL_HORNS, ORGAN_SLOT_EXTERNAL_WINGS, ORGAN_SLOT_WINGS))
-					to_chat(usr, span_warning("[current_target == usr ? "Your" : "[current_target]'s"] [body_part_name] is covered or inaccessible! Make sure it's exposed."))
+					to_chat(user, span_warning("[current_target == user ? "Your" : "[current_target]'s"] [body_part_name] is covered or inaccessible! Make sure it's exposed."))
 				else
-					to_chat(usr, span_warning("[current_target == usr ? "Your" : "[current_target]'s"] [body_part_name] is covered by clothing! Expose it first."))
+					to_chat(user, span_warning("[current_target == user ? "Your" : "[current_target]'s"] [body_part_name] is covered by clothing! Expose it first."))
 				return FALSE
 
 			// Check tattoo limit
 			var/current_tattoos = current_target.get_tattoos(zone)
 			if(length(current_tattoos) >= max_tattoos_per_part)
-				to_chat(usr, span_warning("This body part already has the maximum number of tattoos! (Max: [max_tattoos_per_part])"))
+				to_chat(user, span_warning("This body part already has the maximum number of tattoos! (Max: [max_tattoos_per_part])"))
 				return FALSE
 
 			selected_zone = zone
@@ -153,13 +155,11 @@
 
 		if("update_artist_name")
 			var/name = params["name"]
-			// Store the raw input but trim for validation
 			artist_name = name
 			. = TRUE
 
 		if("update_tattoo_design")
 			var/design = params["design"]
-			// Store the raw input but trim for validation
 			tattoo_design = design
 			. = TRUE
 
@@ -169,10 +169,10 @@
 			. = TRUE
 
 		if("change_ink_color")
-			var/new_color = input(usr, "Choose ink color:", "Tattoo Kit", ink_color) as color|null
+			var/new_color = input(user, "Choose ink color:", "Tattoo Kit", ink_color) as color|null
 			if(new_color)
 				ink_color = sanitize_hexcolor(new_color, default = "#000000")
-				to_chat(usr, span_notice("You change the ink color to [new_color]."))
+				to_chat(user, span_notice("You change the ink color to [new_color]."))
 			. = TRUE
 
 		if("back_to_selection")
@@ -194,9 +194,9 @@
 			var/using_default_artist = (!trimmed_artist || trimmed_artist == "")
 			var/using_default_design = (!trimmed_design || trimmed_design == "")
 
-			// If both are empty, show error (this shouldn't happen with can_apply check, but safety)
+			// If both are empty, show error
 			if(using_default_artist && using_default_design)
-				to_chat(usr, span_warning("Please fill in both the artist name and tattoo design!"))
+				to_chat(user, span_warning("Please fill in both the artist name and tattoo design!"))
 				return FALSE
 
 			// Apply gentle sanitization only if we have content
@@ -213,8 +213,8 @@
 			apply_layer = sanitize_integer(apply_layer, 1, 3, 2)
 
 			// STRICT FINAL CHECK - cannot proceed if covered
-			if(is_bodypart_covered(current_target, selected_zone, usr))
-				to_chat(usr, span_warning("[current_target == usr ? "Your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)] became covered! Aborting."))
+			if(is_bodypart_covered(current_target, selected_zone, user))
+				to_chat(user, span_warning("[current_target == user ? "Your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)] became covered! Aborting."))
 				current_step = "select_part"
 				artist_name = ""
 				tattoo_design = ""
@@ -223,7 +223,7 @@
 
 			// Final preference check before applying
 			if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
-				to_chat(usr, span_warning("[current_target] doesn't allow body modifications!"))
+				to_chat(user, span_warning("[current_target] doesn't allow body modifications!"))
 				return FALSE
 
 			// Close UI during application
@@ -231,17 +231,17 @@
 				ui.close()
 
 			// Perform tattoo application with progress bar
-			to_chat(usr, span_notice("You begin carefully applying the tattoo to [current_target == usr ? "your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)]..."))
+			to_chat(user, span_notice("You begin carefully applying the tattoo to [current_target == user ? "your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)]..."))
 
-			if(do_after(usr, 8 SECONDS, target = current_target))
+			if(do_after(user, 8 SECONDS, target = current_target))
 				// ONE FINAL CHECK - clothing could have been put on during the delay
-				if(is_bodypart_covered(current_target, selected_zone, usr))
-					to_chat(usr, span_warning("The body part became covered during application! Tattoo failed."))
+				if(is_bodypart_covered(current_target, selected_zone, user))
+					to_chat(user, span_warning("The body part became covered during application! Tattoo failed."))
 					return FALSE
 
 				// Final preference check after delay
 				if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
-					to_chat(usr, span_warning("[current_target] revoked body modification consent during application!"))
+					to_chat(user, span_warning("[current_target] revoked body modification consent during application!"))
 					return FALSE
 
 				// Create the tattoo - using the actual processed values
@@ -256,21 +256,21 @@
 						current_target.client.prefs.save_character()
 						world.log << "DEBUG: Character saved after tattoo application"
 
-					to_chat(usr, span_green("You successfully apply \"[apply_design]\" to [current_target == usr ? "your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)]."))
-					if(current_target != usr)
-						to_chat(current_target, span_notice("You feel a stinging sensation as [usr] tattoos your [get_body_zone_display_name(selected_zone)]."))
+					to_chat(user, span_green("You successfully apply \"[apply_design]\" to [current_target == user ? "your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)]."))
+					if(current_target != user)
+						to_chat(current_target, span_notice("You feel a stinging sensation as [user] tattoos your [get_body_zone_display_name(selected_zone)]."))
 
 					tattoo_uses--
 					if(tattoo_uses <= 0)
-						to_chat(usr, span_warning("The tattoo kit is now out of ink!"))
+						to_chat(user, span_warning("The tattoo kit is now out of ink!"))
 						desc = "An empty tattoo kit. All the ink has been used up."
 
 					current_target.regenerate_icons()
 				else
-					to_chat(usr, span_warning("Failed to apply the tattoo! The skin might be too damaged."))
+					to_chat(user, span_warning("Failed to apply the tattoo! The skin might be too damaged."))
 					qdel(new_tattoo)
 			else
-				to_chat(usr, span_warning("Tattoo application interrupted!"))
+				to_chat(user, span_warning("Tattoo application interrupted!"))
 
 			// Reset for next use
 			current_step = "select_part"
@@ -279,7 +279,11 @@
 			selected_layer = 2
 			. = TRUE
 
-	return FALSE
+	// Force UI update after any action
+	if(.)
+		ui_interact(user)
+
+	return .
 
 // Helper proc to check if a bodypart is covered by clothing - USING SURGERY SYSTEM PROC
 /proc/is_bodypart_covered(mob/living/carbon/human/target, body_zone, mob/user)
