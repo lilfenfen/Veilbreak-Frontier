@@ -85,19 +85,19 @@
 		// DEBUG: Log each tattoo being created
 		world.log << "DEBUG: Creating tattoo from save - Artist: [artist], Design: [design], Body Part: [body_part_define]"
 
-		// Use proper BYOND sanitization
+		// Use proper BYOND sanitization - preserve the actual values from save data
 		var/sanitized_artist = sanitize_text(artist)
-		if(sanitized_artist == "")
+		if(!sanitized_artist || sanitized_artist == "")
 			sanitized_artist = "Unknown Artist"
 
 		var/sanitized_design = sanitize_text(design)
-		if(sanitized_design == "")
+		if(!sanitized_design || sanitized_design == "")
 			sanitized_design = "An intricate design"
 
 		var/sanitized_color = sanitize_hexcolor(color, default = "#000000")
 		var/sanitized_layer = sanitize_integer(layer, 1, 3, 2)
 
-		// Create the tattoo datum with sanitized values
+		// Create the tattoo datum with the actual saved values
 		var/datum/tattoo/T = new(
 			sanitized_artist,
 			sanitized_design,

@@ -12,11 +12,11 @@
 
 /datum/tattoo/New(artist, design, body_part, color, layer = TATTOO_LAYER_NORMAL)
     src.artist = sanitize_text(artist)
-    if(src.artist == "")
+    if(!src.artist || src.artist == "")
         src.artist = "Unknown Artist"
 
     src.design = sanitize_text(design)
-    if(src.design == "")
+    if(!src.design || src.design == "")
         src.design = "An intricate design"
 
     src.body_part = body_part

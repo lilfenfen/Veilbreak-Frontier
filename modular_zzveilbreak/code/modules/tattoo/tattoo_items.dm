@@ -225,11 +225,8 @@
 					to_chat(usr, span_warning("[current_target] revoked body modification consent during application!"))
 					return FALSE
 
-				// Parse emojis in the tattoo design
-				var/parsed_design = emoji_parse(apply_design)
-
-				// Create the tattoo - using the actual values
-				var/datum/tattoo/new_tattoo = new(apply_artist, parsed_design, selected_zone, ink_color, apply_layer)
+				// Create the tattoo - using the actual values (skip emoji parse for now)
+				var/datum/tattoo/new_tattoo = new(apply_artist, apply_design, selected_zone, ink_color, apply_layer)
 
 				// DEBUG: Log the tattoo being created
 				world.log << "DEBUG: Creating new tattoo - Artist: [apply_artist], Design: [apply_design], Zone: [selected_zone]"
@@ -240,7 +237,7 @@
 						current_target.client.prefs.save_character()
 						world.log << "DEBUG: Character saved after tattoo application"
 
-					to_chat(usr, span_green("You successfully apply \"[parsed_design]\" to [current_target == usr ? "your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)]."))
+					to_chat(usr, span_green("You successfully apply \"[apply_design]\" to [current_target == usr ? "your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)]."))
 					if(current_target != usr)
 						to_chat(current_target, span_notice("You feel a stinging sensation as [usr] tattoos your [get_body_zone_display_name(selected_zone)]."))
 
