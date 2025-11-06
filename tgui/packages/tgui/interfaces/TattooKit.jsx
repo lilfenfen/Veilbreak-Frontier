@@ -121,6 +121,10 @@ const DesignTattooStep = (props) => {
     can_apply = false,
   } = data;
 
+  // Calculate can_apply locally as well for immediate feedback
+  const local_can_apply = artist_name.trim().length > 0 && tattoo_design.trim().length > 0;
+  const final_can_apply = can_apply || local_can_apply;
+
   return (
     <Window width={500} height={600}>
       <Window.Content scrollable>
@@ -213,16 +217,16 @@ const DesignTattooStep = (props) => {
               <Button
                 fluid
                 icon="check"
-                color={can_apply ? 'good' : 'default'}
-                disabled={!can_apply}
+                color={final_can_apply ? 'good' : 'default'}
+                disabled={!final_can_apply}
                 onClick={() => act('apply_tattoo')}
                 tooltip={
-                  can_apply
+                  final_can_apply
                     ? 'Apply the tattoo to the selected body part'
                     : 'Fill in both artist name and tattoo design first'
                 }
               >
-                {can_apply ? 'Apply Tattoo' : 'Complete Form to Apply'}
+                Apply Tattoo
               </Button>
             </LabeledList.Item>
           </LabeledList>

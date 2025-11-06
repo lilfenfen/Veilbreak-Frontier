@@ -279,10 +279,6 @@
 			selected_layer = 2
 			. = TRUE
 
-	// Force UI update after any action
-	if(.)
-		ui_interact(user)
-
 	return .
 
 // Helper proc to check if a bodypart is covered by clothing - USING SURGERY SYSTEM PROC
