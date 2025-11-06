@@ -53,3 +53,10 @@ export const cumflation_pref: FeatureToggle = {
   description: 'Allow your genitals to get cumflated.',
   component: CheckboxInput,
 };
+
+export const allow_bodywriting_pref: FeatureToggle = {
+  name: 'Allow Bodywriting',
+  category: 'ERP',
+  description: 'Allow other players to apply tattoos and bodywriting to your character.',
+  component: CheckboxInput,
+};

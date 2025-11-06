@@ -36,7 +36,7 @@ type ContentPrefsInfo = {
   vore_overlays: boolean;
   vore_overlay_options: boolean;
   // Tattoo/Bodywriting pref
-  allow_bodywriting_pref: boolean;
+  allow_bodywriting_pref: boolean; // ADD THIS LINE
 };
 
 type ContentPreferencesTabProps = {
@@ -81,7 +81,7 @@ export const ContentPreferencesTab = ({
     vore_overlays,
     vore_overlay_options,
     // Tattoo/Bodywriting pref
-    allow_bodywriting_pref,
+    allow_bodywriting_pref, // ADD THIS LINE
   } = data;
 
   const renderToggle = (
@@ -248,7 +248,7 @@ export const ContentPreferencesTab = ({
             </>
           )}
 
-          {/* Tattoo/Bodywriting Preference */}
+          {/* Tattoo/Bodywriting Preference - ADD THIS SECTION */}
           {renderToggle(
             'allow_bodywriting_pref',
             allow_bodywriting_pref,
