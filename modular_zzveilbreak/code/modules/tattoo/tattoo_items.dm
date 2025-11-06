@@ -177,14 +177,14 @@
 			var/apply_design = tattoo_design
 			var/apply_layer = selected_layer
 
-			// Final validation with proper trimming
-			if(!apply_artist || trim(apply_artist) == "" || !apply_design || trim(apply_design) == "")
+			// Final validation with proper trimming using trimtext()
+			if(!apply_artist || trimtext(apply_artist) == "" || !apply_design || trimtext(apply_design) == "")
 				to_chat(usr, span_warning("Please fill in both the artist name and tattoo design!"))
 				return FALSE
 
-			// Sanitize inputs using proper functions
-			apply_artist = trim(sanitize_text(apply_artist))
-			apply_design = trim(sanitize_text(apply_design))
+			// Sanitize inputs using proper BYOND functions
+			apply_artist = trimtext(sanitize_text(apply_artist))
+			apply_design = trimtext(sanitize_text(apply_design))
 			apply_layer = sanitize_integer(apply_layer, 1, 3, 2)
 
 			// Ensure we have values after sanitization
@@ -202,7 +202,7 @@
 				selected_layer = 2
 				return FALSE
 
-			// Final preference check before applying - CORRECTED PATH
+			// Final preference check before applying
 			if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
 				to_chat(usr, span_warning("[current_target] doesn't allow body modifications!"))
 				return FALSE
@@ -220,7 +220,7 @@
 					to_chat(usr, span_warning("The body part became covered during application! Tattoo failed."))
 					return FALSE
 
-				// Final preference check after delay - CORRECTED PATH
+				// Final preference check after delay
 				if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
 					to_chat(usr, span_warning("[current_target] revoked body modification consent during application!"))
 					return FALSE
@@ -228,11 +228,17 @@
 				// Parse emojis in the tattoo design
 				var/parsed_design = emoji_parse(apply_design)
 
+				// Create the tattoo - using the actual values
 				var/datum/tattoo/new_tattoo = new(apply_artist, parsed_design, selected_zone, ink_color, apply_layer)
+
+				// DEBUG: Log the tattoo being created
+				world.log << "DEBUG: Creating new tattoo - Artist: [apply_artist], Design: [apply_design], Zone: [selected_zone]"
+
 				if(current_target.add_tattoo(new_tattoo))
 					// Save to preferences
 					if(current_target.client?.prefs)
 						current_target.client.prefs.save_character()
+						world.log << "DEBUG: Character saved after tattoo application"
 
 					to_chat(usr, span_green("You successfully apply \"[parsed_design]\" to [current_target == usr ? "your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)]."))
 					if(current_target != usr)

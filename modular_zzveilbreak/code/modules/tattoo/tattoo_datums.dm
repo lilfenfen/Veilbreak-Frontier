@@ -24,6 +24,9 @@
     src.layer = sanitize_integer(layer, 1, 3, 2)
     src.date_applied = time2text(world.realtime, "YYYY-MM-DD")
 
+    // DEBUG: Log the tattoo creation
+    world.log << "DEBUG: Tattoo datum created - Artist: [src.artist], Design: [src.design], Body Part: [src.body_part]"
+
 /datum/tattoo/proc/get_examine_text(mob/viewer, mob/living/carbon/human/victim)
 	if(!is_visible(viewer, victim))
 		return ""

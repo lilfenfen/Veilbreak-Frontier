@@ -32,6 +32,9 @@
 	features["tattoos_data"] = tattoo_data
 	features["tattoos"] = H.body_tattoos.Copy()
 
+	// DEBUG: Log what we're saving
+	world.log << "DEBUG: Saving tattoo data: [json_encode(tattoo_data)]"
+
 /// Enhanced tattoo data loading with proper savefile integration
 /datum/preferences/proc/load_tattoo_data_zzveilbreak(list/save_data)
 	if(!features)
@@ -45,7 +48,11 @@
 	var/list/tattoo_data = save_data?["tattoos_data"]
 
 	if(!islist(tattoo_data))
+		world.log << "DEBUG: No tattoo data found or not a list"
 		return
+
+	// DEBUG: Log what we're loading
+	world.log << "DEBUG: Loading tattoo data: [json_encode(tattoo_data)]"
 
 	// Convert loaded data back to tattoo datums
 	var/list/loaded_tattoos = list()
@@ -75,20 +82,28 @@
 		if(!is_valid_tattoo_bodypart(body_part_define))
 			continue
 
-		// Set defaults for missing values
-		if(!artist) artist = "Unknown Artist"
-		if(!design) design = "An intricate design"
-		if(!color) color = "#000000"
-		if(!layer) layer = 2
-		if(!date_applied) date_applied = time2text(world.realtime, "YYYY-MM-DD")
+		// DEBUG: Log each tattoo being created
+		world.log << "DEBUG: Creating tattoo from save - Artist: [artist], Design: [design], Body Part: [body_part_define]"
 
-		// Create the tattoo datum
+		// Use proper BYOND sanitization
+		var/sanitized_artist = sanitize_text(artist)
+		if(sanitized_artist == "")
+			sanitized_artist = "Unknown Artist"
+
+		var/sanitized_design = sanitize_text(design)
+		if(sanitized_design == "")
+			sanitized_design = "An intricate design"
+
+		var/sanitized_color = sanitize_hexcolor(color, default = "#000000")
+		var/sanitized_layer = sanitize_integer(layer, 1, 3, 2)
+
+		// Create the tattoo datum with sanitized values
 		var/datum/tattoo/T = new(
-			sanitize_text(artist),
-			sanitize_text(design),
+			sanitized_artist,
+			sanitized_design,
 			body_part_define,
-			sanitize_hexcolor(color, 6, TRUE, "#000000"),
-			sanitize_integer(layer, 1, 3, 2)
+			sanitized_color,
+			sanitized_layer
 		)
 		T.date_applied = sanitize_text(date_applied)
 
@@ -97,6 +112,8 @@
 	// Store in features
 	features["tattoos"] = loaded_tattoos
 	features["tattoos_data"] = tattoo_data
+
+	world.log << "DEBUG: Loaded [length(loaded_tattoos)] tattoos"
 
 /// Enhanced tattoo application to mob
 /datum/preferences/proc/apply_tattoos_to_mob_zzveilbreak(mob/living/carbon/human/character)
@@ -124,6 +141,8 @@
 	// Apply tattoos to mob
 	character.body_tattoos = tattoos_to_apply.Copy()
 	character.regenerate_icons()
+
+	world.log << "DEBUG: Applied [length(tattoos_to_apply)] tattoos to mob"
 
 // Override the original procs with our enhanced versions
 /datum/preferences/proc/save_tattoo_data(list/save_data)
