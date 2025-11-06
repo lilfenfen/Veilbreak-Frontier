@@ -86,13 +86,24 @@
 	data["tattoo_design"] = tattoo_design
 	data["selected_layer"] = selected_layer
 
-	// Calculate if we can apply the tattoo (both fields have content)
+	// DEBUG: Log the current state for troubleshooting
+	world.log << "DEBUG: UI_DATA - artist_name: '[artist_name]' (null: [isnull(artist_name)]), tattoo_design: '[tattoo_design]' (null: [isnull(tattoo_design)])"
+
+	// FIXED: Proper can_apply calculation that handles null and empty strings
 	var/can_apply = TRUE
-	if(!artist_name || artist_name == "")
+
+	// Check if artist_name is null, empty, or only whitespace
+	if(!artist_name || !istext(artist_name) || trimtext(artist_name) == "")
 		can_apply = FALSE
-	if(!tattoo_design || tattoo_design == "")
+		world.log << "DEBUG: UI_DATA - artist_name failed validation"
+
+	// Check if tattoo_design is null, empty, or only whitespace
+	if(!tattoo_design || !istext(tattoo_design) || trimtext(tattoo_design) == "")
 		can_apply = FALSE
+		world.log << "DEBUG: UI_DATA - tattoo_design failed validation"
+
 	data["can_apply"] = can_apply
+	world.log << "DEBUG: UI_DATA - Final can_apply: [can_apply]"
 
 	// Get all available body parts with coverage checking
 	var/list/body_parts = list()
@@ -123,6 +134,9 @@
 
 	var/mob/user = usr
 
+	// DEBUG: Log the action and parameters
+	world.log << "DEBUG: UI_ACT - action: [action], params: [json_encode(params)]"
+
 	switch(action)
 		if("select_bodypart")
 			var/zone = params["zone"]
@@ -152,12 +166,20 @@
 
 		if("update_artist_name")
 			var/name = params["name"]
-			artist_name = name
+			if(!isnull(name)) // FIXED: Only update if we actually got a value
+				artist_name = name
+				world.log << "DEBUG: update_artist_name - new value: '[name]' (null: [isnull(name)])"
+			else
+				world.log << "DEBUG: update_artist_name - received NULL value"
 			. = TRUE
 
 		if("update_tattoo_design")
 			var/design = params["design"]
-			tattoo_design = design
+			if(!isnull(design)) // FIXED: Only update if we actually got a value
+				tattoo_design = design
+				world.log << "DEBUG: update_tattoo_design - new value: '[design]' (null: [isnull(design)])"
+			else
+				world.log << "DEBUG: update_tattoo_design - received NULL value"
 			. = TRUE
 
 		if("update_tattoo_layer")
@@ -276,9 +298,10 @@
 			selected_layer = 2
 			. = TRUE
 
-	// Force UI update after any action that changes data
+	// CRITICAL FIX: Force UI update after ANY action that changes data
 	if(.)
 		SStgui.update_uis(src)
+		world.log << "DEBUG: UI_ACT - Action [action] completed, forcing UI update"
 
 	return .
 
