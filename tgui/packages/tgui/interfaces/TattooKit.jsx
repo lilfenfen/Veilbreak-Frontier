@@ -121,8 +121,10 @@ const DesignTattooStep = (props) => {
     can_apply = false,
   } = data;
 
-  // Calculate can_apply locally as well for immediate feedback
-  const local_can_apply = artist_name.trim().length > 0 && tattoo_design.trim().length > 0;
+  // Safe calculation of can_apply - handle null/undefined values
+  const safeArtistName = artist_name || '';
+  const safeTattooDesign = tattoo_design || '';
+  const local_can_apply = safeArtistName.trim().length > 0 && safeTattooDesign.trim().length > 0;
   const final_can_apply = can_apply || local_can_apply;
 
   return (
@@ -140,7 +142,7 @@ const DesignTattooStep = (props) => {
             <LabeledList.Item label="Artist Name">
               <Input
                 fluid
-                value={artist_name}
+                value={safeArtistName}
                 placeholder="Enter your name or signature..."
                 onChange={(e, value) =>
                   act('update_artist_name', { name: value })
@@ -151,7 +153,7 @@ const DesignTattooStep = (props) => {
             <LabeledList.Item label="Tattoo Design">
               <TextArea
                 fluid
-                value={tattoo_design}
+                value={safeTattooDesign}
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
                 onChange={(e, value) =>
