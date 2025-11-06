@@ -121,11 +121,15 @@ const DesignTattooStep = (props) => {
     can_apply = false,
   } = data;
 
-  // Safe calculation of can_apply - handle null/undefined values
+  // Safe handling of potential null values
   const safeArtistName = artist_name || '';
   const safeTattooDesign = tattoo_design || '';
-  const local_can_apply = safeArtistName.trim().length > 0 && safeTattooDesign.trim().length > 0;
-  const final_can_apply = can_apply || local_can_apply;
+
+  // Simple check: if both fields have any content (even just spaces), enable the button
+  // We'll do the actual trimming validation on the backend when applying
+  const hasArtistName = safeArtistName.length > 0;
+  const hasTattooDesign = safeTattooDesign.length > 0;
+  const canApply = hasArtistName && hasTattooDesign;
 
   return (
     <Window width={500} height={600}>
@@ -219,11 +223,11 @@ const DesignTattooStep = (props) => {
               <Button
                 fluid
                 icon="check"
-                color={final_can_apply ? 'good' : 'default'}
-                disabled={!final_can_apply}
+                color={canApply ? 'good' : 'default'}
+                disabled={!canApply}
                 onClick={() => act('apply_tattoo')}
                 tooltip={
-                  final_can_apply
+                  canApply
                     ? 'Apply the tattoo to the selected body part'
                     : 'Fill in both artist name and tattoo design first'
                 }
