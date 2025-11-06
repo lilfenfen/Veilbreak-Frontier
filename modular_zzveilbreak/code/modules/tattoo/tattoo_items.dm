@@ -85,6 +85,14 @@
 	data["tattoo_design"] = tattoo_design
 	data["selected_layer"] = selected_layer
 
+	// Calculate if we can apply the tattoo (both fields have content)
+	var/can_apply = TRUE
+	if(!artist_name || trimtext(artist_name) == "")
+		can_apply = FALSE
+	if(!tattoo_design || trimtext(tattoo_design) == "")
+		can_apply = FALSE
+	data["can_apply"] = can_apply
+
 	// Get all available body parts with coverage checking
 	var/list/body_parts = list()
 	var/list/all_parts = get_all_available_body_parts(current_target)
@@ -141,13 +149,13 @@
 
 		if("update_artist_name")
 			var/name = params["name"]
-			// Store the raw input - we'll handle empty checks later
+			// Store the raw input but trim for validation
 			artist_name = name
 			return TRUE
 
 		if("update_tattoo_design")
 			var/design = params["design"]
-			// Store the raw input - we'll handle empty checks later
+			// Store the raw input but trim for validation
 			tattoo_design = design
 			return TRUE
 
@@ -182,7 +190,7 @@
 			var/using_default_artist = (!trimmed_artist || trimmed_artist == "")
 			var/using_default_design = (!trimmed_design || trimmed_design == "")
 
-			// If both are empty, show error
+			// If both are empty, show error (this shouldn't happen with can_apply check, but safety)
 			if(using_default_artist && using_default_design)
 				to_chat(usr, span_warning("Please fill in both the artist name and tattoo design!"))
 				return FALSE
