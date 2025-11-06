@@ -78,8 +78,6 @@ export const ContentPreferencesTab = ({
     vore_enable_pref,
     vore_overlays,
     vore_overlay_options,
-    // Tattoo/Bodywriting pref
-    allow_bodywriting_pref, // ADD THIS LINE
   } = data;
 
   const renderToggle = (

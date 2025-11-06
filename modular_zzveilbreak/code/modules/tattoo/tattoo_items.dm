@@ -80,6 +80,7 @@
 	data["max_uses"] = tattoo_max_uses
 	data["ink_color"] = ink_color
 	data["selected_zone"] = selected_zone
+	data["selected_zone_name"] = get_body_zone_display_name(selected_zone) // ADDED: This was missing!
 	data["current_step"] = current_step
 	data["artist_name"] = artist_name
 	data["tattoo_design"] = tattoo_design
@@ -87,9 +88,12 @@
 
 	// Calculate if we can apply the tattoo (both fields have content)
 	var/can_apply = TRUE
-	if(!artist_name || trimtext(artist_name) == "")
+	var/trimmed_artist = trimtext(artist_name)
+	var/trimmed_design = trimtext(tattoo_design)
+
+	if(!trimmed_artist || trimmed_artist == "")
 		can_apply = FALSE
-	if(!tattoo_design || trimtext(tattoo_design) == "")
+	if(!trimmed_design || trimmed_design == "")
 		can_apply = FALSE
 	data["can_apply"] = can_apply
 
@@ -145,38 +149,38 @@
 
 			selected_zone = zone
 			current_step = "design_tattoo"
-			return TRUE
+			. = TRUE
 
 		if("update_artist_name")
 			var/name = params["name"]
 			// Store the raw input but trim for validation
 			artist_name = name
-			return TRUE
+			. = TRUE
 
 		if("update_tattoo_design")
 			var/design = params["design"]
 			// Store the raw input but trim for validation
 			tattoo_design = design
-			return TRUE
+			. = TRUE
 
 		if("update_tattoo_layer")
 			var/layer = text2num(params["layer"])
 			selected_layer = sanitize_integer(layer, 1, 3, 2)
-			return TRUE
+			. = TRUE
 
 		if("change_ink_color")
 			var/new_color = input(usr, "Choose ink color:", "Tattoo Kit", ink_color) as color|null
 			if(new_color)
 				ink_color = sanitize_hexcolor(new_color, default = "#000000")
 				to_chat(usr, span_notice("You change the ink color to [new_color]."))
-			return TRUE
+			. = TRUE
 
 		if("back_to_selection")
 			current_step = "select_part"
 			artist_name = ""
 			tattoo_design = ""
 			selected_layer = 2
-			return TRUE
+			. = TRUE
 
 		if("apply_tattoo")
 			var/apply_artist = artist_name
@@ -273,7 +277,7 @@
 			artist_name = ""
 			tattoo_design = ""
 			selected_layer = 2
-			return TRUE
+			. = TRUE
 
 	return FALSE
 

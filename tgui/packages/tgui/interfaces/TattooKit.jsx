@@ -18,11 +18,13 @@ export const TattooKit = (props) => {
     max_uses,
     ink_color,
     body_parts,
+    selected_zone,
     selected_zone_name,
     current_step,
     artist_name = '',
     tattoo_design = '',
     selected_layer = 2,
+    can_apply = false, // ADDED: Use backend can_apply calculation
   } = data;
 
   if (current_step === 'design_tattoo') {
@@ -112,13 +114,8 @@ const DesignTattooStep = (props) => {
     artist_name = '',
     tattoo_design = '',
     selected_layer = 2,
+    can_apply = false, // CHANGED: Use backend calculation instead of frontend
   } = data;
-
-  const canApply =
-    artist_name &&
-    artist_name.length > 0 &&
-    tattoo_design &&
-    tattoo_design.length > 0;
 
   return (
     <Window width={500} height={600}>
@@ -212,22 +209,16 @@ const DesignTattooStep = (props) => {
               <Button
                 fluid
                 icon="check"
-                color={canApply ? 'good' : 'default'}
-                disabled={!canApply}
-                onClick={() =>
-                  act('apply_tattoo', {
-                    artist: artist_name,
-                    design: tattoo_design,
-                    layer: selected_layer,
-                  })
-                }
+                color={can_apply ? 'good' : 'default'}
+                disabled={!can_apply}
+                onClick={() => act('apply_tattoo')} // CHANGED: Remove params - backend has the data
                 tooltip={
-                  canApply
+                  can_apply
                     ? 'Apply the tattoo to the selected body part'
                     : 'Fill in both artist name and tattoo design first'
                 }
               >
-                {canApply ? 'Apply Tattoo' : 'Complete Form to Apply'}
+                {can_apply ? 'Apply Tattoo' : 'Complete Form to Apply'}
               </Button>
             </LabeledList.Item>
           </LabeledList>
