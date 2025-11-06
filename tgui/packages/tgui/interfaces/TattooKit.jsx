@@ -7,7 +7,7 @@ import {
   Stack,
   TextArea,
 } from 'tgui-core/components';
-import { useBackend } from '../backend';
+import { useBackend, useLocalState } from '../backend';
 import { Window } from '../layouts';
 
 export const TattooKit = (props) => {
@@ -121,18 +121,23 @@ const DesignTattooStep = (props) => {
     can_apply = false,
   } = data;
 
-  // Local state for immediate feedback
-  const [localArtistName, setLocalArtistName] = React.useState(artist_name);
-  const [localTattooDesign, setLocalTattooDesign] = React.useState(tattoo_design);
+  // Use TGUI's useLocalState for immediate UI feedback
+  const [localArtistName, setLocalArtistName] = useLocalState(
+    'artist_name',
+    artist_name
+  );
+  const [localTattooDesign, setLocalTattooDesign] = useLocalState(
+    'tattoo_design',
+    tattoo_design
+  );
 
-  // Update local state when backend data changes
-  React.useEffect(() => {
+  // Sync local state with backend data when it changes
+  if (artist_name !== localArtistName) {
     setLocalArtistName(artist_name);
-  }, [artist_name]);
-
-  React.useEffect(() => {
+  }
+  if (tattoo_design !== localTattooDesign) {
     setLocalTattooDesign(tattoo_design);
-  }, [tattoo_design]);
+  }
 
   // Handle artist name change
   const handleArtistNameChange = (value) => {
