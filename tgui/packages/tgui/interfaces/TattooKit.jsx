@@ -121,6 +121,36 @@ const DesignTattooStep = (props) => {
     can_apply = false,
   } = data;
 
+  // Local state for immediate feedback
+  const [localArtistName, setLocalArtistName] = React.useState(artist_name);
+  const [localTattooDesign, setLocalTattooDesign] = React.useState(tattoo_design);
+
+  // Update local state when backend data changes
+  React.useEffect(() => {
+    setLocalArtistName(artist_name);
+  }, [artist_name]);
+
+  React.useEffect(() => {
+    setLocalTattooDesign(tattoo_design);
+  }, [tattoo_design]);
+
+  // Handle artist name change
+  const handleArtistNameChange = (value) => {
+    setLocalArtistName(value);
+    act('update_artist_name', { name: value });
+  };
+
+  // Handle tattoo design change
+  const handleTattooDesignChange = (value) => {
+    setLocalTattooDesign(value);
+    act('update_tattoo_design', { design: value });
+  };
+
+  // Calculate can_apply based on both local and backend state
+  const hasArtistName = localArtistName && localArtistName.length > 0;
+  const hasTattooDesign = localTattooDesign && localTattooDesign.length > 0;
+  const finalCanApply = can_apply && hasArtistName && hasTattooDesign;
+
   return (
     <Window width={500} height={600}>
       <Window.Content scrollable>
@@ -136,23 +166,19 @@ const DesignTattooStep = (props) => {
             <LabeledList.Item label="Artist Name">
               <Input
                 fluid
-                value={artist_name}
+                value={localArtistName}
                 placeholder="Enter your name or signature..."
-                onChange={(e, value) =>
-                  act('update_artist_name', { name: value })
-                }
+                onChange={(e, value) => handleArtistNameChange(value)}
                 maxLength={50}
               />
             </LabeledList.Item>
             <LabeledList.Item label="Tattoo Design">
               <TextArea
                 fluid
-                value={tattoo_design}
+                value={localTattooDesign}
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
-                onChange={(e, value) =>
-                  act('update_tattoo_design', { design: value })
-                }
+                onChange={(e, value) => handleTattooDesignChange(value)}
                 maxLength={500}
               />
             </LabeledList.Item>
@@ -213,11 +239,11 @@ const DesignTattooStep = (props) => {
               <Button
                 fluid
                 icon="check"
-                color={can_apply ? 'good' : 'default'}
-                disabled={!can_apply}
+                color={finalCanApply ? 'good' : 'default'}
+                disabled={!finalCanApply}
                 onClick={() => act('apply_tattoo')}
                 tooltip={
-                  can_apply
+                  finalCanApply
                     ? 'Apply the tattoo to the selected body part'
                     : 'Fill in both artist name and tattoo design first'
                 }
