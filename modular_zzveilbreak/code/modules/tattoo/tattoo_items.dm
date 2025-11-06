@@ -141,16 +141,14 @@
 
 		if("update_artist_name")
 			var/name = params["name"]
-			artist_name = sanitize_text(name)
-			if(artist_name == "")
-				artist_name = "Unknown Artist"
+			// Store the raw input - we'll handle empty checks later
+			artist_name = name
 			return TRUE
 
 		if("update_tattoo_design")
 			var/design = params["design"]
-			tattoo_design = sanitize_text(design)
-			if(tattoo_design == "")
-				tattoo_design = "An intricate design"
+			// Store the raw input - we'll handle empty checks later
+			tattoo_design = design
 			return TRUE
 
 		if("update_tattoo_layer")
@@ -177,21 +175,30 @@
 			var/apply_design = tattoo_design
 			var/apply_layer = selected_layer
 
-			// Final validation with proper trimming using trimtext()
-			if(!apply_artist || trimtext(apply_artist) == "" || !apply_design || trimtext(apply_design) == "")
+			// Check if fields are effectively empty (after trimming)
+			var/trimmed_artist = trimtext(apply_artist)
+			var/trimmed_design = trimtext(apply_design)
+
+			var/using_default_artist = (!trimmed_artist || trimmed_artist == "")
+			var/using_default_design = (!trimmed_design || trimmed_design == "")
+
+			// If both are empty, show error
+			if(using_default_artist && using_default_design)
 				to_chat(usr, span_warning("Please fill in both the artist name and tattoo design!"))
 				return FALSE
 
-			// Sanitize inputs using proper BYOND functions
-			apply_artist = trimtext(sanitize_text(apply_artist))
-			apply_design = trimtext(sanitize_text(apply_design))
-			apply_layer = sanitize_integer(apply_layer, 1, 3, 2)
-
-			// Ensure we have values after sanitization
-			if(apply_artist == "")
+			// Apply gentle sanitization only if we have content
+			if(!using_default_artist)
+				apply_artist = sanitize_text(trimmed_artist)
+			else
 				apply_artist = "Unknown Artist"
-			if(apply_design == "")
+
+			if(!using_default_design)
+				apply_design = sanitize_text(trimmed_design)
+			else
 				apply_design = "An intricate design"
+
+			apply_layer = sanitize_integer(apply_layer, 1, 3, 2)
 
 			// STRICT FINAL CHECK - cannot proceed if covered
 			if(is_bodypart_covered(current_target, selected_zone, usr))
@@ -225,7 +232,7 @@
 					to_chat(usr, span_warning("[current_target] revoked body modification consent during application!"))
 					return FALSE
 
-				// Create the tattoo - using the actual values (skip emoji parse for now)
+				// Create the tattoo - using the actual processed values
 				var/datum/tattoo/new_tattoo = new(apply_artist, apply_design, selected_zone, ink_color, apply_layer)
 
 				// DEBUG: Log the tattoo being created

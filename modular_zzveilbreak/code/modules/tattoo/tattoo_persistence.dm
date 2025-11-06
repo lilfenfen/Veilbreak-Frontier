@@ -85,27 +85,36 @@
 		// DEBUG: Log each tattoo being created
 		world.log << "DEBUG: Creating tattoo from save - Artist: [artist], Design: [design], Body Part: [body_part_define]"
 
-		// Use proper BYOND sanitization - preserve the actual values from save data
-		var/sanitized_artist = sanitize_text(artist)
-		if(!sanitized_artist || sanitized_artist == "")
-			sanitized_artist = "Unknown Artist"
+		// PRESERVE original values - only apply defaults if truly empty
+		var/final_artist = artist
+		var/final_design = design
 
-		var/sanitized_design = sanitize_text(design)
-		if(!sanitized_design || sanitized_design == "")
-			sanitized_design = "An intricate design"
+		// Check if we need to apply defaults (only for truly empty/null values)
+		if(!final_artist || trimtext(final_artist) == "")
+			final_artist = "Unknown Artist"
+		else
+			final_artist = sanitize_text(final_artist)
 
-		var/sanitized_color = sanitize_hexcolor(color, default = "#000000")
-		var/sanitized_layer = sanitize_integer(layer, 1, 3, 2)
+		if(!final_design || trimtext(final_design) == "")
+			final_design = "An intricate design"
+		else
+			final_design = sanitize_text(final_design)
 
-		// Create the tattoo datum with the actual saved values
+		var/final_color = sanitize_hexcolor(color, default = "#000000")
+		var/final_layer = sanitize_integer(layer, 1, 3, 2)
+
+		// Create the tattoo datum with the preserved values
 		var/datum/tattoo/T = new(
-			sanitized_artist,
-			sanitized_design,
+			final_artist,
+			final_design,
 			body_part_define,
-			sanitized_color,
-			sanitized_layer
+			final_color,
+			final_layer
 		)
-		T.date_applied = sanitize_text(date_applied)
+
+		// Preserve the original date if available
+		if(date_applied)
+			T.date_applied = sanitize_text(date_applied)
 
 		loaded_tattoos += T
 

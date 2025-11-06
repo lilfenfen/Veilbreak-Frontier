@@ -11,34 +11,30 @@
     var/layer = TATTOO_LAYER_NORMAL
 
 /datum/tattoo/New(artist, design, body_part, color, layer = TATTOO_LAYER_NORMAL)
-    src.artist = sanitize_text(artist)
-    if(!src.artist || src.artist == "")
-        src.artist = "Unknown Artist"
-
-    src.design = sanitize_text(design)
-    if(!src.design || src.design == "")
-        src.design = "An intricate design"
-
+    // Store the raw values first - we'll handle defaults only when truly needed
+    src.artist = artist
+    src.design = design
     src.body_part = body_part
     src.color = sanitize_hexcolor(color, default = "#000000")
     src.layer = sanitize_integer(layer, 1, 3, 2)
     src.date_applied = time2text(world.realtime, "YYYY-MM-DD")
 
-    // DEBUG: Log the tattoo creation
+    // DEBUG: Log the tattoo creation with actual values
     world.log << "DEBUG: Tattoo datum created - Artist: [src.artist], Design: [src.design], Body Part: [src.body_part]"
 
 /datum/tattoo/proc/get_examine_text(mob/viewer, mob/living/carbon/human/victim)
 	if(!is_visible(viewer, victim))
 		return ""
 
-	// Use the actual stored values - don't reassign to defaults
+	// Use the actual stored values - apply defaults only at display time if truly empty
 	var/display_design = design
 	var/display_artist = artist
 
-	// Only use defaults if the stored values are truly empty
-	if(!display_design || display_design == "")
+	// Only use defaults if the stored values are truly empty after checking
+	if(!display_design || trimtext(display_design) == "")
 		display_design = "an intricate design"
-	if(!display_artist || display_artist == "")
+
+	if(!display_artist || trimtext(display_artist) == "")
 		display_artist = "an unknown artist"
 
 	// Use the enhanced body part descriptions
@@ -100,7 +96,11 @@
         if(BODY_ZONE_PRECISE_R_FOOT) return "right foot"
         if(BODY_ZONE_PRECISE_GROIN) return "groin area"
         else
-            return get_body_zone_display_name(body_zone)
+            // For any custom body zones, format the text nicely
+            var/formatted_name = replacetext(replacetext("[body_zone]", "BODY_ZONE_", ""), "_", " ")
+            formatted_name = lowertext(formatted_name)
+            formatted_name = capitalize(formatted_name)
+            return formatted_name
 
 /// Converts body part strings to standardized organ slot defines
 /proc/get_standardized_body_part(body_part_string)
