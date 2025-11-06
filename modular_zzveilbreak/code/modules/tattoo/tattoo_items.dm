@@ -87,23 +87,19 @@
 	data["selected_layer"] = selected_layer
 
 	// DEBUG: Log the current state for troubleshooting
-	world.log << "DEBUG: UI_DATA - artist_name: '[artist_name]' (null: [isnull(artist_name)]), tattoo_design: '[tattoo_design]' (null: [isnull(tattoo_design)])"
+	world.log << "DEBUG: UI_DATA - artist_name: '[artist_name]' (length: [length(artist_name)]), tattoo_design: '[tattoo_design]' (length: [length(tattoo_design)])"
 
-	// FIXED: Proper can_apply calculation that handles null and empty strings
-	var/can_apply = TRUE
+	// FIXED: More permissive can_apply calculation for testing
+	var/can_apply = FALSE
 
-	// Check if artist_name is null, empty, or only whitespace
-	if(!artist_name || !istext(artist_name) || trimtext(artist_name) == "")
-		can_apply = FALSE
-		world.log << "DEBUG: UI_DATA - artist_name failed validation"
-
-	// Check if tattoo_design is null, empty, or only whitespace
-	if(!tattoo_design || !istext(tattoo_design) || trimtext(tattoo_design) == "")
-		can_apply = FALSE
-		world.log << "DEBUG: UI_DATA - tattoo_design failed validation"
+	// Check if both fields have any content (even just one character)
+	if(artist_name && length(artist_name) > 0 && tattoo_design && length(tattoo_design) > 0)
+		can_apply = TRUE
+		world.log << "DEBUG: UI_DATA - BOTH FIELDS HAVE CONTENT - can_apply: TRUE"
+	else
+		world.log << "DEBUG: UI_DATA - MISSING CONTENT - artist_name: [artist_name ? "has content" : "empty"], tattoo_design: [tattoo_design ? "has content" : "empty"]"
 
 	data["can_apply"] = can_apply
-	world.log << "DEBUG: UI_DATA - Final can_apply: [can_apply]"
 
 	// Get all available body parts with coverage checking
 	var/list/body_parts = list()
@@ -168,14 +164,14 @@
 			var/name = params["name"]
 			// Always update, even with empty strings
 			artist_name = name || ""
-			world.log << "DEBUG: update_artist_name - new value: '[name]'"
+			world.log << "DEBUG: update_artist_name - new value: '[name]' (length: [length(name)])"
 			. = TRUE
 
 		if("update_tattoo_design")
 			var/design = params["design"]
 			// Always update, even with empty strings
 			tattoo_design = design || ""
-			world.log << "DEBUG: update_tattoo_design - new value: '[design]'"
+			world.log << "DEBUG: update_tattoo_design - new value: '[design]' (length: [length(design)])"
 			. = TRUE
 
 		if("update_tattoo_layer")
