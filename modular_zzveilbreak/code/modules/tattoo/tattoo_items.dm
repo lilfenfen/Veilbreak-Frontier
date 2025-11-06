@@ -166,20 +166,16 @@
 
 		if("update_artist_name")
 			var/name = params["name"]
-			if(!isnull(name)) // FIXED: Only update if we actually got a value
-				artist_name = name
-				world.log << "DEBUG: update_artist_name - new value: '[name]' (null: [isnull(name)])"
-			else
-				world.log << "DEBUG: update_artist_name - received NULL value"
+			// Always update, even with empty strings
+			artist_name = name || ""
+			world.log << "DEBUG: update_artist_name - new value: '[name]'"
 			. = TRUE
 
 		if("update_tattoo_design")
 			var/design = params["design"]
-			if(!isnull(design)) // FIXED: Only update if we actually got a value
-				tattoo_design = design
-				world.log << "DEBUG: update_tattoo_design - new value: '[design]' (null: [isnull(design)])"
-			else
-				world.log << "DEBUG: update_tattoo_design - received NULL value"
+			// Always update, even with empty strings
+			tattoo_design = design || ""
+			world.log << "DEBUG: update_tattoo_design - new value: '[design]'"
 			. = TRUE
 
 		if("update_tattoo_layer")

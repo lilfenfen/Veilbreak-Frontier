@@ -139,7 +139,7 @@ const DesignTattooStep = (props) => {
                 value={artist_name}
                 placeholder="Enter your name or signature..."
                 onChange={(e, value) =>
-                  act('update_artist_name', { name: value })
+                  act('update_artist_name', { name: value || '' })
                 }
                 maxLength={50}
               />
@@ -151,7 +151,7 @@ const DesignTattooStep = (props) => {
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
                 onChange={(e, value) =>
-                  act('update_tattoo_design', { design: value })
+                  act('update_tattoo_design', { design: value || '' })
                 }
                 maxLength={500}
               />
