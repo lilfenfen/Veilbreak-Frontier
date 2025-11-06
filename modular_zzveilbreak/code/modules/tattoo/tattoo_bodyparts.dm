@@ -111,7 +111,7 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 		if(BP)
 			exists = TRUE
 		else
-			// Check if it's an organ slot that exists on the mob - FIXED PROC NAME
+			// Check if it's an organ slot that exists on the mob
 			var/obj/item/organ/organ = H.get_organ_slot(zone)
 			if(organ)
 				exists = TRUE
@@ -142,7 +142,7 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 	if(H.get_bodypart(body_zone))
 		return TRUE
 
-	// Check organ slots - FIXED PROC NAME
+	// Check organ slots
 	if(H.get_organ_slot(body_zone))
 		return TRUE
 

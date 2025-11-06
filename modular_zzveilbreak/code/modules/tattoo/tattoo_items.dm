@@ -221,9 +221,9 @@
 					return FALSE
 
 				// Final preference check after delay - CORRECTED PATH
-			if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
-				to_chat(usr, span_warning("[current_target] revoked body modification consent during application!"))
-				return FALSE
+				if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
+					to_chat(usr, span_warning("[current_target] revoked body modification consent during application!"))
+					return FALSE
 
 				// Parse emojis in the tattoo design
 				var/parsed_design = emoji_parse(apply_design)
@@ -232,7 +232,7 @@
 				if(current_target.add_tattoo(new_tattoo))
 					// Save to preferences
 					if(current_target.client?.prefs)
-						current_target.client.prefs.save_tattoo_data()
+						current_target.client.prefs.save_character()
 
 					to_chat(usr, span_green("You successfully apply \"[parsed_design]\" to [current_target == usr ? "your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)]."))
 					if(current_target != usr)

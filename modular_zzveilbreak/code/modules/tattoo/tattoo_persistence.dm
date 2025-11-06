@@ -1,21 +1,18 @@
 // Tattoo Persistence System
 // Handles saving and loading tattoos between rounds
 
-/// Saves tattoo data to preferences - called from various places
-/datum/preferences/proc/save_tattoo_data()
-	if(!features)
-		features = list()
+/// Enhanced tattoo data saving with proper savefile integration
+/datum/preferences/proc/save_tattoo_data_zzveilbreak(list/save_data)
+	if(!parent?.mob)
+		return
 
-	// Get tattoos from current mob if available
-	var/list/tattoos_to_save = list()
-	var/mob/living/carbon/human/H = parent?.mob
-
-	if(H?.body_tattoos)
-		tattoos_to_save = H.body_tattoos.Copy()
+	var/mob/living/carbon/human/H = parent.mob
+	if(!istype(H))
+		return
 
 	// Convert to saveable format
 	var/list/tattoo_data = list()
-	for(var/datum/tattoo/T as anything in tattoos_to_save)
+	for(var/datum/tattoo/T as anything in H.body_tattoos)
 		if(istype(T) && !QDELETED(T))
 			var/body_part_description = get_specific_body_part_description(T.body_part)
 
@@ -28,31 +25,26 @@
 				"layer" = T.layer
 			))
 
-	// Store in features
+	// Store in the provided save_data list (character slot data)
+	save_data["tattoos_data"] = tattoo_data
+
+	// Also store in features for quick access
 	features["tattoos_data"] = tattoo_data
-	features["tattoos"] = tattoos_to_save
+	features["tattoos"] = H.body_tattoos.Copy()
 
-	// Save to file
-	save_character()
-
-/// Loads tattoo data from preferences - called during character setup
-/datum/preferences/proc/load_tattoo_data()
+/// Enhanced tattoo data loading with proper savefile integration
+/datum/preferences/proc/load_tattoo_data_zzveilbreak(list/save_data)
 	if(!features)
 		features = list()
 
-	// Check if we have tattoo data in features
-	var/has_tattoo_data = features && features["tattoos_data"]
+	// Clear existing tattoos
+	features["tattoos"] = list()
+	features["tattoos_data"] = list()
 
-	if(!has_tattoo_data)
-		features["tattoos"] = list()
-		features["tattoos_data"] = list()
-		return
-
-	var/list/tattoo_data = features["tattoos_data"]
+	// Load from the provided save_data list (character slot data)
+	var/list/tattoo_data = save_data?["tattoos_data"]
 
 	if(!islist(tattoo_data))
-		features["tattoos"] = list()
-		features["tattoos_data"] = list()
 		return
 
 	// Convert loaded data back to tattoo datums
@@ -104,18 +96,24 @@
 
 	// Store in features
 	features["tattoos"] = loaded_tattoos
+	features["tattoos_data"] = tattoo_data
 
-/// Applies saved tattoos to a mob - called when mob is created
-/datum/preferences/proc/apply_tattoos_to_mob(mob/living/carbon/human/character)
+/// Enhanced tattoo application to mob
+/datum/preferences/proc/apply_tattoos_to_mob_zzveilbreak(mob/living/carbon/human/character)
 	if(!istype(character))
 		return
 
 	if(!features)
-		load_tattoo_data()
+		// If features isn't loaded, try to load from current character slot
+		var/list/current_save_data = savefile?.get_entry("character[default_slot]")
+		if(current_save_data)
+			load_tattoo_data_zzveilbreak(current_save_data)
 
 	// Ensure we have tattoo data loaded
 	if(!features["tattoos"])
-		load_tattoo_data()
+		var/list/current_save_data = savefile?.get_entry("character[default_slot]")
+		if(current_save_data)
+			load_tattoo_data_zzveilbreak(current_save_data)
 
 	var/list/tattoos_to_apply = features["tattoos"]
 
@@ -127,32 +125,12 @@
 	character.body_tattoos = tattoos_to_apply.Copy()
 	character.regenerate_icons()
 
-// =====================
-// PREFERENCE SYSTEM INTEGRATION
-// =====================
+// Override the original procs with our enhanced versions
+/datum/preferences/proc/save_tattoo_data(list/save_data)
+	save_tattoo_data_zzveilbreak(save_data)
 
-/// Called when preferences are loaded
-/datum/preferences/proc/load_tattoos()
-	load_tattoo_data()
+/datum/preferences/proc/load_tattoo_data(list/save_data)
+	load_tattoo_data_zzveilbreak(save_data)
 
-/// Called when preferences are saved
-/datum/preferences/proc/save_tattoos()
-	save_tattoo_data()
-
-// =====================
-// HOOKS - THESE ARE CRITICAL
-// =====================
-
-/// Hook when character is set up in preferences
-/hook/character_setup/proc/load_character_tattoos(datum/preferences/prefs)
-	if(istype(prefs))
-		prefs.load_tattoo_data()
-		return TRUE
-	return FALSE
-
-/// Hook when new mob is created
-/hook/mob_new/proc/apply_saved_tattoos(mob/living/carbon/human/H)
-	if(istype(H) && H.client?.prefs)
-		H.client.prefs.apply_tattoos_to_mob(H)
-		return TRUE
-	return FALSE
+/datum/preferences/proc/apply_tattoos_to_mob(mob/living/carbon/human/character)
+	apply_tattoos_to_mob_zzveilbreak(character)
