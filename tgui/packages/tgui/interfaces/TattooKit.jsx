@@ -117,12 +117,14 @@ const DesignTattooStep = (props) => {
     selected_layer = 2,
   } = data || {};
 
-  // Use local state to track the form values
+  // Use local state to track the form values with proper initialization
   const [artistName, setArtistName] = useState('');
   const [tattooDesign, setTattooDesign] = useState('');
 
-  // Calculate if we can apply based on local state
-  const canApply = artistName.trim().length > 0 && tattooDesign.trim().length > 0;
+  // Safe calculation of canApply with proper null checks
+  const hasArtist = artistName && typeof artistName === 'string' && artistName.trim().length > 0;
+  const hasDesign = tattooDesign && typeof tattooDesign === 'string' && tattooDesign.trim().length > 0;
+  const canApply = hasArtist && hasDesign;
 
   console.log('TATDAT: DesignTattooStep render - artistName:', artistName, 'tattooDesign:', tattooDesign, 'canApply:', canApply);
 
@@ -130,9 +132,19 @@ const DesignTattooStep = (props) => {
     console.log('TATDAT: Applying tattoo - artist:', artistName, 'design:', tattooDesign);
     // Send both values directly in the apply_tattoo action
     act('apply_tattoo', {
-      artist_name: artistName,
-      tattoo_design: tattooDesign,
+      artist_name: artistName || '',
+      tattoo_design: tattooDesign || '',
     });
+  };
+
+  const handleArtistChange = (e, value) => {
+    console.log('TATDAT: Artist name change - value:', value);
+    setArtistName(value || '');
+  };
+
+  const handleDesignChange = (e, value) => {
+    console.log('TATDAT: Tattoo design change - value:', value);
+    setTattooDesign(value || '');
   };
 
   return (
@@ -152,7 +164,7 @@ const DesignTattooStep = (props) => {
                 fluid
                 value={artistName}
                 placeholder="Enter your name or signature..."
-                onChange={(e, value) => setArtistName(value)}
+                onChange={handleArtistChange}
                 maxLength={50}
               />
             </LabeledList.Item>
@@ -162,7 +174,7 @@ const DesignTattooStep = (props) => {
                 value={tattooDesign}
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
-                onChange={(e, value) => setTattooDesign(value)}
+                onChange={handleDesignChange}
                 maxLength={500}
               />
             </LabeledList.Item>
@@ -234,6 +246,17 @@ const DesignTattooStep = (props) => {
               >
                 Apply Tattoo
               </Button>
+            </LabeledList.Item>
+            <LabeledList.Item label="Debug Info">
+              <Box color="label" fontSize="0.8em">
+                Artist: '{artistName}' (len: {artistName?.length || 0})<br />
+                Design: '{tattooDesign?.substring(0, 50) || ''}' (len: {tattooDesign?.length || 0})<br />
+                Can Apply: {canApply ? 'YES' : 'NO'}<br />
+                Has Artist: {hasArtist ? 'YES' : 'NO'}<br />
+                Has Design: {hasDesign ? 'YES' : 'NO'}<br />
+                Zone: {selected_zone_name}<br />
+                Layer: {selected_layer}
+              </Box>
             </LabeledList.Item>
           </LabeledList>
         </Section>
