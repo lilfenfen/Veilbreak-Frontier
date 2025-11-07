@@ -64,7 +64,7 @@
 
 	for(var/zone in all_parts)
 		var/list/part_info = all_parts[zone]
-		var/covered = get_location_accessible(current_target, zone)
+		var/covered = !get_location_accessible(current_target, zone)
 		var/current_tattoos = length(current_target.get_tattoos(zone))
 
 		body_parts += list(list(
