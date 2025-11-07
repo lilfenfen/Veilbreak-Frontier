@@ -99,7 +99,7 @@ const DesignTattooStep = (props) => {
   const [tattooDesign, setTattooDesign] = useState('');
 
   const handleApply = () => {
-    if (!artistName.trim() || !tattooDesign.trim()) {
+    if (!artistName || !tattooDesign) {
       // Optional: Add visual feedback for empty fields
       return;
     }
