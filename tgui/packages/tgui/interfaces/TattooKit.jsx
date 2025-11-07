@@ -6,137 +6,137 @@ import {
   Section,
   Stack,
   TextArea,
-} from 'tgui-core/components';
+} from 'tgui/components';
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 
-export class TattooKit extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      artistName: '',
-      tattooDesign: '',
-    };
-  }
+export const TattooKit = (props) => {
+  const { act, data } = useBackend();
+  const {
+    target_name = '',
+    ink_uses = 0,
+    max_uses = 0,
+    ink_color = '#000000',
+    body_parts = [],
+    selected_zone = '',
+    selected_zone_name = '',
+    current_step = 'select_part',
+    selected_layer = 2,
+  } = data || {};
 
-  render() {
-    const { act, data } = this.props;
-    const {
-      target_name,
-      ink_uses,
-      max_uses,
-      ink_color,
-      body_parts,
-      selected_zone,
-      selected_zone_name,
-      current_step,
-      selected_layer = 2,
-    } = data;
+  const [artistName, setArtistName] = useState('');
+  const [tattooDesign, setTattooDesign] = useState('');
 
-    const { artistName, tattooDesign } = this.state;
-
-    console.log('TATDAT: TattooKit render - current_step:', current_step);
-
-    if (current_step === 'design_tattoo') {
-      return (
-        <DesignTattooStep
-          act={act}
-          data={data}
-          artistName={artistName}
-          tattooDesign={tattooDesign}
-          onArtistChange={(value) => this.setState({ artistName: value })}
-          onDesignChange={(value) => this.setState({ tattooDesign: value })}
-        />
-      );
+  // Reset form when going back to selection
+  useEffect(() => {
+    if (current_step === 'select_part') {
+      setArtistName('');
+      setTattooDesign('');
     }
+  }, [current_step]);
 
+  console.log('TATDAT: TattooKit render - current_step:', current_step, 'data:', data);
+
+  if (current_step === 'design_tattoo') {
     return (
-      <Window width={500} height={600}>
-        <Window.Content scrollable>
-          <Section title={`Tattooing: ${target_name}`}>
-            <LabeledList>
-              <LabeledList.Item label="Ink Remaining">
-                <Box color={ink_uses > 0 ? 'good' : 'bad'}>
-                  {ink_uses}/{max_uses} uses
-                </Box>
-              </LabeledList.Item>
-              <LabeledList.Item label="Ink Color">
-                <Button
-                  icon="palette"
-                  content="Change Color"
-                  onClick={() => act('change_ink_color')}
-                />
-                <Box
-                  inline
-                  ml={1}
-                  style={{
-                    display: 'inline-block',
-                    width: '20px',
-                    height: '20px',
-                    backgroundColor: ink_color,
-                    border: '1px solid #000',
-                  }}
-                />
-              </LabeledList.Item>
-            </LabeledList>
-          </Section>
-          <Section title="Available Body Parts">
-            {body_parts.length === 0 && (
-              <Box color="bad" textAlign="center">
-                {ink_uses <= 0
-                  ? 'Out of ink! Use a toner cartridge to refill.'
-                  : 'No available body parts found! Target may be fully clothed or have no valid body parts.'}
-              </Box>
-            )}
-            <Stack vertical>
-              {body_parts.map((part) => (
-                <Stack.Item key={part.zone}>
-                  <Button
-                    fluid
-                    disabled={
-                      part.covered ||
-                      part.current_tattoos >= part.max_tattoos ||
-                      ink_uses <= 0
-                    }
-                    onClick={() => act('select_bodypart', { zone: part.zone })}
-                    tooltip={
-                      part.covered
-                        ? 'Body part is covered by clothing - expose it first!'
-                        : part.current_tattoos >= part.max_tattoos
-                          ? `Maximum tattoos reached for this part (${part.max_tattoos})`
-                          : ink_uses <= 0
-                            ? 'Out of ink - refill the kit first!'
-                            : `Apply tattoo to ${part.name}`
-                    }
-                    color={part.covered ? 'bad' : 'default'}
-                  >
-                    <Stack>
-                      <Stack.Item grow>
-                        {part.name} ({part.current_tattoos}/{part.max_tattoos})
-                      </Stack.Item>
-                      <Stack.Item>
-                        {part.covered ? '🔒 Covered' : '🔓 Exposed'}
-                      </Stack.Item>
-                    </Stack>
-                  </Button>
-                </Stack.Item>
-              ))}
-            </Stack>
-          </Section>
-        </Window.Content>
-      </Window>
+      <DesignTattooStep
+        act={act}
+        data={data}
+        artistName={artistName}
+        tattooDesign={tattooDesign}
+        onArtistChange={setArtistName}
+        onDesignChange={setTattooDesign}
+      />
     );
   }
-}
+
+  return (
+    <Window width={500} height={600}>
+      <Window.Content scrollable>
+        <Section title={`Tattooing: ${target_name || 'Unknown'}`}>
+          <LabeledList>
+            <LabeledList.Item label="Ink Remaining">
+              <Box color={ink_uses > 0 ? 'good' : 'bad'}>
+                {ink_uses}/{max_uses} uses
+              </Box>
+            </LabeledList.Item>
+            <LabeledList.Item label="Ink Color">
+              <Button
+                icon="palette"
+                content="Change Color"
+                onClick={() => act('change_ink_color')}
+              />
+              <Box
+                inline
+                ml={1}
+                style={{
+                  display: 'inline-block',
+                  width: '20px',
+                  height: '20px',
+                  backgroundColor: ink_color,
+                  border: '1px solid #000',
+                }}
+              />
+            </LabeledList.Item>
+          </LabeledList>
+        </Section>
+        <Section title="Available Body Parts">
+          {body_parts.length === 0 && (
+            <Box color="bad" textAlign="center">
+              {ink_uses <= 0
+                ? 'Out of ink! Use a toner cartridge to refill.'
+                : 'No available body parts found! Target may be fully clothed or have no valid body parts.'}
+            </Box>
+          )}
+          <Stack vertical>
+            {body_parts.map((part) => (
+              <Stack.Item key={part.zone}>
+                <Button
+                  fluid
+                  disabled={
+                    part.covered ||
+                    part.current_tattoos >= part.max_tattoos ||
+                    ink_uses <= 0
+                  }
+                  onClick={() => act('select_bodypart', { zone: part.zone })}
+                  tooltip={
+                    part.covered
+                      ? 'Body part is covered by clothing - expose it first!'
+                      : part.current_tattoos >= part.max_tattoos
+                        ? `Maximum tattoos reached for this part (${part.max_tattoos})`
+                        : ink_uses <= 0
+                          ? 'Out of ink - refill the kit first!'
+                          : `Apply tattoo to ${part.name}`
+                  }
+                  color={part.covered ? 'bad' : 'default'}
+                >
+                  <Stack>
+                    <Stack.Item grow>
+                      {part.name} ({part.current_tattoos}/{part.max_tattoos})
+                    </Stack.Item>
+                    <Stack.Item>
+                      {part.covered ? '🔒 Covered' : '🔓 Exposed'}
+                    </Stack.Item>
+                  </Stack>
+                </Button>
+              </Stack.Item>
+            ))}
+          </Stack>
+        </Section>
+      </Window.Content>
+    </Window>
+  );
+};
 
 const DesignTattooStep = (props) => {
   const { act, data, artistName, tattooDesign, onArtistChange, onDesignChange } = props;
+
   const {
-    ink_color,
-    selected_zone_name,
+    ink_color = '#000000',
+    selected_zone_name = '',
     selected_layer = 2,
-  } = data;
+  } = data || {};
 
   const canApply = artistName?.trim()?.length > 0 && tattooDesign?.trim()?.length > 0;
 
@@ -162,7 +162,7 @@ const DesignTattooStep = (props) => {
             <LabeledList.Item label="Artist Name">
               <Input
                 fluid
-                value={artistName}
+                value={artistName || ''}
                 placeholder="Enter your name or signature..."
                 onInput={(e, value) => onArtistChange(value)}
                 maxLength={50}
@@ -171,7 +171,7 @@ const DesignTattooStep = (props) => {
             <LabeledList.Item label="Tattoo Design">
               <TextArea
                 fluid
-                value={tattooDesign}
+                value={tattooDesign || ''}
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
                 onInput={(e, value) => onDesignChange(value)}
