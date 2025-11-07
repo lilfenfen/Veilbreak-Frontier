@@ -127,7 +127,7 @@ const DesignTattooStep = (props) => {
               <Input
                 fluid
                 placeholder="Enter your name or signature..."
-                onBlur={(e, value) => act('set_artist_name', { value: value })}
+                onBlur={(e, value) => act('set_artist_name', { value })}
                 maxLength={50}
               />
             </LabeledList.Item>
@@ -136,7 +136,7 @@ const DesignTattooStep = (props) => {
                 fluid
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
-                onBlur={(e, value) => act('set_tattoo_design', { value: value })}
+                onBlur={(e, value) => act('set_tattoo_design', { value })}
                 maxLength={500}
               />
             </LabeledList.Item>
