@@ -150,6 +150,10 @@ const DesignTattooStep = (props) => {
                   console.log('TATDAT: Artist name onChange - value:', value);
                   act('update_artist_name', { name: value });
                 }}
+                onBlur={(e, value) => {
+                  console.log('TATDAT: Artist name onBlur - value:', value);
+                  act('update_artist_name', { name: value });
+                }}
                 maxLength={50}
               />
             </LabeledList.Item>
@@ -161,6 +165,10 @@ const DesignTattooStep = (props) => {
                 placeholder="Describe the tattoo design in detail. Be creative!"
                 onChange={(e, value) => {
                   console.log('TATDAT: Tattoo design onChange - value:', value);
+                  act('update_tattoo_design', { design: value });
+                }}
+                onBlur={(e, value) => {
+                  console.log('TATDAT: Tattoo design onBlur - value:', value);
                   act('update_tattoo_design', { design: value });
                 }}
                 maxLength={500}
@@ -234,6 +242,15 @@ const DesignTattooStep = (props) => {
               >
                 Apply Tattoo
               </Button>
+            </LabeledList.Item>
+            <LabeledList.Item label="Debug Info">
+              <Box color="label" fontSize="0.8em">
+                Artist: '{artist_name}' (len: {artist_name?.length || 0})<br />
+                Design: '{tattoo_design?.substring(0, 50) || ''}' (len: {tattoo_design?.length || 0})<br />
+                Can Apply: {can_apply ? 'YES' : 'NO'}<br />
+                Zone: {selected_zone_name}<br />
+                Layer: {selected_layer}
+              </Box>
             </LabeledList.Item>
           </LabeledList>
         </Section>
