@@ -24,9 +24,10 @@
 		return ..()
 
 	// Prevent using the kit on yourself if you're holding it in your hand.
+	/*
 	if(target == user)
 		return ..()
-
+	*/
 	if(tattoo_uses <= 0)
 		to_chat(user, span_warning("This tattoo kit is out of ink!"))
 		return TRUE // Stop further processing
@@ -153,10 +154,6 @@
 			if(do_after(user, 8 SECONDS, target = current_target))
 				var/sanitized_artist = sanitize_text(trimmed_artist)
 				var/sanitized_design = sanitize_text(trimmed_design)
-
-				if(!current_target || current_target.disposed || !user.Adjacent(current_target))
-					to_chat(user, span_warning("Your target is no longer in range."))
-					return
 
 				var/datum/tattoo/new_tattoo = new(
 					sanitized_artist,
