@@ -96,19 +96,24 @@
 
 	var/mob/user = usr
 
+	// Log ALL actions to see what's happening
+	world.log << "## TATTOO UI_ACT: Action=[action], Params=[json_encode(params)]"
+
 	switch(action)
 		if("select_bodypart")
 			var/zone = params["zone"]
+			world.log << "## TATTOO DEBUG: Selecting bodypart [zone]"
 			if(!zone || !body_part_exists(current_target, zone))
 				return FALSE
 
 			if(!get_location_accessible(current_target, zone))
-				to_chat(user, span_warning("Body part is covered!"))
+				var/body_part_name = get_body_zone_display_name(zone)
+				to_chat(user, span_warning("[current_target == user ? "Your" : "[current_target]'s"] [body_part_name] is covered! Expose it first."))
 				return FALSE
 
 			var/current_tattoos = current_target.get_tattoos(zone)
 			if(length(current_tattoos) >= max_tattoos_per_part)
-				to_chat(user, span_warning("Maximum tattoos reached for this part!"))
+				to_chat(user, span_warning("This body part already has the maximum number of tattoos! (Max: [max_tattoos_per_part])"))
 				return FALSE
 
 			selected_zone = zone
@@ -118,12 +123,14 @@
 		if("set_layer")
 			var/layer = text2num(params["layer"])
 			selected_layer = sanitize_integer(layer, 1, 3, 2)
+			world.log << "## TATTOO DEBUG: Setting layer to [selected_layer]"
 			. = TRUE
 
 		if("change_ink_color")
 			var/new_color = input(user, "Choose ink color:", "Tattoo Kit", ink_color) as color|null
 			if(new_color)
-				ink_color = sanitize_hexcolor(new_color)
+				ink_color = sanitize_hexcolor(new_color, default = "#000000")
+				to_chat(user, span_notice("You change the ink color to [new_color]."))
 			. = TRUE
 
 		if("back_to_selection")
@@ -131,39 +138,61 @@
 			. = TRUE
 
 		if("apply_tattoo")
+			world.log << "## TATTOO DEBUG: apply_tattoo ACTION RECEIVED - FINALLY!"
+
 			var/artist_name = params["artist_name"]
 			var/tattoo_design = params["tattoo_design"]
 
-			// Validation
-			if(!artist_name || !tattoo_design)
-				to_chat(user, span_warning("Missing data!"))
+			world.log << "## TATTOO DEBUG: Received artist_name: '[artist_name]'"
+			world.log << "## TATTOO DEBUG: Received tattoo_design: '[tattoo_design]'"
+			world.log << "## TATTOO DEBUG: All params: [json_encode(params)]"
+
+			// Check if parameters exist
+			if(isnull(artist_name) || isnull(tattoo_design))
+				world.log << "## TATTOO DEBUG: ERROR - Parameters are null"
+				to_chat(user, span_warning("Data transmission failed. Please try again."))
 				return FALSE
 
+			// Trim and validate
 			var/trimmed_artist = trimtext(artist_name)
 			var/trimmed_design = trimtext(tattoo_design)
 
-			if(length(trimmed_artist) > 50 || length(trimmed_design) > 280)
-				to_chat(user, span_warning("Artist name or design is too long."))
-				return FALSE
-
 			if(!length(trimmed_artist) || !length(trimmed_design))
-				to_chat(user, span_warning("Please fill in all fields!"))
+				to_chat(user, span_warning("Please fill in both the artist name and tattoo design!"))
 				return FALSE
 
-			// Proceed with tattoo application...
+			// Coverage check
+			if(!get_location_accessible(current_target, selected_zone))
+				to_chat(user, span_warning("[current_target == user ? "Your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)] is covered! Expose it first."))
+				return FALSE
+
+			if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
+				to_chat(user, span_warning("[current_target] doesn't allow body modifications!"))
+				return FALSE
+
+			// Close UI and apply
+			if(ui)
+				ui.close()
+
+			world.log << "## TATTOO DEBUG: Starting tattoo application process"
+			to_chat(user, span_notice("You begin carefully applying the tattoo..."))
+
 			if(do_after(user, 8 SECONDS, target = current_target))
+				// Final checks
+				if(!get_location_accessible(current_target, selected_zone))
+					to_chat(user, span_warning("The body part became covered during application!"))
+					return FALSE
+
+				// Apply tattoo
 				var/sanitized_artist = sanitize_text(trimmed_artist)
 				var/sanitized_design = sanitize_text(trimmed_design)
 
-				var/datum/tattoo/new_tattoo = new(
-					sanitized_artist,
-					sanitized_design,
-					selected_zone,
-					ink_color,
-					selected_layer
-				)
+				var/datum/tattoo/new_tattoo = new(sanitized_artist, sanitized_design, selected_zone, ink_color, selected_layer)
 
 				if(current_target.add_tattoo(new_tattoo))
+					if(current_target.client?.prefs)
+						current_target.client.prefs.save_character()
+
 					to_chat(user, span_green("Tattoo applied successfully!"))
 					tattoo_uses--
 					current_target.regenerate_icons()

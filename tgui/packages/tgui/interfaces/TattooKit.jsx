@@ -55,7 +55,6 @@ export const TattooKit = (props) => {
             </LabeledList.Item>
           </LabeledList>
         </Section>
-
         <Section title="Available Body Parts">
           {body_parts.length === 0 ? (
             <Box color="bad" textAlign="center">
@@ -94,17 +93,20 @@ const DesignTattooStep = (props) => {
   const { act, data } = useBackend();
   const { ink_color, selected_zone_name, selected_layer } = data;
 
-  // Local state for form inputs
+  // Use React state - this is the CORRECT pattern
   const [artistName, setArtistName] = useState('');
   const [tattooDesign, setTattooDesign] = useState('');
 
-  const handleApply = () => {
-    if (!artistName || !tattooDesign) {
-      // Optional: Add visual feedback for empty fields
-      return;
+  const handleApplyTattoo = () => {
+    // CRITICAL: Validate and send ALL data in one action
+    if (!artistName || artistName === '') {
+      return; // Don't send if empty
+    }
+    if (!tattooDesign || tattooDesign === '') {
+      return; // Don't send if empty
     }
 
-    // Send all data in one action
+    // This is the line that MUST work - send all data at once
     act('apply_tattoo', {
       artist_name: artistName,
       tattoo_design: tattooDesign,
@@ -126,28 +128,27 @@ const DesignTattooStep = (props) => {
             <LabeledList.Item label="Artist Name">
               <Input
                 fluid
-                placeholder="Enter artist name..."
+                placeholder="Enter your name or signature..."
                 value={artistName}
                 onChange={(e, value) => setArtistName(value)}
                 maxLength={50}
               />
             </LabeledList.Item>
-
             <LabeledList.Item label="Tattoo Design">
               <TextArea
                 fluid
                 height="150px"
-                placeholder="Describe the tattoo design..."
+                placeholder="Describe the tattoo design in detail. Be creative!"
                 value={tattooDesign}
                 onChange={(e, value) => setTattooDesign(value)}
                 maxLength={500}
               />
             </LabeledList.Item>
-
             <LabeledList.Item label="Ink Color">
               <Button
                 icon="palette"
                 onClick={() => act('change_ink_color')}
+                tooltip="Change ink color"
               />
               <Box
                 inline
@@ -160,28 +161,42 @@ const DesignTattooStep = (props) => {
                 }}
               />
             </LabeledList.Item>
-
             <LabeledList.Item label="Layer">
               <Stack>
-                {[1, 2, 3].map((layer) => (
-                  <Stack.Item key={layer}>
-                    <Button
-                      selected={selected_layer === layer}
-                      onClick={() => act('set_layer', { layer })}
-                    >
-                      {layer === 1 ? 'Under' : layer === 2 ? 'Normal' : 'Over'}
-                    </Button>
-                  </Stack.Item>
-                ))}
+                <Stack.Item>
+                  <Button
+                    selected={selected_layer === 1}
+                    onClick={() => act('set_layer', { layer: 1 })}
+                  >
+                    Under
+                  </Button>
+                </Stack.Item>
+                <Stack.Item>
+                  <Button
+                    selected={selected_layer === 2}
+                    onClick={() => act('set_layer', { layer: 2 })}
+                  >
+                    Normal
+                  </Button>
+                </Stack.Item>
+                <Stack.Item>
+                  <Button
+                    selected={selected_layer === 3}
+                    onClick={() => act('set_layer', { layer: 3 })}
+                  >
+                    Over
+                  </Button>
+                </Stack.Item>
               </Stack>
             </LabeledList.Item>
-
             <LabeledList.Item>
+              {/* CRITICAL FIX: Use the handler function directly */}
               <Button
                 fluid
                 icon="check"
                 color="good"
-                onClick={handleApply}
+                onClick={handleApplyTattoo}
+                tooltip="Apply the tattoo to the selected body part"
               >
                 Apply Tattoo
               </Button>
