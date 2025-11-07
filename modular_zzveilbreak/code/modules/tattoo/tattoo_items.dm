@@ -22,10 +22,6 @@
 	var/current_step = "select_part"
 	/// Selected tattoo layer
 	var/selected_layer = 2
-	/// Temporary artist name storage during design
-	var/artist_name = ""
-	/// Temporary tattoo design storage during design
-	var/tattoo_design = ""
 
 /obj/item/tattoo_kit/attack(mob/living/carbon/human/target, mob/living/user)
 	if(!istype(target))
@@ -43,8 +39,6 @@
 	current_target = target
 	current_step = "select_part"
 	selected_layer = 2
-	artist_name = ""
-	tattoo_design = ""
 
 	ui_interact(user)
 	return TRUE
@@ -58,14 +52,11 @@
 		current_target = user
 		current_step = "select_part"
 		selected_layer = 2
-		artist_name = ""
-		tattoo_design = ""
 		ui_interact(user)
 	else
 		to_chat(user, span_warning("Only humans can use this!"))
 
 /obj/item/tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
-	world.log << "TATDAT: ui_interact called - current_step: [current_step], selected_zone: [selected_zone], artist_name: '[artist_name]', tattoo_design: '[tattoo_design]'"
 	ui = SStgui.try_update_ui(user, src, ui)
 	if(!ui)
 		ui = new(user, src, "TattooKit", name)
@@ -160,6 +151,14 @@
 				to_chat(user, span_warning("Please fill in both the artist name and tattoo design!"))
 				return FALSE
 
+			// Trim and check if strings are empty after trimming
+			var/trimmed_artist = trimtext(final_artist)
+			var/trimmed_design = trimtext(final_design)
+
+			if(!length(trimmed_artist) || !length(trimmed_design))
+				to_chat(user, span_warning("Please fill in both the artist name and tattoo design!"))
+				return FALSE
+
 			if(is_bodypart_covered(current_target, selected_zone, user))
 				to_chat(user, span_warning("[current_target == user ? "Your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)] is covered! Expose it first."))
 				return FALSE
@@ -172,36 +171,46 @@
 			if(ui)
 				ui.close()
 
-			to_chat(user, span_notice("You begin carefully applying the tattoo..."))
+			to_chat(user, span_notice("You begin carefully applying the tattoo to [current_target == user ? "your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)]..."))
 
 			if(do_after(user, 8 SECONDS, target = current_target))
-				// Final checks
+				// Final checks after delay
 				if(is_bodypart_covered(current_target, selected_zone, user))
-					to_chat(user, span_warning("The body part became covered during application!"))
+					to_chat(user, span_warning("The body part became covered during application! Tattoo failed."))
 					return FALSE
 
-				// Apply the tattoo
-				var/sanitized_artist = sanitize_text(trimtext(final_artist))
-				var/sanitized_design = sanitize_text(trimtext(final_design))
+				if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
+					to_chat(user, span_warning("[current_target] revoked body modification consent during application!"))
+					return FALSE
+
+				// Create and apply tattoo
+				var/sanitized_artist = sanitize_text(trimmed_artist)
+				var/sanitized_design = sanitize_text(trimmed_design)
 
 				var/datum/tattoo/new_tattoo = new(sanitized_artist, sanitized_design, selected_zone, ink_color, selected_layer)
 
 				if(current_target.add_tattoo(new_tattoo))
+					// Save to preferences
 					if(current_target.client?.prefs)
 						current_target.client.prefs.save_character()
 
-					to_chat(user, span_green("Tattoo applied successfully!"))
+					to_chat(user, span_green("You successfully apply \"[sanitized_design]\" to [current_target == user ? "your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)]."))
 					if(current_target != user)
-						to_chat(current_target, span_notice("You feel a stinging sensation as [user] tattoos you."))
+						to_chat(current_target, span_notice("You feel a stinging sensation as [user] tattoos your [get_body_zone_display_name(selected_zone)]."))
 
 					tattoo_uses--
 					if(tattoo_uses <= 0)
 						to_chat(user, span_warning("The tattoo kit is now out of ink!"))
+						desc = "An empty tattoo kit. All the ink has been used up."
 
 					current_target.regenerate_icons()
 				else
 					to_chat(user, span_warning("Failed to apply the tattoo!"))
+					qdel(new_tattoo)
+			else
+				to_chat(user, span_warning("Tattoo application interrupted!"))
 
+			// Reset for next use
 			current_step = "select_part"
 			. = TRUE
 

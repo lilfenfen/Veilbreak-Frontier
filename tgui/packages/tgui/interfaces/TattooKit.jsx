@@ -9,7 +9,7 @@ import {
 } from 'tgui-core/components';
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
-import { useState } from 'react'; // Import useState
+import { useState } from 'react';
 
 export const TattooKit = (props) => {
   const { act, data } = useBackend();
@@ -112,7 +112,7 @@ const DesignTattooStep = (props) => {
     selected_layer,
   } = data;
 
-  // Use React state like TextInputModal and WarrantConsole
+  // Use React state like other working TGUIs
   const [artistName, setArtistName] = useState('');
   const [tattooDesign, setTattooDesign] = useState('');
 
@@ -205,16 +205,10 @@ const DesignTattooStep = (props) => {
                 fluid
                 icon="check"
                 color="good"
-                onClick={() => {
-                  if (!artistName.trim() || !tattooDesign.trim()) {
-                    // You might want to show an error message here
-                    return;
-                  }
-                  act('apply_tattoo', {
-                    artist_name: artistName,
-                    tattoo_design: tattooDesign,
-                  });
-                }}
+                onClick={() => act('apply_tattoo', {
+                  artist_name: artistName,
+                  tattoo_design: tattooDesign,
+                })}
                 tooltip="Apply the tattoo to the selected body part"
               >
                 Apply Tattoo
