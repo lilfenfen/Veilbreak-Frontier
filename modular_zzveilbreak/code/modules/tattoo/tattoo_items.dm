@@ -74,7 +74,7 @@
 
 	for(var/zone in all_parts)
 		var/list/part_info = all_parts[zone]
-		var/covered = get_location_accessible(current_target, zone)
+		var/covered = !get_location_accessible(current_target, zone)
 		var/current_tattoos = length(current_target.get_tattoos(zone))
 
 		body_parts += list(list(
@@ -101,7 +101,7 @@
 			if(!zone || !body_part_exists(current_target, zone))
 				return FALSE
 
-			if(get_location_accessible(current_target, zone))
+			if(!get_location_accessible(current_target, zone))
 				to_chat(user, span_warning("Body part is covered!"))
 				return FALSE
 
