@@ -9,7 +9,6 @@ import {
 } from 'tgui-core/components';
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
-import { useState, useEffect } from 'react';
 
 export const TattooKit = (props) => {
   const { act, data } = useBackend();
@@ -25,30 +24,10 @@ export const TattooKit = (props) => {
     selected_layer = 2,
   } = data || {};
 
-  const [artistName, setArtistName] = useState('');
-  const [tattooDesign, setTattooDesign] = useState('');
-
-  // Reset form when going back to selection
-  useEffect(() => {
-    if (current_step === 'select_part') {
-      setArtistName('');
-      setTattooDesign('');
-    }
-  }, [current_step]);
-
-  console.log('TATDAT: TattooKit render - current_step:', current_step, 'data:', data);
+  console.log('TATDAT: TattooKit render - current_step:', current_step);
 
   if (current_step === 'design_tattoo') {
-    return (
-      <DesignTattooStep
-        act={act}
-        data={data}
-        artistName={artistName}
-        tattooDesign={tattooDesign}
-        onArtistChange={setArtistName}
-        onDesignChange={setTattooDesign}
-      />
-    );
+    return <DesignTattooStep />;
   }
 
   return (
@@ -130,21 +109,20 @@ export const TattooKit = (props) => {
 };
 
 const DesignTattooStep = (props) => {
-  const { act, data, artistName, tattooDesign, onArtistChange, onDesignChange } = props;
-
+  const { act, data } = useBackend();
   const {
     ink_color = '#000000',
     selected_zone_name = '',
     selected_layer = 2,
   } = data || {};
 
-  const canApply = artistName?.trim()?.length > 0 && tattooDesign?.trim()?.length > 0;
+  // Calculate can_apply based on current data state (if we had stored the values)
+  // For now, we'll let the backend handle validation
+  const canApply = true; // Temporary - let backend validate
 
   const handleApply = () => {
-    act('apply_tattoo', {
-      artist_name: artistName,
-      tattoo_design: tattooDesign,
-    });
+    // The artist_name and tattoo_design will be sent via onBlur in the inputs
+    act('apply_tattoo');
   };
 
   return (
@@ -162,19 +140,17 @@ const DesignTattooStep = (props) => {
             <LabeledList.Item label="Artist Name">
               <Input
                 fluid
-                value={artistName || ''}
                 placeholder="Enter your name or signature..."
-                onInput={(e, value) => onArtistChange(value)}
+                onBlur={(e, value) => act('set_artist_name', { value })}
                 maxLength={50}
               />
             </LabeledList.Item>
             <LabeledList.Item label="Tattoo Design">
               <TextArea
                 fluid
-                value={tattooDesign || ''}
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
-                onInput={(e, value) => onDesignChange(value)}
+                onBlur={(e, value) => act('set_tattoo_design', { value })}
                 maxLength={500}
               />
             </LabeledList.Item>
@@ -235,14 +211,9 @@ const DesignTattooStep = (props) => {
               <Button
                 fluid
                 icon="check"
-                color={canApply ? 'good' : 'default'}
-                disabled={!canApply}
+                color="good"
                 onClick={handleApply}
-                tooltip={
-                  canApply
-                    ? 'Apply the tattoo to the selected body part'
-                    : 'Fill in both artist name and tattoo design first'
-                }
+                tooltip="Apply the tattoo to the selected body part"
               >
                 Apply Tattoo
               </Button>
