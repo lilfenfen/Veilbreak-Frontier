@@ -95,8 +95,8 @@
 	data["selected_layer"] = selected_layer
 
 	// Calculate if we can apply the tattoo with detailed logging
-	var/has_artist = artist_name && length(artist_name) > 0
-	var/has_design = tattoo_design && length(tattoo_design) > 0
+	var/has_artist = (artist_name && length(trimtext(artist_name)) > 0)
+	var/has_design = (tattoo_design && length(trimtext(tattoo_design)) > 0)
 	var/can_apply = has_artist && has_design
 
 	data["can_apply"] = can_apply
@@ -160,16 +160,24 @@
 
 		if("update_artist_name")
 			var/name = params["name"]
-			world.log << "TATDAT: update_artist_name - received name: '[name]' (isnull: [isnull(name)])"
-			artist_name = name
-			world.log << "TATDAT: update_artist_name - stored artist_name: '[artist_name]'"
+			world.log << "TATDAT: update_artist_name - received name: '[name]' (isnull: [isnull(name)], type: [name ? "text" : "null"])"
+			// Handle null/empty values properly
+			if(isnull(name))
+				artist_name = ""
+			else
+				artist_name = name
+			world.log << "TATDAT: update_artist_name - stored artist_name: '[artist_name]' (length: [length(artist_name)])"
 			. = TRUE
 
 		if("update_tattoo_design")
 			var/design = params["design"]
-			world.log << "TATDAT: update_tattoo_design - received design: '[design]' (isnull: [isnull(design)])"
-			tattoo_design = design
-			world.log << "TATDAT: update_tattoo_design - stored tattoo_design: '[tattoo_design]'"
+			world.log << "TATDAT: update_tattoo_design - received design: '[design]' (isnull: [isnull(design)], type: [design ? "text" : "null"])"
+			// Handle null/empty values properly
+			if(isnull(design))
+				tattoo_design = ""
+			else
+				tattoo_design = design
+			world.log << "TATDAT: update_tattoo_design - stored tattoo_design: '[tattoo_design]' (length: [length(tattoo_design)])"
 			. = TRUE
 
 		if("update_tattoo_layer")
@@ -194,10 +202,20 @@
 			. = TRUE
 
 		if("apply_tattoo")
-			world.log << "TATDAT: apply_tattoo - artist_name: '[artist_name]', tattoo_design: '[tattoo_design]'"
-			// Final validation
-			if(!artist_name || length(trimtext(artist_name)) == 0 || !tattoo_design || length(trimtext(tattoo_design)) == 0)
-				to_chat(user, span_warning("Please fill in both the artist name and tattoo design!"))
+			world.log << "TATDAT: apply_tattoo - artist_name: '[artist_name]' (length: [length(artist_name)]), tattoo_design: '[tattoo_design]' (length: [length(tattoo_design)])"
+
+			// Use proper string validation
+			var/trimmed_artist = trimtext(artist_name)
+			var/trimmed_design = trimtext(tattoo_design)
+
+			world.log << "TATDAT: apply_tattoo validation - trimmed_artist: '[trimmed_artist]' (length: [length(trimmed_artist)]), trimmed_design: '[trimmed_design]' (length: [length(trimmed_design)])"
+
+			if(!trimmed_artist || length(trimmed_artist) == 0)
+				to_chat(user, span_warning("Please fill in the artist name!"))
+				return FALSE
+
+			if(!trimmed_design || length(trimmed_design) == 0)
+				to_chat(user, span_warning("Please fill in the tattoo design!"))
 				return FALSE
 
 			if(is_bodypart_covered(current_target, selected_zone, user))
@@ -226,14 +244,15 @@
 					return FALSE
 
 				// Create and apply tattoo
-				var/trimmed_artist = trimtext(artist_name)
-				var/trimmed_design = trimtext(tattoo_design)
-				var/final_artist = trimmed_artist ? sanitize_text(trimmed_artist) : "Unknown Artist"
-				var/final_design = trimmed_design ? sanitize_text(trimmed_design) : "An intricate design"
+				var/final_artist = sanitize_text(trimmed_artist)
+				var/final_design = sanitize_text(trimmed_design)
+
+				world.log << "TATDAT: Creating tattoo - artist: '[final_artist]', design: '[final_design]', zone: [selected_zone], color: [ink_color], layer: [selected_layer]"
 
 				var/datum/tattoo/new_tattoo = new(final_artist, final_design, selected_zone, ink_color, selected_layer)
 
 				if(current_target.add_tattoo(new_tattoo))
+					world.log << "TATDAT: Tattoo applied successfully!"
 					// Save to preferences
 					if(current_target.client?.prefs)
 						current_target.client.prefs.save_character()
@@ -249,6 +268,7 @@
 
 					current_target.regenerate_icons()
 				else
+					world.log << "TATDAT: Failed to apply tattoo!"
 					to_chat(user, span_warning("Failed to apply the tattoo!"))
 					qdel(new_tattoo)
 			else

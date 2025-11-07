@@ -27,7 +27,9 @@ export const TattooKit = (props) => {
     can_apply = false,
   } = data;
 
-  console.log('TATDAT: TattooKit render - current_step:', current_step, 'artist_name:', artist_name, 'tattoo_design:', tattoo_design, 'can_apply:', can_apply);
+  console.log('TATDAT: TattooKit render - current_step:', current_step,
+    'artist_name:', artist_name, 'tattoo_design:', tattoo_design,
+    'can_apply:', can_apply, 'ink_uses:', ink_uses);
 
   if (current_step === 'design_tattoo') {
     return <DesignTattooStep />;
@@ -81,10 +83,7 @@ export const TattooKit = (props) => {
                     part.current_tattoos >= part.max_tattoos ||
                     ink_uses <= 0
                   }
-                  onClick={() => {
-                    console.log('TATDAT: select_bodypart clicked - zone:', part.zone);
-                    act('select_bodypart', { zone: part.zone });
-                  }}
+                  onClick={() => act('select_bodypart', { zone: part.zone })}
                   tooltip={
                     part.covered
                       ? 'Body part is covered by clothing - expose it first!'
@@ -126,7 +125,9 @@ const DesignTattooStep = (props) => {
     can_apply = false,
   } = data;
 
-  console.log('TATDAT: DesignTattooStep render - artist_name:', artist_name, 'tattoo_design:', tattoo_design, 'can_apply:', can_apply);
+  console.log('TATDAT: DesignTattooStep render - artist_name:', artist_name,
+    'tattoo_design:', tattoo_design, 'can_apply:', can_apply,
+    'selected_zone_name:', selected_zone_name);
 
   return (
     <Window width={500} height={600}>
@@ -145,10 +146,7 @@ const DesignTattooStep = (props) => {
                 fluid
                 value={artist_name}
                 placeholder="Enter your name or signature..."
-                onChange={(e, value) => {
-                  console.log('TATDAT: Artist name onChange - value:', value, 'type:', typeof value);
-                  act('update_artist_name', { name: value });
-                }}
+                onChange={(e, value) => act('update_artist_name', { name: value })}
                 maxLength={50}
               />
             </LabeledList.Item>
@@ -158,10 +156,7 @@ const DesignTattooStep = (props) => {
                 value={tattoo_design}
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
-                onChange={(e, value) => {
-                  console.log('TATDAT: Tattoo design onChange - value:', value, 'type:', typeof value);
-                  act('update_tattoo_design', { design: value });
-                }}
+                onChange={(e, value) => act('update_tattoo_design', { design: value })}
                 maxLength={500}
               />
             </LabeledList.Item>
@@ -224,10 +219,7 @@ const DesignTattooStep = (props) => {
                 icon="check"
                 color={can_apply ? 'good' : 'default'}
                 disabled={!can_apply}
-                onClick={() => {
-                  console.log('TATDAT: Apply tattoo clicked - can_apply:', can_apply);
-                  act('apply_tattoo');
-                }}
+                onClick={() => act('apply_tattoo')}
                 tooltip={
                   can_apply
                     ? 'Apply the tattoo to the selected body part'
