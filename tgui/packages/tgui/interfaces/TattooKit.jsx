@@ -7,7 +7,7 @@ import {
   Stack,
   TextArea,
 } from 'tgui-core/components';
-import { useBackend } from '../backend';
+import { useBackend, useLocalState } from '../backend'; // Add useLocalState
 import { Window } from '../layouts';
 
 export const TattooKit = (props) => {
@@ -111,6 +111,10 @@ const DesignTattooStep = (props) => {
     selected_layer,
   } = data;
 
+  // Use local state to manage form data
+  const [artistName, setArtistName] = useLocalState('artistName', '');
+  const [tattooDesign, setTattooDesign] = useLocalState('tattooDesign', '');
+
   return (
     <Window width={500} height={600}>
       <Window.Content scrollable>
@@ -127,7 +131,8 @@ const DesignTattooStep = (props) => {
               <Input
                 fluid
                 placeholder="Enter your name or signature..."
-                onBlur={(e, value) => act('set_artist_name', { value })}
+                value={artistName}
+                onChange={(e, value) => setArtistName(value)}
                 maxLength={50}
               />
             </LabeledList.Item>
@@ -136,7 +141,8 @@ const DesignTattooStep = (props) => {
                 fluid
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
-                onBlur={(e, value) => act('set_tattoo_design', { value })}
+                value={tattooDesign}
+                onChange={(e, value) => setTattooDesign(value)}
                 maxLength={500}
               />
             </LabeledList.Item>
@@ -198,7 +204,10 @@ const DesignTattooStep = (props) => {
                 fluid
                 icon="check"
                 color="good"
-                onClick={() => act('apply_tattoo')}
+                onClick={() => act('apply_tattoo', {
+                  artist_name: artistName,
+                  tattoo_design: tattooDesign,
+                })}
                 tooltip="Apply the tattoo to the selected body part"
               >
                 Apply Tattoo
