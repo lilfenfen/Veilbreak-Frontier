@@ -9,23 +9,17 @@ import {
 } from 'tgui-core/components';
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
-import { useState, useEffect } from 'react';
 
 export const TattooKit = (props) => {
   const { act, data } = useBackend();
   const {
-    target_name = '',
-    ink_uses = 0,
-    max_uses = 0,
-    ink_color = '#000000',
-    body_parts = [],
-    selected_zone = '',
-    selected_zone_name = '',
-    current_step = 'select_part',
-    selected_layer = 2,
-  } = data || {};
-
-  console.log('TATDAT: TattooKit render - current_step:', current_step);
+    target_name,
+    ink_uses,
+    max_uses,
+    ink_color,
+    body_parts,
+    current_step,
+  } = data;
 
   if (current_step === 'design_tattoo') {
     return <DesignTattooStep />;
@@ -34,7 +28,7 @@ export const TattooKit = (props) => {
   return (
     <Window width={500} height={600}>
       <Window.Content scrollable>
-        <Section title={`Tattooing: ${target_name || 'Unknown'}`}>
+        <Section title={`Tattooing: ${target_name}`}>
           <LabeledList>
             <LabeledList.Item label="Ink Remaining">
               <Box color={ink_uses > 0 ? 'good' : 'bad'}>
@@ -112,40 +106,10 @@ export const TattooKit = (props) => {
 const DesignTattooStep = (props) => {
   const { act, data } = useBackend();
   const {
-    ink_color = '#000000',
-    selected_zone_name = '',
-    selected_layer = 2,
-  } = data || {};
-
-  // Use local state to track the form values with proper initialization
-  const [artistName, setArtistName] = useState('');
-  const [tattooDesign, setTattooDesign] = useState('');
-
-  // Safe calculation of canApply with proper null checks
-  const hasArtist = artistName && typeof artistName === 'string' && artistName.trim().length > 0;
-  const hasDesign = tattooDesign && typeof tattooDesign === 'string' && tattooDesign.trim().length > 0;
-  const canApply = hasArtist && hasDesign;
-
-  console.log('TATDAT: DesignTattooStep render - artistName:', artistName, 'tattooDesign:', tattooDesign, 'canApply:', canApply);
-
-  const handleApply = () => {
-    console.log('TATDAT: Applying tattoo - artist:', artistName, 'design:', tattooDesign);
-    // Send both values directly in the apply_tattoo action
-    act('apply_tattoo', {
-      artist_name: artistName || '',
-      tattoo_design: tattooDesign || '',
-    });
-  };
-
-  const handleArtistChange = (e, value) => {
-    console.log('TATDAT: Artist name change - value:', value);
-    setArtistName(value || '');
-  };
-
-  const handleDesignChange = (e, value) => {
-    console.log('TATDAT: Tattoo design change - value:', value);
-    setTattooDesign(value || '');
-  };
+    ink_color,
+    selected_zone_name,
+    selected_layer,
+  } = data;
 
   return (
     <Window width={500} height={600}>
@@ -162,19 +126,17 @@ const DesignTattooStep = (props) => {
             <LabeledList.Item label="Artist Name">
               <Input
                 fluid
-                value={artistName}
                 placeholder="Enter your name or signature..."
-                onChange={handleArtistChange}
+                onBlur={(e, value) => act('set_artist_name', { value: value })}
                 maxLength={50}
               />
             </LabeledList.Item>
             <LabeledList.Item label="Tattoo Design">
               <TextArea
                 fluid
-                value={tattooDesign}
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
-                onChange={handleDesignChange}
+                onBlur={(e, value) => act('set_tattoo_design', { value: value })}
                 maxLength={500}
               />
             </LabeledList.Item>
@@ -235,28 +197,12 @@ const DesignTattooStep = (props) => {
               <Button
                 fluid
                 icon="check"
-                color={canApply ? 'good' : 'default'}
-                disabled={!canApply}
-                onClick={handleApply}
-                tooltip={
-                  canApply
-                    ? 'Apply the tattoo to the selected body part'
-                    : 'Fill in both artist name and tattoo design first'
-                }
+                color="good"
+                onClick={() => act('apply_tattoo')}
+                tooltip="Apply the tattoo to the selected body part"
               >
                 Apply Tattoo
               </Button>
-            </LabeledList.Item>
-            <LabeledList.Item label="Debug Info">
-              <Box color="label" fontSize="0.8em">
-                Artist: '{artistName}' (len: {artistName?.length || 0})<br />
-                Design: '{tattooDesign?.substring(0, 50) || ''}' (len: {tattooDesign?.length || 0})<br />
-                Can Apply: {canApply ? 'YES' : 'NO'}<br />
-                Has Artist: {hasArtist ? 'YES' : 'NO'}<br />
-                Has Design: {hasDesign ? 'YES' : 'NO'}<br />
-                Zone: {selected_zone_name}<br />
-                Layer: {selected_layer}
-              </Box>
             </LabeledList.Item>
           </LabeledList>
         </Section>

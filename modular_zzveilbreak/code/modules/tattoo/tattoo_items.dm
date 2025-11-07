@@ -27,12 +27,6 @@
 	/// Temporary tattoo design storage during design
 	var/tattoo_design = ""
 
-/obj/item/tattoo_kit/Initialize(mapload)
-	. = ..()
-	// Initialize temporary storage variables
-	artist_name = ""
-	tattoo_design = ""
-
 /obj/item/tattoo_kit/attack(mob/living/carbon/human/target, mob/living/user)
 	if(!istype(target))
 		return ..()
@@ -52,7 +46,6 @@
 	artist_name = ""
 	tattoo_design = ""
 
-	world.log << "TATDAT: Tattoo kit attack - opening UI for [target.name]"
 	ui_interact(user)
 	return TRUE
 
@@ -67,27 +60,21 @@
 		selected_layer = 2
 		artist_name = ""
 		tattoo_design = ""
-		world.log << "TATDAT: Tattoo kit attack_self - opening UI for self"
 		ui_interact(user)
 	else
 		to_chat(user, span_warning("Only humans can use this!"))
 
 /obj/item/tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
-	world.log << "TATDAT: ui_interact called - current_step: [current_step], selected_zone: [selected_zone], artist_name: '[artist_name]', tattoo_design: '[tattoo_design]'"
 	ui = SStgui.try_update_ui(user, src, ui)
 	if(!ui)
-		world.log << "TATDAT: Creating new UI instance for TattooKit"
 		ui = new(user, src, "TattooKit", name)
 		ui.open()
-	else
-		world.log << "TATDAT: Updating existing UI instance"
 
 /obj/item/tattoo_kit/ui_data(mob/user)
 	var/list/data = list()
 
 	if(!current_target)
 		current_target = user
-		world.log << "TATDAT: ui_data - current_target was null, set to user"
 
 	data["target_name"] = current_target.name
 	data["ink_uses"] = tattoo_uses
@@ -121,12 +108,8 @@
 	return data
 
 /obj/item/tattoo_kit/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
-	world.log << "TATDAT: ui_act START - action: [action], params: [json_encode(params)]"
-	world.log << "TATDAT: Current state - artist_name: '[artist_name]', tattoo_design: '[tattoo_design]'"
-
 	. = ..()
 	if(.)
-		world.log << "TATDAT: ui_act - parent returned TRUE, skipping"
 		return
 
 	var/mob/user = usr
@@ -134,9 +117,7 @@
 	switch(action)
 		if("select_bodypart")
 			var/zone = params["zone"]
-			world.log << "TATDAT: select_bodypart - zone: [zone]"
 			if(!zone || !body_part_exists(current_target, zone))
-				world.log << "TATDAT: select_bodypart - invalid zone"
 				return FALSE
 
 			if(is_bodypart_covered(current_target, zone, user))
@@ -152,37 +133,27 @@
 			selected_zone = zone
 			current_step = "design_tattoo"
 			selected_layer = 2
-			artist_name = ""
-			tattoo_design = ""
-			world.log << "TATDAT: select_bodypart - SUCCESS, selected_zone: [selected_zone], current_step: [current_step]"
 			. = TRUE
 
 		if("set_artist_name")
 			var/new_name = params["value"]
-			world.log << "TATDAT: set_artist_name - value: '[new_name]'"
 			if(!isnull(new_name))
-				artist_name = sanitize_text(new_name)
-				world.log << "TATDAT: set_artist_name - stored: '[artist_name]'"
+				artist_name = new_name
 			else
 				artist_name = ""
-				world.log << "TATDAT: set_artist_name - null value, set to empty"
 			. = TRUE
 
 		if("set_tattoo_design")
 			var/new_design = params["value"]
-			world.log << "TATDAT: set_tattoo_design - value: '[new_design]'"
 			if(!isnull(new_design))
-				tattoo_design = sanitize_text(new_design)
-				world.log << "TATDAT: set_tattoo_design - stored: '[tattoo_design]'"
+				tattoo_design = new_design
 			else
 				tattoo_design = ""
-				world.log << "TATDAT: set_tattoo_design - null value, set to empty"
 			. = TRUE
 
 		if("set_layer")
 			var/layer = text2num(params["layer"])
 			selected_layer = sanitize_integer(layer, 1, 3, 2)
-			world.log << "TATDAT: set_layer - layer: [layer], selected_layer: [selected_layer]"
 			. = TRUE
 
 		if("change_ink_color")
@@ -197,17 +168,12 @@
 			selected_layer = 2
 			artist_name = ""
 			tattoo_design = ""
-			world.log << "TATDAT: back_to_selection - reset to selection"
 			. = TRUE
 
 		if("apply_tattoo")
-			world.log << "TATDAT: apply_tattoo - STARTING TATTOO APPLICATION PROCESS"
-
 			// Use the stored values from the set_ actions
 			var/final_artist = artist_name
 			var/final_design = tattoo_design
-
-			world.log << "TATDAT: apply_tattoo - STORED VALUES - artist_name: '[final_artist]', tattoo_design: '[final_design]'"
 
 			// Handle null values properly
 			if(isnull(final_artist))
@@ -219,31 +185,21 @@
 			var/trimmed_artist = trimtext(final_artist)
 			var/trimmed_design = trimtext(final_design)
 
-			world.log << "TATDAT: apply_tattoo - AFTER TRIMMING - trimmed_artist: '[trimmed_artist]' (length: [length(trimmed_artist)]), trimmed_design: '[trimmed_design]' (length: [length(trimmed_design)])"
-
 			if(!trimmed_artist || length(trimmed_artist) == 0)
-				world.log << "TATDAT: apply_tattoo - VALIDATION FAILED: artist name empty"
 				to_chat(user, span_warning("Please fill in the artist name!"))
 				return FALSE
 
 			if(!trimmed_design || length(trimmed_design) == 0)
-				world.log << "TATDAT: apply_tattoo - VALIDATION FAILED: tattoo design empty"
 				to_chat(user, span_warning("Please fill in the tattoo design!"))
 				return FALSE
 
-			world.log << "TATDAT: apply_tattoo - VALIDATION PASSED"
-
 			if(is_bodypart_covered(current_target, selected_zone, user))
-				world.log << "TATDAT: apply_tattoo - VALIDATION FAILED: bodypart covered"
 				to_chat(user, span_warning("[current_target == user ? "Your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)] became covered! Aborting."))
 				return FALSE
 
 			if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
-				world.log << "TATDAT: apply_tattoo - VALIDATION FAILED: body modifications not allowed"
 				to_chat(user, span_warning("[current_target] doesn't allow body modifications!"))
 				return FALSE
-
-			world.log << "TATDAT: apply_tattoo - ALL VALIDATIONS PASSED, STARTING APPLICATION"
 
 			// Close UI during application
 			if(ui)
@@ -253,56 +209,40 @@
 			to_chat(user, span_notice("You begin carefully applying the tattoo to [current_target == user ? "your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)]..."))
 
 			if(do_after(user, 8 SECONDS, target = current_target))
-				world.log << "TATDAT: apply_tattoo - DO_AFTER COMPLETED SUCCESSFULLY"
-
 				// Final checks after delay
 				if(is_bodypart_covered(current_target, selected_zone, user))
-					world.log << "TATDAT: apply_tattoo - FINAL CHECK FAILED: bodypart covered during application"
 					to_chat(user, span_warning("The body part became covered during application! Tattoo failed."))
 					return FALSE
 
 				if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
-					world.log << "TATDAT: apply_tattoo - FINAL CHECK FAILED: consent revoked during application"
 					to_chat(user, span_warning("[current_target] revoked body modification consent during application!"))
 					return FALSE
-
-				world.log << "TATDAT: apply_tattoo - FINAL CHECKS PASSED, CREATING TATTOO"
 
 				// Create and apply tattoo
 				var/sanitized_artist = sanitize_text(trimmed_artist)
 				var/sanitized_design = sanitize_text(trimmed_design)
 
-				world.log << "TATDAT: apply_tattoo - CREATING TATTOO OBJECT - artist: '[sanitized_artist]', design: '[sanitized_design]', zone: [selected_zone], color: [ink_color], layer: [selected_layer]"
-
 				var/datum/tattoo/new_tattoo = new(sanitized_artist, sanitized_design, selected_zone, ink_color, selected_layer)
 
-				world.log << "TATDAT: apply_tattoo - TATTOO OBJECT CREATED, ATTEMPTING TO ADD TO TARGET"
-
 				if(current_target.add_tattoo(new_tattoo))
-					world.log << "TATDAT: apply_tattoo - TATTOO APPLIED SUCCESSFULLY!"
-					// Save to preferences
-					if(current_target.client?.prefs)
-						current_target.client.prefs.save_character()
-						world.log << "TATDAT: apply_tattoo - PREFERENCES SAVED"
-
 					to_chat(user, span_green("You successfully apply \"[sanitized_design]\" to [current_target == user ? "your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)]."))
 					if(current_target != user)
 						to_chat(current_target, span_notice("You feel a stinging sensation as [user] tattoos your [get_body_zone_display_name(selected_zone)]."))
 
 					tattoo_uses--
-					world.log << "TATDAT: apply_tattoo - TATTOO USES DECREMENTED TO: [tattoo_uses]"
 					if(tattoo_uses <= 0)
 						to_chat(user, span_warning("The tattoo kit is now out of ink!"))
 						desc = "An empty tattoo kit. All the ink has been used up."
 
+					// Save to preferences
+					if(current_target.client?.prefs)
+						current_target.client.prefs.save_character()
+
 					current_target.regenerate_icons()
-					world.log << "TATDAT: apply_tattoo - ICONS REGENERATED"
 				else
-					world.log << "TATDAT: apply_tattoo - FAILED TO APPLY TATTOO TO TARGET!"
 					to_chat(user, span_warning("Failed to apply the tattoo!"))
 					qdel(new_tattoo)
 			else
-				world.log << "TATDAT: apply_tattoo - DO_AFTER INTERRUPTED"
 				to_chat(user, span_warning("Tattoo application interrupted!"))
 
 			// Reset for next use
@@ -310,17 +250,8 @@
 			artist_name = ""
 			tattoo_design = ""
 			selected_layer = 2
-			world.log << "TATDAT: apply_tattoo - PROCESS COMPLETED, RESETTING STATE"
 			. = TRUE
 
-	// Force UI update after any action
-	if(.)
-		world.log << "TATDAT: ui_act - action [action] returning TRUE, forcing UI update"
-		SStgui.update_uis(src)
-	else
-		world.log << "TATDAT: ui_act - action [action] returning FALSE, no UI update"
-
-	world.log << "TATDAT: ui_act END - action: [action] completed"
 	return .
 
 // Helper proc to check if a bodypart is covered by clothing
