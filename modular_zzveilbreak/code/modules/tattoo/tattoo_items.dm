@@ -155,68 +155,53 @@
 			var/final_artist = params["artist_name"]
 			var/final_design = params["tattoo_design"]
 
-			// Validate input
-			if(!final_artist || length(trimtext(final_artist)) == 0)
-				to_chat(user, span_warning("Please fill in the artist name!"))
-				return FALSE
-
-			if(!final_design || length(trimtext(final_design)) == 0)
-				to_chat(user, span_warning("Please fill in the tattoo design!"))
+			// Simple validation
+			if(!final_artist || !final_design)
+				to_chat(user, span_warning("Please fill in both the artist name and tattoo design!"))
 				return FALSE
 
 			if(is_bodypart_covered(current_target, selected_zone, user))
-				to_chat(user, span_warning("[current_target == user ? "Your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)] became covered! Aborting."))
+				to_chat(user, span_warning("[current_target == user ? "Your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)] is covered! Expose it first."))
 				return FALSE
 
 			if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
 				to_chat(user, span_warning("[current_target] doesn't allow body modifications!"))
 				return FALSE
 
-			// Close UI during application
+			// Close UI and apply tattoo
 			if(ui)
 				ui.close()
 
-			// Perform tattoo application
-			to_chat(user, span_notice("You begin carefully applying the tattoo to [current_target == user ? "your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)]..."))
+			to_chat(user, span_notice("You begin carefully applying the tattoo..."))
 
 			if(do_after(user, 8 SECONDS, target = current_target))
-				// Final checks after delay
+				// Final checks
 				if(is_bodypart_covered(current_target, selected_zone, user))
-					to_chat(user, span_warning("The body part became covered during application! Tattoo failed."))
+					to_chat(user, span_warning("The body part became covered during application!"))
 					return FALSE
 
-				if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
-					to_chat(user, span_warning("[current_target] revoked body modification consent during application!"))
-					return FALSE
-
-				// Create and apply tattoo
+				// Apply the tattoo
 				var/sanitized_artist = sanitize_text(trimtext(final_artist))
 				var/sanitized_design = sanitize_text(trimtext(final_design))
 
 				var/datum/tattoo/new_tattoo = new(sanitized_artist, sanitized_design, selected_zone, ink_color, selected_layer)
 
 				if(current_target.add_tattoo(new_tattoo))
-					// Save to preferences
 					if(current_target.client?.prefs)
 						current_target.client.prefs.save_character()
 
-					to_chat(user, span_green("You successfully apply \"[sanitized_design]\" to [current_target == user ? "your" : "[current_target]'s"] [get_body_zone_display_name(selected_zone)]."))
+					to_chat(user, span_green("Tattoo applied successfully!"))
 					if(current_target != user)
-						to_chat(current_target, span_notice("You feel a stinging sensation as [user] tattoos your [get_body_zone_display_name(selected_zone)]."))
+						to_chat(current_target, span_notice("You feel a stinging sensation as [user] tattoos you."))
 
 					tattoo_uses--
 					if(tattoo_uses <= 0)
 						to_chat(user, span_warning("The tattoo kit is now out of ink!"))
-						desc = "An empty tattoo kit. All the ink has been used up."
 
 					current_target.regenerate_icons()
 				else
 					to_chat(user, span_warning("Failed to apply the tattoo!"))
-					qdel(new_tattoo)
-			else
-				to_chat(user, span_warning("Tattoo application interrupted!"))
 
-			// Reset for next use
 			current_step = "select_part"
 			. = TRUE
 

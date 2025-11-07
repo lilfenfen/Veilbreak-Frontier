@@ -7,7 +7,7 @@ import {
   Stack,
   TextArea,
 } from 'tgui-core/components';
-import { useBackend, useLocalState } from '../backend'; // Add useLocalState
+import { useBackend } from '../backend';
 import { Window } from '../layouts';
 
 export const TattooKit = (props) => {
@@ -19,6 +19,8 @@ export const TattooKit = (props) => {
     ink_color,
     body_parts,
     current_step,
+    selected_zone_name,
+    selected_layer,
   } = data;
 
   if (current_step === 'design_tattoo') {
@@ -111,9 +113,9 @@ const DesignTattooStep = (props) => {
     selected_layer,
   } = data;
 
-  // Use local state to manage form data
-  const [artistName, setArtistName] = useLocalState('artistName', '');
-  const [tattooDesign, setTattooDesign] = useLocalState('tattooDesign', '');
+  // Local state for form inputs - simple and direct
+  let artistName = '';
+  let tattooDesign = '';
 
   return (
     <Window width={500} height={600}>
@@ -131,8 +133,7 @@ const DesignTattooStep = (props) => {
               <Input
                 fluid
                 placeholder="Enter your name or signature..."
-                value={artistName}
-                onChange={(e, value) => setArtistName(value)}
+                onChange={(e, value) => artistName = value}
                 maxLength={50}
               />
             </LabeledList.Item>
@@ -141,8 +142,7 @@ const DesignTattooStep = (props) => {
                 fluid
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
-                value={tattooDesign}
-                onChange={(e, value) => setTattooDesign(value)}
+                onChange={(e, value) => tattooDesign = value}
                 maxLength={500}
               />
             </LabeledList.Item>
