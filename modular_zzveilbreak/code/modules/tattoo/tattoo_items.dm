@@ -27,6 +27,12 @@
 	/// Selected tattoo layer
 	var/selected_layer = 2
 
+/obj/item/tattoo_kit/Initialize(mapload)
+	. = ..()
+	// Initialize state variables
+	artist_name = ""
+	tattoo_design = ""
+
 /obj/item/tattoo_kit/attack(mob/living/carbon/human/target, mob/living/user)
 	if(!istype(target))
 		return ..()

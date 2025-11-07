@@ -150,10 +150,6 @@ const DesignTattooStep = (props) => {
                   console.log('TATDAT: Artist name onChange - value:', value);
                   act('update_artist_name', { name: value });
                 }}
-                onBlur={(e, value) => {
-                  console.log('TATDAT: Artist name onBlur - value:', value);
-                  act('update_artist_name', { name: value });
-                }}
                 maxLength={50}
               />
             </LabeledList.Item>
@@ -165,10 +161,6 @@ const DesignTattooStep = (props) => {
                 placeholder="Describe the tattoo design in detail. Be creative!"
                 onChange={(e, value) => {
                   console.log('TATDAT: Tattoo design onChange - value:', value);
-                  act('update_tattoo_design', { design: value });
-                }}
-                onBlur={(e, value) => {
-                  console.log('TATDAT: Tattoo design onBlur - value:', value);
                   act('update_tattoo_design', { design: value });
                 }}
                 maxLength={500}
