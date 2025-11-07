@@ -9,6 +9,7 @@ import {
 } from 'tgui-core/components';
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
+import { useState } from 'react'; // Import useState
 
 export const TattooKit = (props) => {
   const { act, data } = useBackend();
@@ -19,8 +20,6 @@ export const TattooKit = (props) => {
     ink_color,
     body_parts,
     current_step,
-    selected_zone_name,
-    selected_layer,
   } = data;
 
   if (current_step === 'design_tattoo') {
@@ -113,9 +112,9 @@ const DesignTattooStep = (props) => {
     selected_layer,
   } = data;
 
-  // Local state for form inputs - simple and direct
-  let artistName = '';
-  let tattooDesign = '';
+  // Use React state like TextInputModal and WarrantConsole
+  const [artistName, setArtistName] = useState('');
+  const [tattooDesign, setTattooDesign] = useState('');
 
   return (
     <Window width={500} height={600}>
@@ -133,7 +132,8 @@ const DesignTattooStep = (props) => {
               <Input
                 fluid
                 placeholder="Enter your name or signature..."
-                onChange={(e, value) => artistName = value}
+                value={artistName}
+                onChange={(e, value) => setArtistName(value)}
                 maxLength={50}
               />
             </LabeledList.Item>
@@ -142,7 +142,8 @@ const DesignTattooStep = (props) => {
                 fluid
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
-                onChange={(e, value) => tattooDesign = value}
+                value={tattooDesign}
+                onChange={(e, value) => setTattooDesign(value)}
                 maxLength={500}
               />
             </LabeledList.Item>
@@ -204,10 +205,16 @@ const DesignTattooStep = (props) => {
                 fluid
                 icon="check"
                 color="good"
-                onClick={() => act('apply_tattoo', {
-                  artist_name: artistName,
-                  tattoo_design: tattooDesign,
-                })}
+                onClick={() => {
+                  if (!artistName.trim() || !tattooDesign.trim()) {
+                    // You might want to show an error message here
+                    return;
+                  }
+                  act('apply_tattoo', {
+                    artist_name: artistName,
+                    tattoo_design: tattooDesign,
+                  });
+                }}
                 tooltip="Apply the tattoo to the selected body part"
               >
                 Apply Tattoo

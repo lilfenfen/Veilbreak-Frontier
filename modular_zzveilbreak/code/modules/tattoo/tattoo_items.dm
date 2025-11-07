@@ -168,7 +168,7 @@
 				to_chat(user, span_warning("[current_target] doesn't allow body modifications!"))
 				return FALSE
 
-			// Close UI and apply tattoo
+			// Close UI during application
 			if(ui)
 				ui.close()
 
