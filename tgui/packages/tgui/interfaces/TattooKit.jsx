@@ -235,15 +235,6 @@ const DesignTattooStep = (props) => {
                 Apply Tattoo
               </Button>
             </LabeledList.Item>
-            <LabeledList.Item label="Debug Info">
-              <Box color="label" fontSize="0.8em">
-                Artist: '{artist_name}' (len: {artist_name?.length || 0})<br />
-                Design: '{tattoo_design?.substring(0, 50) || ''}' (len: {tattoo_design?.length || 0})<br />
-                Can Apply: {can_apply ? 'YES' : 'NO'}<br />
-                Zone: {selected_zone_name}<br />
-                Layer: {selected_layer}
-              </Box>
-            </LabeledList.Item>
           </LabeledList>
         </Section>
       </Window.Content>
