@@ -45,6 +45,8 @@
 	artist_name = ""
 	tattoo_design = ""
 	selected_layer = 2
+
+	world.log << "TATDAT: Tattoo kit attack - opening UI for [target.name]"
 	ui_interact(user)
 	return TRUE
 
@@ -59,21 +61,27 @@
 		artist_name = ""
 		tattoo_design = ""
 		selected_layer = 2
+		world.log << "TATDAT: Tattoo kit attack_self - opening UI for self"
 		ui_interact(user)
 	else
 		to_chat(user, span_warning("Only humans can use this!"))
 
 /obj/item/tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
+	world.log << "TATDAT: ui_interact called - current_step: [current_step], artist_name: '[artist_name]', tattoo_design: '[tattoo_design]'"
 	ui = SStgui.try_update_ui(user, src, ui)
 	if(!ui)
+		world.log << "TATDAT: Creating new UI instance for TattooKit"
 		ui = new(user, src, "TattooKit", name)
 		ui.open()
+	else
+		world.log << "TATDAT: Updating existing UI instance"
 
 /obj/item/tattoo_kit/ui_data(mob/user)
 	var/list/data = list()
 
 	if(!current_target)
 		current_target = user
+		world.log << "TATDAT: ui_data - current_target was null, set to user"
 
 	data["target_name"] = current_target.name
 	data["ink_uses"] = tattoo_uses
@@ -86,9 +94,14 @@
 	data["tattoo_design"] = tattoo_design
 	data["selected_layer"] = selected_layer
 
-	// Calculate if we can apply the tattoo
-	var/can_apply = (artist_name && length(artist_name) > 0) && (tattoo_design && length(tattoo_design) > 0)
+	// Calculate if we can apply the tattoo with detailed logging
+	var/has_artist = artist_name && length(artist_name) > 0
+	var/has_design = tattoo_design && length(tattoo_design) > 0
+	var/can_apply = has_artist && has_design
+
 	data["can_apply"] = can_apply
+
+	world.log << "TATDAT: ui_data - artist_name: '[artist_name]' (has_artist: [has_artist]), tattoo_design: '[tattoo_design]' (has_design: [has_design]), can_apply: [can_apply]"
 
 	// Get all available body parts with coverage checking
 	var/list/body_parts = list()
@@ -113,8 +126,11 @@
 	return data
 
 /obj/item/tattoo_kit/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
+	world.log << "TATDAT: ui_act START - action: [action], params: [json_encode(params)], current artist_name: '[artist_name]', tattoo_design: '[tattoo_design]'"
+
 	. = ..()
 	if(.)
+		world.log << "TATDAT: ui_act - parent returned TRUE, skipping"
 		return
 
 	var/mob/user = usr
@@ -122,16 +138,16 @@
 	switch(action)
 		if("select_bodypart")
 			var/zone = params["zone"]
+			world.log << "TATDAT: select_bodypart - zone: [zone]"
 			if(!zone || !body_part_exists(current_target, zone))
+				world.log << "TATDAT: select_bodypart - invalid zone"
 				return FALSE
 
-			// Check if body part is covered
 			if(is_bodypart_covered(current_target, zone, user))
 				var/body_part_name = get_body_zone_display_name(zone)
 				to_chat(user, span_warning("[current_target == user ? "Your" : "[current_target]'s"] [body_part_name] is covered! Expose it first."))
 				return FALSE
 
-			// Check tattoo limit
 			var/current_tattoos = current_target.get_tattoos(zone)
 			if(length(current_tattoos) >= max_tattoos_per_part)
 				to_chat(user, span_warning("This body part already has the maximum number of tattoos! (Max: [max_tattoos_per_part])"))
@@ -139,21 +155,27 @@
 
 			selected_zone = zone
 			current_step = "design_tattoo"
+			world.log << "TATDAT: select_bodypart - SUCCESS, selected_zone: [selected_zone], current_step: [current_step]"
 			. = TRUE
 
 		if("update_artist_name")
 			var/name = params["name"]
+			world.log << "TATDAT: update_artist_name - received name: '[name]' (isnull: [isnull(name)])"
 			artist_name = name
+			world.log << "TATDAT: update_artist_name - stored artist_name: '[artist_name]'"
 			. = TRUE
 
 		if("update_tattoo_design")
 			var/design = params["design"]
+			world.log << "TATDAT: update_tattoo_design - received design: '[design]' (isnull: [isnull(design)])"
 			tattoo_design = design
+			world.log << "TATDAT: update_tattoo_design - stored tattoo_design: '[tattoo_design]'"
 			. = TRUE
 
 		if("update_tattoo_layer")
 			var/layer = text2num(params["layer"])
 			selected_layer = sanitize_integer(layer, 1, 3, 2)
+			world.log << "TATDAT: update_tattoo_layer - layer: [layer], selected_layer: [selected_layer]"
 			. = TRUE
 
 		if("change_ink_color")
@@ -168,9 +190,11 @@
 			artist_name = ""
 			tattoo_design = ""
 			selected_layer = 2
+			world.log << "TATDAT: back_to_selection - reset all fields"
 			. = TRUE
 
 		if("apply_tattoo")
+			world.log << "TATDAT: apply_tattoo - artist_name: '[artist_name]', tattoo_design: '[tattoo_design]'"
 			// Final validation
 			if(!artist_name || length(trimtext(artist_name)) == 0 || !tattoo_design || length(trimtext(tattoo_design)) == 0)
 				to_chat(user, span_warning("Please fill in both the artist name and tattoo design!"))
@@ -239,8 +263,12 @@
 
 	// Force UI update after any action
 	if(.)
+		world.log << "TATDAT: ui_act - action [action] returning TRUE, forcing UI update"
 		SStgui.update_uis(src)
+	else
+		world.log << "TATDAT: ui_act - action [action] returning FALSE, no UI update"
 
+	world.log << "TATDAT: ui_act END - artist_name: '[artist_name]', tattoo_design: '[tattoo_design]'"
 	return .
 
 // Helper proc to check if a bodypart is covered by clothing
