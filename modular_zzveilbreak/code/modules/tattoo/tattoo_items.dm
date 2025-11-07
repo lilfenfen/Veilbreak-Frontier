@@ -91,7 +91,7 @@
 			if(!zone || !body_part_exists(current_target, zone))
 				return FALSE
 
-			if(get_location_accessible(current_target, zone))
+			if(!get_location_accessible(current_target, zone))
 				to_chat(user, span_warning("Body part is covered!"))
 				return FALSE
 
