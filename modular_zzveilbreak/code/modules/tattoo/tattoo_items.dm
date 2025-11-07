@@ -20,18 +20,8 @@
 	var/mob/living/carbon/human/current_target
 	/// Current UI step
 	var/current_step = "select_part"
-	/// Temporary artist name during design
-	var/artist_name = ""
-	/// Temporary tattoo design during design
-	var/tattoo_design = ""
 	/// Selected tattoo layer
 	var/selected_layer = 2
-
-/obj/item/tattoo_kit/Initialize(mapload)
-	. = ..()
-	// Initialize state variables
-	artist_name = ""
-	tattoo_design = ""
 
 /obj/item/tattoo_kit/attack(mob/living/carbon/human/target, mob/living/user)
 	if(!istype(target))
@@ -48,8 +38,6 @@
 
 	current_target = target
 	current_step = "select_part"
-	artist_name = ""
-	tattoo_design = ""
 	selected_layer = 2
 
 	world.log << "TATDAT: Tattoo kit attack - opening UI for [target.name]"
@@ -64,8 +52,6 @@
 	if(istype(user, /mob/living/carbon/human))
 		current_target = user
 		current_step = "select_part"
-		artist_name = ""
-		tattoo_design = ""
 		selected_layer = 2
 		world.log << "TATDAT: Tattoo kit attack_self - opening UI for self"
 		ui_interact(user)
@@ -73,7 +59,7 @@
 		to_chat(user, span_warning("Only humans can use this!"))
 
 /obj/item/tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
-	world.log << "TATDAT: ui_interact called - current_step: [current_step], selected_zone: [selected_zone], artist_name: '[artist_name]', tattoo_design: '[tattoo_design]'"
+	world.log << "TATDAT: ui_interact called - current_step: [current_step], selected_zone: [selected_zone]"
 	ui = SStgui.try_update_ui(user, src, ui)
 	if(!ui)
 		world.log << "TATDAT: Creating new UI instance for TattooKit"
@@ -96,16 +82,7 @@
 	data["selected_zone"] = selected_zone
 	data["selected_zone_name"] = get_body_zone_display_name(selected_zone)
 	data["current_step"] = current_step
-	data["artist_name"] = artist_name
-	data["tattoo_design"] = tattoo_design
 	data["selected_layer"] = selected_layer
-
-	// Calculate can_apply properly
-	var/has_artist = (artist_name && length(trimtext(artist_name)) > 0)
-	var/has_design = (tattoo_design && length(trimtext(tattoo_design)) > 0)
-	data["can_apply"] = has_artist && has_design
-
-	world.log << "TATDAT: ui_data - artist_name: '[artist_name]' (has_artist: [has_artist]), tattoo_design: '[tattoo_design]' (has_design: [has_design]), can_apply: [data["can_apply"]]"
 
 	// Get all available body parts with coverage checking
 	var/list/body_parts = list()
@@ -159,38 +136,14 @@
 
 			selected_zone = zone
 			current_step = "design_tattoo"
-			artist_name = ""
-			tattoo_design = ""
 			selected_layer = 2
 			world.log << "TATDAT: select_bodypart - SUCCESS, selected_zone: [selected_zone], current_step: [current_step]"
 			. = TRUE
 
-		if("update_artist_name")
-			var/new_name = params["name"]
-			world.log << "TATDAT: update_artist_name - new_name: '[new_name]'"
-			if(!isnull(new_name))
-				artist_name = sanitize_text(new_name)
-				world.log << "TATDAT: update_artist_name - set to: '[artist_name]'"
-			else
-				artist_name = ""
-				world.log << "TATDAT: update_artist_name - null value, set to empty"
-			. = TRUE
-
-		if("update_tattoo_design")
-			var/new_design = params["design"]
-			world.log << "TATDAT: update_tattoo_design - new_design: '[new_design]'"
-			if(!isnull(new_design))
-				tattoo_design = sanitize_text(new_design)
-				world.log << "TATDAT: update_tattoo_design - set to: '[tattoo_design]'"
-			else
-				tattoo_design = ""
-				world.log << "TATDAT: update_tattoo_design - null value, set to empty"
-			. = TRUE
-
-		if("update_tattoo_layer")
+		if("set_layer")
 			var/layer = text2num(params["layer"])
 			selected_layer = sanitize_integer(layer, 1, 3, 2)
-			world.log << "TATDAT: update_tattoo_layer - layer: [layer], selected_layer: [selected_layer]"
+			world.log << "TATDAT: set_layer - layer: [layer], selected_layer: [selected_layer]"
 			. = TRUE
 
 		if("change_ink_color")
@@ -202,8 +155,6 @@
 
 		if("back_to_selection")
 			current_step = "select_part"
-			artist_name = ""
-			tattoo_design = ""
 			selected_layer = 2
 			world.log << "TATDAT: back_to_selection - reset to selection"
 			. = TRUE
@@ -211,23 +162,20 @@
 		if("apply_tattoo")
 			world.log << "TATDAT: apply_tattoo - STARTING TATTOO APPLICATION PROCESS"
 
-			// Use the stored values from our state
-			var/final_artist = artist_name
-			var/final_design = tattoo_design
+			var/artist_name = params["artist_name"]
+			var/tattoo_design = params["tattoo_design"]
 
-			world.log << "TATDAT: apply_tattoo - STORED VALUES - artist_name: '[final_artist]', tattoo_design: '[final_design]'"
+			world.log << "TATDAT: apply_tattoo - RAW PARAMS - artist_name: '[artist_name]', tattoo_design: '[tattoo_design]'"
 
 			// Handle null values properly
-			if(isnull(final_artist))
-				final_artist = ""
-				world.log << "TATDAT: apply_tattoo - artist_name was null, set to empty string"
-			if(isnull(final_design))
-				final_design = ""
-				world.log << "TATDAT: apply_tattoo - tattoo_design was null, set to empty string"
+			if(isnull(artist_name))
+				artist_name = ""
+			if(isnull(tattoo_design))
+				tattoo_design = ""
 
 			// Use proper string validation
-			var/trimmed_artist = trimtext(final_artist)
-			var/trimmed_design = trimtext(final_design)
+			var/trimmed_artist = trimtext(artist_name)
+			var/trimmed_design = trimtext(tattoo_design)
 
 			world.log << "TATDAT: apply_tattoo - AFTER TRIMMING - trimmed_artist: '[trimmed_artist]' (length: [length(trimmed_artist)]), trimmed_design: '[trimmed_design]' (length: [length(trimmed_design)])"
 
@@ -317,8 +265,6 @@
 
 			// Reset for next use
 			current_step = "select_part"
-			artist_name = ""
-			tattoo_design = ""
 			selected_layer = 2
 			world.log << "TATDAT: apply_tattoo - PROCESS COMPLETED, RESETTING STATE"
 			. = TRUE

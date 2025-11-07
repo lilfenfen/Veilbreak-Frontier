@@ -7,7 +7,7 @@ import {
   Stack,
   TextArea,
 } from 'tgui-core/components';
-import { useBackend } from '../backend';
+import { useBackend, useLocalState } from '../backend';
 import { Window } from '../layouts';
 
 export const TattooKit = (props) => {
@@ -21,15 +21,11 @@ export const TattooKit = (props) => {
     selected_zone,
     selected_zone_name,
     current_step,
-    artist_name = '',
-    tattoo_design = '',
     selected_layer = 2,
-    can_apply = false,
   } = data;
 
   console.log('TATDAT: TattooKit render - current_step:', current_step,
-    'artist_name:', artist_name, 'tattoo_design:', tattoo_design,
-    'can_apply:', can_apply, 'ink_uses:', ink_uses);
+    'ink_uses:', ink_uses);
 
   if (current_step === 'design_tattoo') {
     return <DesignTattooStep />;
@@ -119,15 +115,27 @@ const DesignTattooStep = (props) => {
     target_name,
     ink_color,
     selected_zone_name,
-    artist_name = '',
-    tattoo_design = '',
     selected_layer = 2,
-    can_apply = false,
   } = data;
 
-  console.log('TATDAT: DesignTattooStep render - artist_name:', artist_name,
-    'tattoo_design:', tattoo_design, 'can_apply:', can_apply,
+  // Use local state for form inputs like other TGUI interfaces
+  const [artistName, setArtistName] = useLocalState('artistName', '');
+  const [tattooDesign, setTattooDesign] = useLocalState('tattooDesign', '');
+
+  // Calculate can_apply based on local state
+  const canApply = artistName.trim().length > 0 && tattooDesign.trim().length > 0;
+
+  console.log('TATDAT: DesignTattooStep render - artistName:', artistName,
+    'tattooDesign:', tattooDesign, 'canApply:', canApply,
     'selected_zone_name:', selected_zone_name);
+
+  const handleApply = () => {
+    console.log('TATDAT: Applying tattoo - artist:', artistName, 'design:', tattooDesign);
+    act('apply_tattoo', {
+      artist_name: artistName,
+      tattoo_design: tattooDesign,
+    });
+  };
 
   return (
     <Window width={500} height={600}>
@@ -144,25 +152,19 @@ const DesignTattooStep = (props) => {
             <LabeledList.Item label="Artist Name">
               <Input
                 fluid
-                value={artist_name}
+                value={artistName}
                 placeholder="Enter your name or signature..."
-                onChange={(e, value) => {
-                  console.log('TATDAT: Artist name onChange - value:', value);
-                  act('update_artist_name', { name: value });
-                }}
+                onInput={(e, value) => setArtistName(value)}
                 maxLength={50}
               />
             </LabeledList.Item>
             <LabeledList.Item label="Tattoo Design">
               <TextArea
                 fluid
-                value={tattoo_design}
+                value={tattooDesign}
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
-                onChange={(e, value) => {
-                  console.log('TATDAT: Tattoo design onChange - value:', value);
-                  act('update_tattoo_design', { design: value });
-                }}
+                onInput={(e, value) => setTattooDesign(value)}
                 maxLength={500}
               />
             </LabeledList.Item>
@@ -193,7 +195,7 @@ const DesignTattooStep = (props) => {
                 <Stack.Item>
                   <Button
                     selected={selected_layer === 1}
-                    onClick={() => act('update_tattoo_layer', { layer: 1 })}
+                    onClick={() => act('set_layer', { layer: 1 })}
                     tooltip="Under layer - appears behind other tattoos"
                   >
                     Under
@@ -202,7 +204,7 @@ const DesignTattooStep = (props) => {
                 <Stack.Item>
                   <Button
                     selected={selected_layer === 2}
-                    onClick={() => act('update_tattoo_layer', { layer: 2 })}
+                    onClick={() => act('set_layer', { layer: 2 })}
                     tooltip="Normal layer - standard placement"
                   >
                     Normal
@@ -211,7 +213,7 @@ const DesignTattooStep = (props) => {
                 <Stack.Item>
                   <Button
                     selected={selected_layer === 3}
-                    onClick={() => act('update_tattoo_layer', { layer: 3 })}
+                    onClick={() => act('set_layer', { layer: 3 })}
                     tooltip="Over layer - appears in front of other tattoos"
                   >
                     Over
@@ -223,11 +225,11 @@ const DesignTattooStep = (props) => {
               <Button
                 fluid
                 icon="check"
-                color={can_apply ? 'good' : 'default'}
-                disabled={!can_apply}
-                onClick={() => act('apply_tattoo')}
+                color={canApply ? 'good' : 'default'}
+                disabled={!canApply}
+                onClick={handleApply}
                 tooltip={
-                  can_apply
+                  canApply
                     ? 'Apply the tattoo to the selected body part'
                     : 'Fill in both artist name and tattoo design first'
                 }
@@ -237,9 +239,9 @@ const DesignTattooStep = (props) => {
             </LabeledList.Item>
             <LabeledList.Item label="Debug Info">
               <Box color="label" fontSize="0.8em">
-                Artist: '{artist_name}' (len: {artist_name?.length || 0})<br />
-                Design: '{tattoo_design?.substring(0, 50) || ''}' (len: {tattoo_design?.length || 0})<br />
-                Can Apply: {can_apply ? 'YES' : 'NO'}<br />
+                Artist: '{artistName}' (len: {artistName?.length || 0})<br />
+                Design: '{tattooDesign?.substring(0, 50) || ''}' (len: {tattooDesign?.length || 0})<br />
+                Can Apply: {canApply ? 'YES' : 'NO'}<br />
                 Zone: {selected_zone_name}<br />
                 Layer: {selected_layer}
               </Box>
