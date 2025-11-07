@@ -7,8 +7,9 @@ import {
   Stack,
   TextArea,
 } from 'tgui-core/components';
-import { useBackend, useLocalState } from '../backend';
+import { useBackend } from '../backend';
 import { Window } from '../layouts';
+import { useState } from 'react';
 
 export const TattooKit = (props) => {
   const { act, data } = useBackend();
@@ -118,12 +119,18 @@ const DesignTattooStep = (props) => {
     selected_layer = 2,
   } = data;
 
-  // Use local state for form inputs like other TGUI interfaces
-  const [artistName, setArtistName] = useLocalState('artistName', '');
-  const [tattooDesign, setTattooDesign] = useLocalState('tattooDesign', '');
+  // Use React state for form inputs with proper initialization
+  const [artistName, setArtistName] = useState('');
+  const [tattooDesign, setTattooDesign] = useState('');
 
-  // Calculate can_apply based on local state
-  const canApply = artistName.trim().length > 0 && tattooDesign.trim().length > 0;
+  // Safe calculation of canApply
+  const canApply =
+    artistName &&
+    typeof artistName === 'string' &&
+    artistName.trim().length > 0 &&
+    tattooDesign &&
+    typeof tattooDesign === 'string' &&
+    tattooDesign.trim().length > 0;
 
   console.log('TATDAT: DesignTattooStep render - artistName:', artistName,
     'tattooDesign:', tattooDesign, 'canApply:', canApply,
@@ -132,9 +139,19 @@ const DesignTattooStep = (props) => {
   const handleApply = () => {
     console.log('TATDAT: Applying tattoo - artist:', artistName, 'design:', tattooDesign);
     act('apply_tattoo', {
-      artist_name: artistName,
-      tattoo_design: tattooDesign,
+      artist_name: artistName || '',
+      tattoo_design: tattooDesign || '',
     });
+  };
+
+  const handleArtistChange = (e, value) => {
+    console.log('TATDAT: Artist name change - value:', value);
+    setArtistName(value || '');
+  };
+
+  const handleDesignChange = (e, value) => {
+    console.log('TATDAT: Tattoo design change - value:', value);
+    setTattooDesign(value || '');
   };
 
   return (
@@ -154,7 +171,7 @@ const DesignTattooStep = (props) => {
                 fluid
                 value={artistName}
                 placeholder="Enter your name or signature..."
-                onInput={(e, value) => setArtistName(value)}
+                onChange={handleArtistChange}
                 maxLength={50}
               />
             </LabeledList.Item>
@@ -164,7 +181,7 @@ const DesignTattooStep = (props) => {
                 value={tattooDesign}
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
-                onInput={(e, value) => setTattooDesign(value)}
+                onChange={handleDesignChange}
                 maxLength={500}
               />
             </LabeledList.Item>
