@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   Box,
   Button,
@@ -22,26 +21,18 @@ export const TattooKit = (props) => {
     selected_zone,
     selected_zone_name,
     current_step,
+    artist_name = '',
+    tattoo_design = '',
     selected_layer = 2,
+    can_apply = false,
   } = data;
 
-  // Use React state to manage input values locally (like chemistry examples)
-  const [localArtistName, setLocalArtistName] = useState('');
-  const [localTattooDesign, setLocalTattooDesign] = useState('');
-
   console.log('TATDAT: TattooKit render - current_step:', current_step,
-    'localArtistName:', localArtistName, 'localTattooDesign:', localTattooDesign,
-    'ink_uses:', ink_uses, 'selected_zone:', selected_zone);
+    'artist_name:', artist_name, 'tattoo_design:', tattoo_design,
+    'can_apply:', can_apply, 'ink_uses:', ink_uses);
 
   if (current_step === 'design_tattoo') {
-    return (
-      <DesignTattooStep
-        localArtistName={localArtistName}
-        setLocalArtistName={setLocalArtistName}
-        localTattooDesign={localTattooDesign}
-        setLocalTattooDesign={setLocalTattooDesign}
-      />
-    );
+    return <DesignTattooStep />;
   }
 
   return (
@@ -92,10 +83,7 @@ export const TattooKit = (props) => {
                     part.current_tattoos >= part.max_tattoos ||
                     ink_uses <= 0
                   }
-                  onClick={() => {
-                    console.log('TATDAT: Selecting bodypart:', part.zone);
-                    act('select_bodypart', { zone: part.zone });
-                  }}
+                  onClick={() => act('select_bodypart', { zone: part.zone })}
                   tooltip={
                     part.covered
                       ? 'Body part is covered by clothing - expose it first!'
@@ -128,42 +116,18 @@ export const TattooKit = (props) => {
 const DesignTattooStep = (props) => {
   const { act, data } = useBackend();
   const {
-    localArtistName,
-    setLocalArtistName,
-    localTattooDesign,
-    setLocalTattooDesign,
-  } = props;
-
-  const {
     target_name,
     ink_color,
     selected_zone_name,
+    artist_name = '',
+    tattoo_design = '',
     selected_layer = 2,
+    can_apply = false,
   } = data;
 
-  // Calculate can_apply based on local state (like chemistry examples)
-  const can_apply = localArtistName && localArtistName.trim().length > 0 &&
-                   localTattooDesign && localTattooDesign.trim().length > 0;
-
-  console.log('TATDAT: DesignTattooStep render - localArtistName:', localArtistName,
-    'localTattooDesign:', localTattooDesign, 'can_apply:', can_apply,
-    'selected_zone_name:', selected_zone_name, 'selected_layer:', selected_layer);
-
-  const handleApply = () => {
-    console.log('TATDAT: Applying tattoo with artist:', localArtistName, 'design:', localTattooDesign);
-    // Send both values to the DM in one action (like chemistry examples)
-    act('apply_tattoo', {
-      artist_name: localArtistName,
-      tattoo_design: localTattooDesign,
-    });
-  };
-
-  const handleBack = () => {
-    // Clear local state when going back
-    setLocalArtistName('');
-    setLocalTattooDesign('');
-    act('back_to_selection');
-  };
+  console.log('TATDAT: DesignTattooStep render - artist_name:', artist_name,
+    'tattoo_design:', tattoo_design, 'can_apply:', can_apply,
+    'selected_zone_name:', selected_zone_name);
 
   return (
     <Window width={500} height={600}>
@@ -171,7 +135,7 @@ const DesignTattooStep = (props) => {
         <Section
           title={`Design Tattoo for ${selected_zone_name}`}
           buttons={
-            <Button icon="arrow-left" onClick={handleBack}>
+            <Button icon="arrow-left" onClick={() => act('back_to_selection')}>
               Back
             </Button>
           }
@@ -180,11 +144,11 @@ const DesignTattooStep = (props) => {
             <LabeledList.Item label="Artist Name">
               <Input
                 fluid
-                value={localArtistName}
+                value={artist_name}
                 placeholder="Enter your name or signature..."
                 onChange={(e, value) => {
-                  console.log('TATDAT: Artist name changed to:', value);
-                  setLocalArtistName(value);
+                  console.log('TATDAT: Artist name onChange - value:', value);
+                  act('update_artist_name', { name: value });
                 }}
                 maxLength={50}
               />
@@ -192,12 +156,12 @@ const DesignTattooStep = (props) => {
             <LabeledList.Item label="Tattoo Design">
               <TextArea
                 fluid
-                value={localTattooDesign}
+                value={tattoo_design}
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
                 onChange={(e, value) => {
-                  console.log('TATDAT: Tattoo design changed to:', value);
-                  setLocalTattooDesign(value);
+                  console.log('TATDAT: Tattoo design onChange - value:', value);
+                  act('update_tattoo_design', { design: value });
                 }}
                 maxLength={500}
               />
@@ -229,10 +193,7 @@ const DesignTattooStep = (props) => {
                 <Stack.Item>
                   <Button
                     selected={selected_layer === 1}
-                    onClick={() => {
-                      console.log('TATDAT: Setting layer to 1');
-                      act('update_tattoo_layer', { layer: 1 });
-                    }}
+                    onClick={() => act('update_tattoo_layer', { layer: 1 })}
                     tooltip="Under layer - appears behind other tattoos"
                   >
                     Under
@@ -241,10 +202,7 @@ const DesignTattooStep = (props) => {
                 <Stack.Item>
                   <Button
                     selected={selected_layer === 2}
-                    onClick={() => {
-                      console.log('TATDAT: Setting layer to 2');
-                      act('update_tattoo_layer', { layer: 2 });
-                    }}
+                    onClick={() => act('update_tattoo_layer', { layer: 2 })}
                     tooltip="Normal layer - standard placement"
                   >
                     Normal
@@ -253,10 +211,7 @@ const DesignTattooStep = (props) => {
                 <Stack.Item>
                   <Button
                     selected={selected_layer === 3}
-                    onClick={() => {
-                      console.log('TATDAT: Setting layer to 3');
-                      act('update_tattoo_layer', { layer: 3 });
-                    }}
+                    onClick={() => act('update_tattoo_layer', { layer: 3 })}
                     tooltip="Over layer - appears in front of other tattoos"
                   >
                     Over
@@ -270,7 +225,7 @@ const DesignTattooStep = (props) => {
                 icon="check"
                 color={can_apply ? 'good' : 'default'}
                 disabled={!can_apply}
-                onClick={handleApply}
+                onClick={() => act('apply_tattoo')}
                 tooltip={
                   can_apply
                     ? 'Apply the tattoo to the selected body part'
@@ -282,8 +237,8 @@ const DesignTattooStep = (props) => {
             </LabeledList.Item>
             <LabeledList.Item label="Debug Info">
               <Box color="label" fontSize="0.8em">
-                Artist: '{localArtistName}' (len: {localArtistName?.length || 0})<br />
-                Design: '{localTattooDesign?.substring(0, 50) || ''}' (len: {localTattooDesign?.length || 0})<br />
+                Artist: '{artist_name}' (len: {artist_name?.length || 0})<br />
+                Design: '{tattoo_design?.substring(0, 50) || ''}' (len: {tattoo_design?.length || 0})<br />
                 Can Apply: {can_apply ? 'YES' : 'NO'}<br />
                 Zone: {selected_zone_name}<br />
                 Layer: {selected_layer}
