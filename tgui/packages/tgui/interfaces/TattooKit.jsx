@@ -9,6 +9,7 @@ import {
 } from 'tgui-core/components';
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
+import { useState, useEffect } from 'react';
 
 export const TattooKit = (props) => {
   const { act, data } = useBackend();
@@ -116,13 +117,22 @@ const DesignTattooStep = (props) => {
     selected_layer = 2,
   } = data || {};
 
-  // Calculate can_apply based on current data state (if we had stored the values)
-  // For now, we'll let the backend handle validation
-  const canApply = true; // Temporary - let backend validate
+  // Use local state to track the form values
+  const [artistName, setArtistName] = useState('');
+  const [tattooDesign, setTattooDesign] = useState('');
+
+  // Calculate if we can apply based on local state
+  const canApply = artistName.trim().length > 0 && tattooDesign.trim().length > 0;
+
+  console.log('TATDAT: DesignTattooStep render - artistName:', artistName, 'tattooDesign:', tattooDesign, 'canApply:', canApply);
 
   const handleApply = () => {
-    // The artist_name and tattoo_design will be sent via onBlur in the inputs
-    act('apply_tattoo');
+    console.log('TATDAT: Applying tattoo - artist:', artistName, 'design:', tattooDesign);
+    // Send both values directly in the apply_tattoo action
+    act('apply_tattoo', {
+      artist_name: artistName,
+      tattoo_design: tattooDesign,
+    });
   };
 
   return (
@@ -140,17 +150,19 @@ const DesignTattooStep = (props) => {
             <LabeledList.Item label="Artist Name">
               <Input
                 fluid
+                value={artistName}
                 placeholder="Enter your name or signature..."
-                onBlur={(e, value) => act('set_artist_name', { value })}
+                onChange={(e, value) => setArtistName(value)}
                 maxLength={50}
               />
             </LabeledList.Item>
             <LabeledList.Item label="Tattoo Design">
               <TextArea
                 fluid
+                value={tattooDesign}
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
-                onBlur={(e, value) => act('set_tattoo_design', { value })}
+                onChange={(e, value) => setTattooDesign(value)}
                 maxLength={500}
               />
             </LabeledList.Item>
@@ -211,9 +223,14 @@ const DesignTattooStep = (props) => {
               <Button
                 fluid
                 icon="check"
-                color="good"
+                color={canApply ? 'good' : 'default'}
+                disabled={!canApply}
                 onClick={handleApply}
-                tooltip="Apply the tattoo to the selected body part"
+                tooltip={
+                  canApply
+                    ? 'Apply the tattoo to the selected body part'
+                    : 'Fill in both artist name and tattoo design first'
+                }
               >
                 Apply Tattoo
               </Button>
