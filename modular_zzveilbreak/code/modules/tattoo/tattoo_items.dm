@@ -23,18 +23,22 @@
 	if(!istype(target))
 		return ..()
 
+	// Prevent using the kit on yourself if you're holding it in your hand.
+	if(target == user)
+		return ..()
+
 	if(tattoo_uses <= 0)
 		to_chat(user, span_warning("This tattoo kit is out of ink!"))
-		return TRUE
+		return TRUE // Stop further processing
 
 	if(!target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
 		to_chat(user, span_warning("[target] doesn't allow body modifications!"))
-		return TRUE
+		return TRUE // Stop further processing
 
 	current_target = target
 	current_step = "select_part"
 	ui_interact(user)
-	return TRUE
+	return TRUE // Stop further processing
 
 /obj/item/tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
     // Standard TGUI initialization pattern [citation:2]
@@ -42,6 +46,12 @@
     if(!ui)
         ui = new(user, src, "TattooKit", name)
         ui.open()
+
+/obj/item/tattoo_kit/ui_close(mob/user, datum/tgui/ui)
+	// Clear the target when the UI is closed to prevent applying tattoos to the wrong person later.
+	current_target = null
+	current_step = "select_part"
+	return ..()
 
 /obj/item/tattoo_kit/ui_data(mob/user)
 	var/list/data = list()
@@ -123,11 +133,6 @@
 			var/artist_name = params["artist_name"]
 			var/tattoo_design = params["tattoo_design"]
 
-			// Debug logging - crucial for troubleshooting
-			world.log << "TATTOO_DEBUG: apply_tattoo called"
-			world.log << "TATTOO_DEBUG: artist_name = [artist_name]"
-			world.log << "TATTOO_DEBUG: tattoo_design = [tattoo_design]"
-
 			// Validation
 			if(!artist_name || !tattoo_design)
 				to_chat(user, span_warning("Missing data!"))
@@ -135,6 +140,10 @@
 
 			var/trimmed_artist = trimtext(artist_name)
 			var/trimmed_design = trimtext(tattoo_design)
+
+			if(length(trimmed_artist) > 50 || length(trimmed_design) > 280)
+				to_chat(user, span_warning("Artist name or design is too long."))
+				return FALSE
 
 			if(!length(trimmed_artist) || !length(trimmed_design))
 				to_chat(user, span_warning("Please fill in all fields!"))
@@ -144,6 +153,10 @@
 			if(do_after(user, 8 SECONDS, target = current_target))
 				var/sanitized_artist = sanitize_text(trimmed_artist)
 				var/sanitized_design = sanitize_text(trimmed_design)
+
+				if(!current_target || current_target.disposed || !user.Adjacent(current_target))
+					to_chat(user, span_warning("Your target is no longer in range."))
+					return
 
 				var/datum/tattoo/new_tattoo = new(
 					sanitized_artist,
