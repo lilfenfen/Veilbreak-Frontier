@@ -17,6 +17,10 @@
 	var/current_step = "select_part"
 	var/selected_layer = TATTOO_LAYER_NORMAL
 
+	// FORM STATE - Managed by backend
+	var/artist_name = ""
+	var/tattoo_design = ""
+
 /obj/item/tattoo_kit/attack(mob/living/carbon/human/target, mob/living/user)
 	if(!istype(target))
 		return ..()
@@ -33,6 +37,8 @@
 	current_step = "select_part"
 	selected_zone = BODY_ZONE_CHEST
 	selected_layer = TATTOO_LAYER_NORMAL
+	artist_name = ""
+	tattoo_design = ""
 
 	ui_interact(user)
 	return TRUE
@@ -55,6 +61,8 @@
 		data["selected_zone_name"] = "Unknown"
 		data["current_step"] = current_step
 		data["selected_layer"] = selected_layer
+		data["artist_name"] = artist_name
+		data["tattoo_design"] = tattoo_design
 		data["body_parts"] = list()
 		return data
 
@@ -66,6 +74,8 @@
 	data["selected_zone_name"] = get_body_zone_display_name(selected_zone)
 	data["current_step"] = current_step
 	data["selected_layer"] = selected_layer
+	data["artist_name"] = artist_name
+	data["tattoo_design"] = tattoo_design
 
 	var/list/body_parts = list()
 	var/list/all_parts = get_all_available_body_parts(current_target)
@@ -111,6 +121,8 @@
 
 			selected_zone = zone
 			current_step = "design_tattoo"
+			artist_name = ""
+			tattoo_design = ""
 			. = TRUE
 
 		if("set_layer")
@@ -128,17 +140,28 @@
 
 		if("back_to_selection")
 			current_step = "select_part"
+			artist_name = ""
+			tattoo_design = ""
 			. = TRUE
 
-		if("apply_tattoo")
-			var/artist_name = params["artist"]
-			var/tattoo_design = params["design"]
+		if("update_artist")
+			var/new_artist = params["artist"]
+			if(istext(new_artist))
+				artist_name = sanitize_text(new_artist)
+				. = TRUE
 
-			if(!artist_name || !istext(artist_name) || artist_name == "")
+		if("update_design")
+			var/new_design = params["design"]
+			if(istext(new_design))
+				tattoo_design = sanitize_text(new_design)
+				. = TRUE
+
+		if("apply_tattoo")
+			if(!artist_name || artist_name == "")
 				to_chat(user, span_warning("Please enter a valid artist name!"))
 				return FALSE
 
-			if(!tattoo_design || !istext(tattoo_design) || tattoo_design == "")
+			if(!tattoo_design || tattoo_design == "")
 				to_chat(user, span_warning("Please enter a valid tattoo design description!"))
 				return FALSE
 
@@ -218,6 +241,8 @@
 				to_chat(user, span_warning("Tattoo application interrupted!"))
 
 			current_step = "select_part"
+			artist_name = ""
+			tattoo_design = ""
 			. = TRUE
 
 	return .

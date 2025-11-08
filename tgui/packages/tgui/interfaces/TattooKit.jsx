@@ -9,12 +9,11 @@ import {
 } from 'tgui-core/components';
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
-import { useState, useEffect } from 'react';
 
 export const TattooKit = (props) => {
   const { act, data } = useBackend();
 
-  // Safe destructuring with defaults
+  // All data comes from backend - NO LOCAL STATE
   const {
     target_name = "Unknown",
     ink_uses = 0,
@@ -24,45 +23,15 @@ export const TattooKit = (props) => {
     current_step = "select_part",
     selected_zone_name = "Unknown",
     selected_layer = 2,
+    artist_name = "",
+    tattoo_design = "",
   } = data || {};
 
-  // Local state for design step - ONLY for form inputs
-  const [artistName, setArtistName] = useState('');
-  const [tattooDesign, setTattooDesign] = useState('');
-
-  // SIMPLE, RELIABLE validation that ONLY depends on local state
-  const canApply = artistName.trim().length > 0 && tattooDesign.trim().length > 0;
-
-  const handleApplyTattoo = () => {
-    if (!canApply) {
-      return;
-    }
-
-    act('apply_tattoo', {
-      artist: artistName.trim(),
-      design: tattooDesign.trim(),
-    });
-
-    // Clear form immediately
-    setArtistName('');
-    setTattooDesign('');
-  };
-
-  const handleArtistChange = (e, value) => {
-    setArtistName(value || '');
-  };
-
-  const handleDesignChange = (e, value) => {
-    setTattooDesign(value || '');
-  };
-
-  // Reset form when step changes
-  useEffect(() => {
-    if (current_step === 'select_part') {
-      setArtistName('');
-      setTattooDesign('');
-    }
-  }, [current_step]);
+  // Calculate canApply using ONLY backend data
+  const canApply = current_step === 'design_tattoo'
+    && artist_name.trim().length > 0
+    && tattoo_design.trim().length > 0
+    && ink_uses > 0;
 
   if (current_step === 'design_tattoo') {
     return (
@@ -73,11 +42,7 @@ export const TattooKit = (props) => {
             buttons={
               <Button
                 icon="arrow-left"
-                onClick={() => {
-                  setArtistName('');
-                  setTattooDesign('');
-                  act('back_to_selection');
-                }}
+                onClick={() => act('back_to_selection')}
               >
                 Back
               </Button>
@@ -88,8 +53,8 @@ export const TattooKit = (props) => {
                 <Input
                   fluid
                   placeholder="Enter your name or signature..."
-                  value={artistName}
-                  onChange={handleArtistChange}
+                  value={artist_name}
+                  onChange={(e, value) => act('update_artist', { artist: value })}
                   maxLength={50}
                 />
               </LabeledList.Item>
@@ -98,8 +63,8 @@ export const TattooKit = (props) => {
                   fluid
                   height="150px"
                   placeholder="Describe the tattoo design in detail. Be creative!"
-                  value={tattooDesign}
-                  onChange={handleDesignChange}
+                  value={tattoo_design}
+                  onChange={(e, value) => act('update_design', { design: value })}
                   maxLength={500}
                 />
               </LabeledList.Item>
@@ -162,18 +127,16 @@ export const TattooKit = (props) => {
                 <Button
                   fluid
                   icon="check"
-                  color={canApply && ink_uses > 0 ? "good" : "bad"}
-                  disabled={!canApply || ink_uses <= 0}
-                  onClick={handleApplyTattoo}
+                  color={canApply ? "good" : "bad"}
+                  disabled={!canApply}
+                  onClick={() => act('apply_tattoo')}
                   tooltip={
                     !canApply
-                      ? "Fill out artist name and tattoo design"
-                      : ink_uses <= 0
-                        ? "No ink available"
-                        : "Apply the tattoo to the selected body part"
+                      ? `${ink_uses <= 0 ? 'No ink available' : 'Fill out artist name and tattoo design'}`
+                      : "Apply the tattoo to the selected body part"
                   }
                 >
-                  {canApply && ink_uses > 0 ? "Apply Tattoo" : `Apply Tattoo${ink_uses <= 0 ? ' (No Ink)' : ''}`}
+                  {canApply ? "Apply Tattoo" : `Apply Tattoo${ink_uses <= 0 ? ' (No Ink)' : ''}`}
                 </Button>
               </LabeledList.Item>
             </LabeledList>
