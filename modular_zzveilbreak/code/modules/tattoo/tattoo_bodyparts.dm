@@ -5,7 +5,6 @@ GLOBAL_LIST_INIT(tattooable_body_parts, populate_tattooable_body_parts())
 GLOBAL_LIST_INIT(tattoo_blacklist, list(
 	BODY_ZONE_PRECISE_EYES,
 	BODY_ZONE_PRECISE_MOUTH,
-	// Add more blacklisted zones here as needed
 ))
 
 /proc/populate_tattooable_body_parts()
@@ -37,19 +36,8 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 		if(!(zone in parts) && !(zone in GLOB.tattoo_blacklist))
 			parts |= zone
 
-	// ADD THE ORGAN SLOTS AS TATTOOABLE BODY PARTS
-	var/list/organ_slots = list(
-		ORGAN_SLOT_BELLY = "stomach",
-		ORGAN_SLOT_BUTT = "butt", // CHANGED: backside -> butt
-		ORGAN_SLOT_EXTERNAL_TAIL = "tail",
-		ORGAN_SLOT_EXTERNAL_SPINES = "spines",
-		ORGAN_SLOT_EXTERNAL_FRILLS = "frills",
-		ORGAN_SLOT_EXTERNAL_HORNS = "horns",
-		ORGAN_SLOT_EXTERNAL_WINGS = "wings",
-		ORGAN_SLOT_WINGS = "wings",
-	)
-
-	for(var/organ_slot in organ_slots)
+	// Add the organ slots as tattooable body parts
+	for(var/organ_slot in TATTOOABLE_ORGAN_SLOTS)
 		if(!(organ_slot in parts) && !(organ_slot in GLOB.tattoo_blacklist))
 			parts |= organ_slot
 
@@ -60,6 +48,34 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 	return parts
 
 /proc/get_body_zone_display_name(body_zone)
+	if(!body_zone)
+		return "Unknown"
+
+	// Handle organ slots first
+	switch(body_zone)
+		if(ORGAN_SLOT_PENIS)
+			return "Penis"
+		if(ORGAN_SLOT_WOMB)
+			return "Womb"
+		if(ORGAN_SLOT_VAGINA)
+			return "Vagina"
+		if(ORGAN_SLOT_TESTICLES)
+			return "Testicles"
+		if(ORGAN_SLOT_BREASTS)
+			return "Breasts"
+		if(ORGAN_SLOT_ANUS)
+			return "Anus"
+		if(ORGAN_SLOT_NIPPLES)
+			return "Nipples"
+		if(ORGAN_SLOT_TAIL)
+			return "Tail"
+		if(ORGAN_SLOT_SLIT)
+			return "Slit"
+		if(ORGAN_SLOT_SHEATH)
+			return "Sheath"
+		if(ORGAN_SLOT_WINGS)
+			return "Wings"
+
 	var/name = ""
 	switch(body_zone)
 		if(BODY_ZONE_HEAD) name = "Head"
@@ -73,15 +89,6 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 		if(BODY_ZONE_PRECISE_L_FOOT) name = "Left Foot"
 		if(BODY_ZONE_PRECISE_R_FOOT) name = "Right Foot"
 		if(BODY_ZONE_PRECISE_GROIN) name = "Groin"
-		// ADD THE ORGAN SLOT DISPLAY NAMES
-		if(ORGAN_SLOT_BELLY) name = "Stomach"
-		if(ORGAN_SLOT_BUTT) name = "Butt" // CHANGED: Backside -> Butt
-		if(ORGAN_SLOT_EXTERNAL_TAIL) name = "Tail"
-		if(ORGAN_SLOT_EXTERNAL_SPINES) name = "Spines"
-		if(ORGAN_SLOT_EXTERNAL_FRILLS) name = "Frills"
-		if(ORGAN_SLOT_EXTERNAL_HORNS) name = "Horns"
-		if(ORGAN_SLOT_EXTERNAL_WINGS) name = "Wings"
-		if(ORGAN_SLOT_WINGS) name = "Wings"
 		else
 			// For any custom body zones, format the text nicely
 			name = replacetext(replacetext("[body_zone]", "BODY_ZONE_", ""), "_", " ")
@@ -147,3 +154,21 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 		return TRUE
 
 	return FALSE
+
+// Special accessibility check for organ slots
+/proc/get_tattoo_location_accessible(mob/living/carbon/human/H, body_zone)
+	if(!istype(H) || !body_zone)
+		return FALSE
+
+	// For organ slots, we need special handling since they're not standard body parts
+	if(body_zone in TATTOOABLE_ORGAN_SLOTS)
+		var/obj/item/organ/organ = H.get_organ_slot(body_zone)
+		if(!organ)
+			return FALSE
+
+		// For external organs, check if they're covered by clothing
+		// This is a simplified check - assume external organs are visible unless specifically covered
+		return TRUE
+
+	// For standard body parts, use the existing function
+	return get_location_accessible(H, body_zone)
