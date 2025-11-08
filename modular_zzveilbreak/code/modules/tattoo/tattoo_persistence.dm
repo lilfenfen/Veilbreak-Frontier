@@ -1,3 +1,5 @@
+// Tattoo persistence and preferences handling
+
 /datum/preferences/proc/save_tattoo_data(list/save_data)
 	if(!parent?.mob)
 		return
@@ -91,6 +93,7 @@
 	features["tattoos"] = loaded_tattoos
 	features["tattoos_data"] = tattoo_data
 
+// Add this proc to the preferences system to apply saved tattoos to a mob
 /datum/preferences/proc/apply_tattoos_to_mob(mob/living/carbon/human/H)
 	if(!istype(H) || !features["tattoos"])
 		return

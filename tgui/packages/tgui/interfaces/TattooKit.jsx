@@ -53,10 +53,13 @@ export const TattooKit = (props) => {
     preview_text,
   } = data;
 
+  // Calculate if we can apply based on current data state
+  const canApply = artist_name?.trim() && tattoo_design?.trim();
+
   return (
     <Window
       width={720}
-      height={800} // Increased height to accommodate layout
+      height={800}
       theme="grey"
       resizable
     >
@@ -111,18 +114,13 @@ export const TattooKit = (props) => {
             selectedLayer={selected_layer}
             selectedFont={selected_font}
             previewText={preview_text}
+            canApply={canApply}
             onBack={() => act('back_to_selection')}
-            onApply={() => act('apply_tattoo', {
-              artist: artist_name,
-              design: tattoo_design,
-              layer: selected_layer,
-              font: selected_font,
-            })}
-            onSetArtist={(name) => act('set_artist_name', { value: name })}
-            onSetDesign={(design) => act('set_tattoo_design', { value: design })}
-            onSetLayer={(layer) => act('set_layer', { layer: layer })}
-            onSetFont={(font) => act('set_font', { font: font })}
-            canApply={artist_name?.trim() && tattoo_design?.trim()}
+            onApply={() => act('apply_tattoo')}
+            onSetArtist={(value) => act('set_artist_name', { value })}
+            onSetDesign={(value) => act('set_tattoo_design', { value })}
+            onSetLayer={(layer) => act('set_layer', { layer })}
+            onSetFont={(font) => act('set_font', { font })}
           />
         )}
       </Window.Content>
@@ -174,13 +172,13 @@ const TattooDesign = (props: {
   selectedLayer: number;
   selectedFont: string;
   previewText: string;
+  canApply: boolean;
   onBack: () => void;
   onApply: () => void;
-  onSetArtist: (name: string) => void;
-  onSetDesign: (design: string) => void;
+  onSetArtist: (value: string) => void;
+  onSetDesign: (value: string) => void;
   onSetLayer: (layer: number) => void;
   onSetFont: (font: string) => void;
-  canApply: boolean;
 }) => {
   const {
     selectedZone,
@@ -189,13 +187,13 @@ const TattooDesign = (props: {
     selectedLayer,
     selectedFont,
     previewText,
+    canApply,
     onBack,
     onApply,
     onSetArtist,
     onSetDesign,
     onSetLayer,
     onSetFont,
-    canApply,
   } = props;
 
   const layerOptions = [
@@ -223,7 +221,7 @@ const TattooDesign = (props: {
                   <LabeledList.Item label="Artist Name">
                     <Input
                       fluid
-                      value={artistName}
+                      value={artistName || ''}
                       placeholder="Enter artist name or use %s for your signature..."
                       onChange={(e, value) => onSetArtist(value)}
                       maxLength={50}
@@ -271,52 +269,58 @@ const TattooDesign = (props: {
           </Stack>
         </Stack.Item>
 
-        {/* Tattoo Design Input - Fixed layout */}
+        {/* Tattoo Design Input */}
         <Stack.Item>
           <Section title="Tattoo Design Description">
             <Input
               textArea
               fluid
               height="120px"
-              value={tattooDesign}
+              value={tattooDesign || ''}
               placeholder="Describe the tattoo design in detail. Be creative! You can include symbols, patterns, text, emojis, or any other elements you want in your tattoo. Maximum 500 characters."
               onChange={(e, value) => onSetDesign(value)}
               maxLength={500}
             />
             <Box mt={1} textAlign="right">
-              Characters: {tattooDesign?.length || 0}/500
+              Characters: {(tattooDesign || '').length}/500
             </Box>
           </Section>
         </Stack.Item>
 
-        {/* Preview Section - Fixed background and text visibility */}
+        {/* Preview Section */}
         <Stack.Item>
           <Section title="Preview (Shows all tattoos on this body part)">
             <Box
               style={{
                 'border': '2px solid #555',
                 'padding': '0.75rem',
-                'background': 'rgba(100,100,100,0.8)', // Grey background for contrast
+                'background': 'rgba(80,80,80,0.9)', // Dark grey background
                 'min-height': '120px',
                 'border-radius': '4px',
-                'color': '#ffffff', // White text for readability
               }}
-              dangerouslySetInnerHTML={{
-                __html: previewText || '<span style="color: #cccccc;">Enter tattoo details to see preview...</span>',
-              }}
-            />
+            >
+              <Box
+                style={{
+                  'color': '#ffffff', // White text for contrast
+                  'min-height': '100px',
+                }}
+                dangerouslySetInnerHTML={{
+                  __html: previewText || '<span style="color: #cccccc;">Enter tattoo details to see preview...</span>',
+                }}
+              />
+            </Box>
             <Box mt={1} fontSize="0.8rem" color="label">
               This preview shows how all tattoos on this body part will appear when examined, including layer ordering.
             </Box>
           </Section>
         </Stack.Item>
 
-        {/* Apply Button - Fixed condition */}
+        {/* Apply Button */}
         <Stack.Item>
           <Button
             fluid
             icon="check"
-            color="good"
+            color={canApply ? "good" : "bad"}
             fontSize="16px"
             py={1}
             disabled={!canApply}
@@ -330,7 +334,10 @@ const TattooDesign = (props: {
               'margin-top': '4px',
             }}
           >
-            APPLY TATTOO TO {selectedZone.toUpperCase()}
+            {canApply
+              ? `APPLY TATTOO TO ${selectedZone.toUpperCase()}`
+              : 'FILL IN ARTIST NAME AND DESIGN'
+            }
           </Button>
         </Stack.Item>
       </Stack>

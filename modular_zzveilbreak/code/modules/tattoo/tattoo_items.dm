@@ -165,33 +165,28 @@
 
 		if("set_artist_name")
 			var/new_name = params["value"]
-			if(new_name)
+			if(!isnull(new_name))
 				artist_name = sanitize_text(new_name)
 				. = TRUE
 
 		if("set_tattoo_design")
 			var/new_design = params["value"]
-			if(new_design)
+			if(!isnull(new_design))
 				tattoo_design = sanitize_text(new_design)
 				. = TRUE
 
 		if("apply_tattoo")
-			var/artist_name_param = params["artist"]
-			var/tattoo_design_param = params["design"]
-			var/layer_param = text2num(params["layer"])
-			var/font_param = params["font"]
-
-			// Enhanced validation like fax machine
-			if(!artist_name_param || !istext(artist_name_param) || artist_name_param == "")
+			// Use the current state values instead of params
+			if(!artist_name || !istext(artist_name) || artist_name == "")
 				to_chat(user, span_warning("Please enter a valid artist name!"))
 				return FALSE
 
-			if(!tattoo_design_param || !istext(tattoo_design_param) || tattoo_design_param == "")
+			if(!tattoo_design || !istext(tattoo_design) || tattoo_design == "")
 				to_chat(user, span_warning("Please enter a valid tattoo design description!"))
 				return FALSE
 
-			var/trimmed_artist = trimtext(artist_name_param)
-			var/trimmed_design = trimtext(tattoo_design_param)
+			var/trimmed_artist = trimtext(artist_name)
+			var/trimmed_design = trimtext(tattoo_design)
 
 			if(!length(trimmed_artist))
 				to_chat(user, span_warning("Artist name cannot be empty or just spaces!"))
@@ -254,8 +249,8 @@
 
 				var/sanitized_artist = sanitize_text(final_artist)
 				var/sanitized_design = sanitize_text(trimmed_design)
-				var/sanitized_layer = sanitize_integer(layer_param, TATTOO_LAYER_UNDER, TATTOO_LAYER_OVER, selected_layer)
-				var/sanitized_font = (font_param in GLOB.tattoo_fonts) ? font_param : selected_font
+				var/sanitized_layer = selected_layer
+				var/sanitized_font = selected_font
 
 				var/datum/tattoo/new_tattoo = new(sanitized_artist, sanitized_design, selected_zone, ink_color, sanitized_layer, is_signature, sanitized_font)
 
