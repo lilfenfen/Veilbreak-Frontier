@@ -98,9 +98,9 @@ const DesignTattooStep = (props) => {
   const [tattooDesign, setTattooDesign] = useState('');
 
   const handleApplyTattoo = () => {
-    // Trim values before sending
-    const trimmedArtist = artistName.trim();
-    const trimmedDesign = tattooDesign.trim();
+    // FIXED: Proper null checking before calling trim()
+    const trimmedArtist = artistName ? artistName.trim() : '';
+    const trimmedDesign = tattooDesign ? tattooDesign.trim() : '';
 
     // Validate
     if (!trimmedArtist) {
@@ -134,7 +134,7 @@ const DesignTattooStep = (props) => {
                 fluid
                 placeholder="Enter your name or signature..."
                 value={artistName}
-                onChange={(e, value) => setArtistName(value)}
+                onChange={(e, value) => setArtistName(value || '')}
                 maxLength={50}
               />
             </LabeledList.Item>
@@ -144,7 +144,7 @@ const DesignTattooStep = (props) => {
                 height="150px"
                 placeholder="Describe the tattoo design in detail. Be creative!"
                 value={tattooDesign}
-                onChange={(e, value) => setTattooDesign(value)}
+                onChange={(e, value) => setTattooDesign(value || '')}
                 maxLength={500}
               />
             </LabeledList.Item>
@@ -194,7 +194,6 @@ const DesignTattooStep = (props) => {
               </Stack>
             </LabeledList.Item>
             <LabeledList.Item>
-              {/* FIXED: Use the handler function with correct parameter names */}
               <Button
                 fluid
                 icon="check"
