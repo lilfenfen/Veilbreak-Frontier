@@ -22,8 +22,6 @@ export const TattooKit = (props) => {
     ink_color = "#000000",
     body_parts = [],
     current_step = "select_part",
-    selected_zone_name = "Unknown",
-    selected_layer = 2,
   } = data || {};
 
   if (current_step === 'design_tattoo') {

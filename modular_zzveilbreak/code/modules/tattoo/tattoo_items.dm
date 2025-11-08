@@ -17,12 +17,6 @@
 	var/current_step = "select_part"
 	var/selected_layer = TATTOO_LAYER_NORMAL
 
-/obj/item/tattoo_kit/proc/reset_ui_state()
-	selected_zone = BODY_ZONE_CHEST
-	current_step = "select_part"
-	selected_layer = TATTOO_LAYER_NORMAL
-	current_target = null
-
 /obj/item/tattoo_kit/attack(mob/living/carbon/human/target, mob/living/user)
 	if(!istype(target))
 		return ..()
@@ -37,6 +31,9 @@
 
 	current_target = target
 	current_step = "select_part"
+	selected_zone = BODY_ZONE_CHEST
+	selected_layer = TATTOO_LAYER_NORMAL
+
 	ui_interact(user)
 	return TRUE
 
@@ -46,15 +43,8 @@
 		ui = new(user, src, "TattooKit", name)
 		ui.open()
 
-/obj/item/tattoo_kit/ui_close(mob/user, datum/tgui/ui)
-	reset_ui_state()
-	return ..()
-
 /obj/item/tattoo_kit/ui_data(mob/user)
 	var/list/data = list()
-
-	if(!current_target && istype(user, /mob/living/carbon/human))
-		current_target = user
 
 	if(!current_target)
 		data["target_name"] = "No target"
