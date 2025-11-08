@@ -8,8 +8,8 @@
 /datum/preference/toggle/allow_bodywriting/apply_to_client(client/client, value)
 	return TRUE
 
-// Ensure the preference is properly registered
-/hook/startup/proc/register_tattoo_preference()
-	if(!GLOB.preference_entries[/datum/preference/toggle/allow_bodywriting])
-		GLOB.preference_entries[/datum/preference/toggle/allow_bodywriting] = new /datum/preference/toggle/allow_bodywriting
-	return TRUE
+// Custom Tattoo Storage Preference
+/datum/preference/text_list/custom_tattoos
+	category = PREFERENCE_CATEGORY_NON_CONTEXTUAL
+	savefile_identifier = PREFERENCE_CHARACTER
+	savefile_key = "custom_tattoos"

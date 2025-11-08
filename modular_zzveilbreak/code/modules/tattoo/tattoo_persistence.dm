@@ -1,6 +1,6 @@
-// Tattoo persistence and preferences handling
+// Custom Tattoo persistence - COMPLETELY SEPARATE from prison/memory tattoos
 
-/datum/preferences/proc/save_tattoo_data(list/save_data)
+/datum/preferences/proc/save_custom_tattoo_data()
 	if(!parent?.mob)
 		return
 
@@ -9,9 +9,9 @@
 		return
 
 	var/list/tattoo_data = list()
-	for(var/datum/tattoo/T as anything in H.body_tattoos)
+	for(var/datum/custom_tattoo/T as anything in H.custom_body_tattoos)
 		if(istype(T) && !QDELETED(T))
-			var/body_part_description = get_specific_body_part_description(T.body_part)
+			var/body_part_description = get_custom_tattoo_body_part_description(T.body_part)
 
 			tattoo_data += list(list(
 				"artist" = T.artist,
@@ -24,18 +24,14 @@
 				"font" = T.font
 			))
 
-	save_data["tattoos_data"] = tattoo_data
-	features["tattoos_data"] = tattoo_data
-	features["tattoos"] = H.body_tattoos.Copy()
+	// Save to a completely separate key
+	write_preference(GLOB.preference_entries[/datum/preference/text_list/custom_tattoos], tattoo_data)
 
-/datum/preferences/proc/load_tattoo_data(list/save_data)
+/datum/preferences/proc/load_custom_tattoo_data()
 	if(!features)
 		features = list()
 
-	features["tattoos"] = list()
-	features["tattoos_data"] = list()
-
-	var/list/tattoo_data = save_data?["tattoos_data"]
+	var/list/tattoo_data = read_preference(/datum/preference/text_list/custom_tattoos)
 
 	if(!islist(tattoo_data))
 		return
@@ -60,22 +56,22 @@
 		if(!body_part_string)
 			continue
 
-		var/body_part_define = get_standardized_body_part(body_part_string)
+		var/body_part_define = get_custom_tattoo_standardized_body_part(body_part_string)
 
 		if(!body_part_define)
 			continue
 
-		if(!is_valid_tattoo_bodypart(body_part_define))
+		if(!is_custom_tattoo_bodypart_valid(body_part_define))
 			continue
 
 		var/final_artist = artist ? sanitize_text(artist) : "Unknown Artist"
 		var/final_design = design ? sanitize_text(design) : "An intricate design"
 		var/final_color = sanitize_hexcolor(color, default = "#000000")
-		var/final_layer = sanitize_integer(layer, TATTOO_LAYER_UNDER, TATTOO_LAYER_OVER, TATTOO_LAYER_NORMAL)
+		var/final_layer = sanitize_integer(layer, CUSTOM_TATTOO_LAYER_UNDER, CUSTOM_TATTOO_LAYER_OVER, CUSTOM_TATTOO_LAYER_NORMAL)
 		var/final_is_signature = is_signature ? TRUE : FALSE
-		var/final_font = (font && (font in GLOB.tattoo_fonts)) ? font : PEN_FONT
+		var/final_font = (font && (font in GLOB.custom_tattoo_fonts)) ? font : PEN_FONT
 
-		var/datum/tattoo/T = new(
+		var/datum/custom_tattoo/T = new(
 			final_artist,
 			final_design,
 			body_part_define,
@@ -90,25 +86,24 @@
 
 		loaded_tattoos += T
 
-	features["tattoos"] = loaded_tattoos
-	features["tattoos_data"] = tattoo_data
+	features["custom_tattoos"] = loaded_tattoos
 
-// Add this proc to the preferences system to apply saved tattoos to a mob
-/datum/preferences/proc/apply_tattoos_to_mob(mob/living/carbon/human/H)
-	if(!istype(H) || !features["tattoos"])
+// Apply saved custom tattoos to a mob
+/datum/preferences/proc/apply_custom_tattoos_to_mob(mob/living/carbon/human/H)
+	if(!istype(H) || !features["custom_tattoos"])
 		return
 
-	// Clear any existing tattoos
-	H.body_tattoos.Cut()
+	// Clear any existing custom tattoos
+	H.custom_body_tattoos.Cut()
 
 	// Apply tattoos from preferences
-	var/list/saved_tattoos = features["tattoos"]
+	var/list/saved_tattoos = features["custom_tattoos"]
 	if(!islist(saved_tattoos))
 		return
 
-	for(var/datum/tattoo/T as anything in saved_tattoos)
+	for(var/datum/custom_tattoo/T as anything in saved_tattoos)
 		if(istype(T) && !QDELETED(T))
-			H.add_tattoo(T)
+			H.add_custom_tattoo(T)
 
 	// Update the mob's appearance
 	H.regenerate_icons()

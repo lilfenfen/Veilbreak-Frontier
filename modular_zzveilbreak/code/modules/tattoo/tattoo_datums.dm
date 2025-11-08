@@ -1,25 +1,25 @@
-/datum/tattoo
+/datum/custom_tattoo
 	var/artist = "Unknown Artist"
 	var/design = ""
 	var/body_part = BODY_ZONE_CHEST
 	var/color = "#000000"
 	var/date_applied = ""
-	var/layer = TATTOO_LAYER_NORMAL
-	var/is_signature = FALSE  // Whether this tattoo uses a signature as the artist name
-	var/font = PEN_FONT       // Font used for the tattoo design
+	var/layer = CUSTOM_TATTOO_LAYER_NORMAL
+	var/is_signature = FALSE
+	var/font = PEN_FONT
 
-/datum/tattoo/New(artist, design, body_part, color, layer = TATTOO_LAYER_NORMAL, is_signature = FALSE, font = PEN_FONT)
+/datum/custom_tattoo/New(artist, design, body_part, color, layer = CUSTOM_TATTOO_LAYER_NORMAL, is_signature = FALSE, font = PEN_FONT)
 	src.artist = artist || "Unknown Artist"
 	src.design = design || "An intricate design"
 	src.body_part = body_part || BODY_ZONE_CHEST
 	src.color = sanitize_hexcolor(color, default = "#000000")
-	src.layer = sanitize_integer(layer, TATTOO_LAYER_UNDER, TATTOO_LAYER_OVER, TATTOO_LAYER_NORMAL)
+	src.layer = sanitize_integer(layer, CUSTOM_TATTOO_LAYER_UNDER, CUSTOM_TATTOO_LAYER_OVER, CUSTOM_TATTOO_LAYER_NORMAL)
 	src.date_applied = time2text(world.realtime, "YYYY-MM-DD")
 	src.is_signature = is_signature
-	src.font = (font in GLOB.tattoo_fonts) ? font : PEN_FONT
+	src.font = (font in GLOB.custom_tattoo_fonts) ? font : PEN_FONT
 
-/datum/tattoo/proc/get_examine_text(mob/viewer, mob/living/carbon/human/victim)
-	if(!is_visible(viewer, victim))
+/datum/custom_tattoo/proc/get_examine_text(mob/viewer, mob/living/carbon/human/victim)
+	if(!is_custom_tattoo_visible(viewer, victim))
 		return ""
 
 	var/display_design = design
@@ -35,16 +35,16 @@
 	if(font && font != PEN_FONT)
 		display_design = "<font face='[font]'>[display_design]</font>"
 
-	// Use fountain pen font for signatures, just like the paper system
+	// Use fountain pen font for signatures
 	if(is_signature)
 		display_artist = "<font face='[FOUNTAIN_PEN_FONT]'>[display_artist]</font>"
 
-	var/body_part_description = get_specific_body_part_description(body_part)
+	var/body_part_description = get_custom_tattoo_body_part_description(body_part)
 
 	var/text = "<span style='color:[color]'>- [body_part_description]: \"[display_design]\" (by [display_artist])</span>"
 	return text
 
-/datum/tattoo/proc/is_visible(mob/viewer, mob/living/carbon/human/victim)
+/datum/custom_tattoo/proc/is_custom_tattoo_visible(mob/viewer, mob/living/carbon/human/victim)
 	if(!victim || !viewer)
 		return FALSE
 
@@ -55,11 +55,11 @@
 		return TRUE
 
 	if(victim == viewer)
-		return get_tattoo_location_accessible(victim, body_part)
+		return get_custom_tattoo_location_accessible(victim, body_part)
 
-	return get_tattoo_location_accessible(victim, body_part)
+	return get_custom_tattoo_location_accessible(victim, body_part)
 
-/datum/tattoo/Destroy()
+/datum/custom_tattoo/Destroy()
 	artist = null
 	design = null
 	body_part = null
@@ -67,7 +67,7 @@
 	date_applied = null
 	return ..()
 
-/proc/get_specific_body_part_description(body_zone)
+/proc/get_custom_tattoo_body_part_description(body_zone)
 	if(!body_zone)
 		return "unknown location"
 
@@ -114,7 +114,7 @@
 			formatted_name = capitalize(formatted_name)
 			return formatted_name
 
-/proc/get_standardized_body_part(body_part_string)
+/proc/get_custom_tattoo_standardized_body_part(body_part_string)
 	if(!body_part_string)
 		return BODY_ZONE_CHEST
 

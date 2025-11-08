@@ -1,33 +1,19 @@
-/// Tattoo Removal Surgery
-/datum/surgery/tattoo_removal
-	name = "Tattoo Removal"
-	steps = list(/datum/surgery_step/cauterize_tattoo)
-	possible_locs = list(
-		BODY_ZONE_HEAD,
-		BODY_ZONE_CHEST,
-		BODY_ZONE_L_ARM,
-		BODY_ZONE_R_ARM,
-		BODY_ZONE_L_LEG,
-		BODY_ZONE_R_LEG
-	)
+/// Custom Tattoo Removal Surgery - COMPLETELY SEPARATE
+/datum/surgery/custom_tattoo_removal
+	name = "Custom Tattoo Removal"
+	steps = list(/datum/surgery_step/cauterize_custom_tattoo)
+	possible_locs = list()
 	surgery_flags = SURGERY_SELF_OPERABLE
 	target_mobtypes = list(/mob/living/carbon/human)
-	self_surgery_possible_locs = list(
-		BODY_ZONE_HEAD,
-		BODY_ZONE_CHEST,
-		BODY_ZONE_L_ARM,
-		BODY_ZONE_R_ARM,
-		BODY_ZONE_L_LEG,
-		BODY_ZONE_R_LEG
-	)
+	self_surgery_possible_locs = list()
 
-/datum/surgery/tattoo_removal/New(atom/surgery_target, surgery_location, surgery_bodypart)
+/datum/surgery/custom_tattoo_removal/New(atom/surgery_target, surgery_location, surgery_bodypart)
 	. = ..()
-	if(GLOB.tattooable_body_parts && length(GLOB.tattooable_body_parts))
-		src.possible_locs = GLOB.tattooable_body_parts.Copy()
-		src.self_surgery_possible_locs = GLOB.tattooable_body_parts.Copy()
+	if(GLOB.custom_tattooable_body_parts && length(GLOB.custom_tattooable_body_parts))
+		src.possible_locs = GLOB.custom_tattooable_body_parts.Copy()
+		src.self_surgery_possible_locs = GLOB.custom_tattooable_body_parts.Copy()
 
-/datum/surgery/tattoo_removal/can_start(mob/user, mob/living/patient)
+/datum/surgery/custom_tattoo_removal/can_start(mob/user, mob/living/patient)
 	if(!..())
 		return FALSE
 
@@ -37,20 +23,20 @@
 	var/mob/living/carbon/human/H = patient
 
 	if(!H.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
-		to_chat(user, span_warning("[H] doesn't allow bodywriting modifications!"))
+		to_chat(user, span_warning("[H] doesn't allow body modifications!"))
 		return FALSE
 
-	if(!body_part_exists(H, user.zone_selected))
+	if(!is_custom_tattoo_bodypart_existing(H, user.zone_selected))
 		return FALSE
 
-	if(!get_tattoo_location_accessible(H, user.zone_selected))
+	if(!get_custom_tattoo_location_accessible(H, user.zone_selected))
 		to_chat(user, span_warning("The body part is not accessible!"))
 		return FALSE
 
-	return length(H.get_tattoos(user.zone_selected)) > 0
+	return length(H.get_custom_tattoos(user.zone_selected)) > 0
 
-/datum/surgery_step/cauterize_tattoo
-	name = "cauterize tattoo"
+/datum/surgery_step/cauterize_custom_tattoo
+	name = "cauterize custom tattoo"
 	implements = list(
 		/obj/item/cautery = 100,
 		/obj/item/cigarette = 75,
@@ -59,9 +45,9 @@
 		/obj/item/weldingtool = 25
 	)
 	time = 4 SECONDS
-	var/datum/tattoo/operated_tattoo
+	var/datum/custom_tattoo/operated_tattoo
 
-/datum/surgery_step/cauterize_tattoo/tool_check(mob/user, obj/item/tool)
+/datum/surgery_step/cauterize_custom_tattoo/tool_check(mob/user, obj/item/tool)
 	switch(tool.type)
 		if(/obj/item/weldingtool)
 			var/obj/item/weldingtool/welder = tool
@@ -80,22 +66,22 @@
 				return FALSE
 	return TRUE
 
-/datum/surgery_step/cauterize_tattoo/preop(mob/user, mob/living/carbon/target, target_zone, obj/item/tool, datum/surgery/surgery)
+/datum/surgery_step/cauterize_custom_tattoo/preop(mob/user, mob/living/carbon/target, target_zone, obj/item/tool, datum/surgery/surgery)
 	var/mob/living/carbon/human/H = target
-	var/list/tattoos = H.get_tattoos(target_zone)
+	var/list/tattoos = H.get_custom_tattoos(target_zone)
 
 	if(!length(tattoos))
-		to_chat(user, span_warning("No tattoos found to remove!"))
+		to_chat(user, span_warning("No custom tattoos found to remove!"))
 		return
 
-	var/datum/tattoo/to_remove
+	var/datum/custom_tattoo/to_remove
 	if(length(tattoos) == 1)
 		to_remove = tattoos[1]
 	else
 		var/list/tattoo_choices = list()
-		for(var/datum/tattoo/T as anything in tattoos)
+		for(var/datum/custom_tattoo/T as anything in tattoos)
 			tattoo_choices["[T.design] by [T.artist]"] = T
-		var/choice = input(user, "Which tattoo would you like to remove?", "Tattoo Removal") as null|anything in tattoo_choices
+		var/choice = input(user, "Which tattoo would you like to remove?", "Custom Tattoo Removal") as null|anything in tattoo_choices
 		to_remove = tattoo_choices[choice]
 
 	if(!to_remove)
@@ -105,29 +91,29 @@
 
 	var/burn_message
 	if(istype(tool, /obj/item/cautery))
-		burn_message = "You begin carefully cauterizing the tattoo from [target]'s [get_body_zone_display_name(target_zone)]..."
+		burn_message = "You begin carefully cauterizing the custom tattoo from [target]'s [get_custom_tattoo_body_part_description(target_zone)]..."
 	else if(istype(tool, /obj/item/cigarette))
-		burn_message = "You begin carefully burning the tattoo from [target]'s [get_body_zone_display_name(target_zone)] with the cigarette..."
+		burn_message = "You begin carefully burning the custom tattoo from [target]'s [get_custom_tattoo_body_part_description(target_zone)] with the cigarette..."
 	else if(istype(tool, /obj/item/lighter))
-		burn_message = "You begin burning the tattoo from [target]'s [get_body_zone_display_name(target_zone)] with the lighter..."
+		burn_message = "You begin burning the custom tattoo from [target]'s [get_custom_tattoo_body_part_description(target_zone)] with the lighter..."
 	else if(istype(tool, /obj/item/weldingtool))
-		burn_message = "You begin aggressively burning away the tattoo from [target]'s [get_body_zone_display_name(target_zone)] with the welding tool..."
+		burn_message = "You begin aggressively burning away the custom tattoo from [target]'s [get_custom_tattoo_body_part_description(target_zone)] with the welding tool..."
 	else
-		burn_message = "You begin scraping away the tattoo from [target]'s [get_body_zone_display_name(target_zone)]..."
+		burn_message = "You begin scraping away the custom tattoo from [target]'s [get_custom_tattoo_body_part_description(target_zone)]..."
 
 	display_results(
 		user,
 		target,
 		span_notice("[burn_message]"),
-		span_notice("[user] begins removing a tattoo from [target]'s [get_body_zone_display_name(target_zone)] with [tool]."),
-		span_notice("[user] begins working on [target]'s [get_body_zone_display_name(target_zone)] with [tool]."),
+		span_notice("[user] begins removing a custom tattoo from [target]'s [get_custom_tattoo_body_part_description(target_zone)] with [tool]."),
+		span_notice("[user] begins working on [target]'s [get_custom_tattoo_body_part_description(target_zone)] with [tool]."),
 	)
 
-	display_pain(target, "Your [get_body_zone_display_name(target_zone)] burns with intense heat!")
+	display_pain(target, "Your [get_custom_tattoo_body_part_description(target_zone)] burns with intense heat!")
 
-/datum/surgery_step/cauterize_tattoo/success(mob/living/user, mob/living/carbon/target, target_zone, obj/item/tool, datum/surgery/surgery, default_display_results = FALSE)
+/datum/surgery_step/cauterize_custom_tattoo/success(mob/living/user, mob/living/carbon/target, target_zone, obj/item/tool, datum/surgery/surgery, default_display_results = FALSE)
 	if(!operated_tattoo)
-		to_chat(user, span_warning("There is no tattoo to remove!"))
+		to_chat(user, span_warning("There is no custom tattoo to remove!"))
 		return FALSE
 
 	var/mob/living/carbon/human/H = target
@@ -151,13 +137,13 @@
 		burn_damage = 35
 		tool_message = "aggressively with the welding tool, causing severe burns"
 
-	if(H.remove_tattoo(operated_tattoo))
+	if(H.remove_custom_tattoo(operated_tattoo))
 		display_results(
 			user,
 			target,
-			span_notice("You successfully remove the tattoo [tool_message]."),
-			span_notice("[user] successfully removes the tattoo from your [get_body_zone_display_name(target_zone)] [tool_message]!"),
-			span_notice("[user] successfully works on your [get_body_zone_display_name(target_zone)]!"),
+			span_notice("You successfully remove the custom tattoo [tool_message]."),
+			span_notice("[user] successfully removes the custom tattoo from your [get_custom_tattoo_body_part_description(target_zone)] [tool_message]!"),
+			span_notice("[user] successfully works on your [get_custom_tattoo_body_part_description(target_zone)]!"),
 		)
 
 		// Only apply burn damage to standard body parts, not organ slots
@@ -171,13 +157,13 @@
 			else if(burn_damage >= 10)
 				BP.check_wounding(25, WOUND_BURN, target_zone)
 
-		log_combat(user, target, "removed a tattoo from", addition="TATTOO: [operated_tattoo.design] | TOOL: [tool.name]")
+		log_combat(user, target, "removed a custom tattoo from", addition="TATTOO: [operated_tattoo.design] | TOOL: [tool.name]")
 	else
-		to_chat(user, span_warning("Failed to remove the tattoo!"))
+		to_chat(user, span_warning("Failed to remove the custom tattoo!"))
 
 	return ..()
 
-/datum/surgery_step/cauterize_tattoo/failure(mob/user, mob/living/target, target_zone, obj/item/tool, datum/surgery/surgery, fail_prob = 0)
+/datum/surgery_step/cauterize_custom_tattoo/failure(mob/user, mob/living/target, target_zone, obj/item/tool, datum/surgery/surgery, fail_prob = 0)
 	var/screwedmessage = ""
 	switch(fail_prob)
 		if(0 to 24)

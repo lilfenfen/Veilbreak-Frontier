@@ -1,20 +1,22 @@
-// Global list to store all tattooable body parts
-GLOBAL_LIST_INIT(tattooable_body_parts, populate_tattooable_body_parts())
+// Custom Tattoo System Body Parts - COMPLETELY SEPARATE
+
+// Global list to store all custom tattooable body parts
+GLOBAL_LIST_INIT(custom_tattooable_body_parts, populate_custom_tattooable_body_parts())
 
 // Blacklist for body zones that shouldn't be tattooable
-GLOBAL_LIST_INIT(tattoo_blacklist, list(
+GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 	BODY_ZONE_PRECISE_EYES,
 	BODY_ZONE_PRECISE_MOUTH,
 ))
 
-/proc/populate_tattooable_body_parts()
+/proc/populate_custom_tattooable_body_parts()
 	var/list/parts = list()
 
 	// Scan all bodypart types for unique body_zones
 	for(var/path in subtypesof(/obj/item/bodypart))
 		var/obj/item/bodypart/BP = path
 		var/body_zone = initial(BP.body_zone)
-		if(body_zone && !(body_zone in parts) && !(body_zone in GLOB.tattoo_blacklist))
+		if(body_zone && !(body_zone in parts) && !(body_zone in GLOB.custom_tattoo_blacklist))
 			parts |= body_zone
 
 	// Add all known body zone defines as fallback
@@ -33,12 +35,12 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 	)
 
 	for(var/zone in fallback_zones)
-		if(!(zone in parts) && !(zone in GLOB.tattoo_blacklist))
+		if(!(zone in parts) && !(zone in GLOB.custom_tattoo_blacklist))
 			parts |= zone
 
 	// Add the organ slots as tattooable body parts
-	for(var/organ_slot in TATTOOABLE_ORGAN_SLOTS)
-		if(!(organ_slot in parts) && !(organ_slot in GLOB.tattoo_blacklist))
+	for(var/organ_slot in CUSTOM_TATTOOABLE_ORGAN_SLOTS)
+		if(!(organ_slot in parts) && !(organ_slot in GLOB.custom_tattoo_blacklist))
 			parts |= organ_slot
 
 	// Remove any null values and sort for consistency
@@ -47,53 +49,19 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 
 	return parts
 
-/proc/get_body_zone_display_name(body_zone)
-	if(!body_zone)
-		return "Unknown"
-
-	var/name = ""
-	switch(body_zone)
-		if(BODY_ZONE_HEAD) name = "Head"
-		if(BODY_ZONE_CHEST) name = "Chest"
-		if(BODY_ZONE_L_ARM) name = "Left Arm"
-		if(BODY_ZONE_R_ARM) name = "Right Arm"
-		if(BODY_ZONE_L_LEG) name = "Left Leg"
-		if(BODY_ZONE_R_LEG) name = "Right Leg"
-		if(BODY_ZONE_PRECISE_L_HAND) name = "Left Hand"
-		if(BODY_ZONE_PRECISE_R_HAND) name = "Right Hand"
-		if(BODY_ZONE_PRECISE_L_FOOT) name = "Left Foot"
-		if(BODY_ZONE_PRECISE_R_FOOT) name = "Right Foot"
-		if(BODY_ZONE_PRECISE_GROIN) name = "Groin"
-		// Organ slot display names
-		if(ORGAN_SLOT_BELLY) name = "Stomach"
-		if(ORGAN_SLOT_BUTT) name = "Butt"
-		if(ORGAN_SLOT_EXTERNAL_TAIL) name = "Tail"
-		if(ORGAN_SLOT_EXTERNAL_SPINES) name = "Spines"
-		if(ORGAN_SLOT_EXTERNAL_FRILLS) name = "Frills"
-		if(ORGAN_SLOT_EXTERNAL_HORNS) name = "Horns"
-		if(ORGAN_SLOT_EXTERNAL_WINGS) name = "Wings"
-		if(ORGAN_SLOT_WINGS) name = "Wings"
-		else
-			// For any custom body zones, format the text nicely
-			name = replacetext(replacetext("[body_zone]", "BODY_ZONE_", ""), "_", " ")
-			name = lowertext(name)
-			name = capitalize(name)
-
-	return name
-
-/proc/get_all_available_body_parts(mob/living/carbon/human/H)
+/proc/get_all_custom_tattoo_body_parts(mob/living/carbon/human/H)
 	var/list/available_parts = list()
 
 	if(!istype(H))
 		return available_parts
 
-	// Scan through all possible tattooable body parts
-	for(var/zone in GLOB.tattooable_body_parts)
+	// Scan through all possible custom tattooable body parts
+	for(var/zone in GLOB.custom_tattooable_body_parts)
 		// Skip blacklisted zones
-		if(zone in GLOB.tattoo_blacklist)
+		if(zone in GLOB.custom_tattoo_blacklist)
 			continue
 
-		var/display_name = get_body_zone_display_name(zone)
+		var/display_name = get_custom_tattoo_body_part_description(zone)
 		var/exists = FALSE
 		var/type = "bodypart"
 
@@ -113,20 +81,20 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 				"name" = display_name,
 				"zone" = zone,
 				"type" = type,
-				"current_tattoos" = length(H.get_tattoos(zone))
+				"current_tattoos" = length(H.get_custom_tattoos(zone))
 			)
 
 	return available_parts
 
-/proc/is_valid_tattoo_bodypart(body_zone)
-	return (body_zone in GLOB.tattooable_body_parts) && !(body_zone in GLOB.tattoo_blacklist)
+/proc/is_custom_tattoo_bodypart_valid(body_zone)
+	return (body_zone in GLOB.custom_tattooable_body_parts) && !(body_zone in GLOB.custom_tattoo_blacklist)
 
-/proc/body_part_exists(mob/living/carbon/human/H, body_zone)
+/proc/is_custom_tattoo_bodypart_existing(mob/living/carbon/human/H, body_zone)
 	if(!istype(H) || !body_zone)
 		return FALSE
 
 	// Skip blacklisted zones
-	if(body_zone in GLOB.tattoo_blacklist)
+	if(body_zone in GLOB.custom_tattoo_blacklist)
 		return FALSE
 
 	// Check standard bodypart
@@ -140,12 +108,12 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 	return FALSE
 
 // Special accessibility check for organ slots
-/proc/get_tattoo_location_accessible(mob/living/carbon/human/H, body_zone)
+/proc/get_custom_tattoo_location_accessible(mob/living/carbon/human/H, body_zone)
 	if(!istype(H) || !body_zone)
 		return FALSE
 
 	// For organ slots, we need special handling since they're not standard body parts
-	if(body_zone in TATTOOABLE_ORGAN_SLOTS)
+	if(body_zone in CUSTOM_TATTOOABLE_ORGAN_SLOTS)
 		var/obj/item/organ/organ = H.get_organ_slot(body_zone)
 		if(!organ)
 			return FALSE
@@ -156,3 +124,13 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 
 	// For standard body parts, use the existing function
 	return get_location_accessible(H, body_zone)
+
+// Helper proc to check if a bodypart exists on a human
+/proc/body_part_exists(mob/living/carbon/human/H, body_zone)
+	if(!istype(H) || !body_zone)
+		return FALSE
+	return H.get_bodypart(body_zone) || H.get_organ_slot(body_zone)
+
+// Helper proc to get body zone display name
+/proc/get_body_zone_display_name(body_zone)
+	return get_custom_tattoo_body_part_description(body_zone)

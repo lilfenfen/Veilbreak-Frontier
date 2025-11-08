@@ -1,21 +1,21 @@
-// Tattoo system defines
+// Custom Tattoo System Defines - COMPLETELY SEPARATE from prison/memory tattoos
 
 // Tattoo layer defines
-#define TATTOO_LAYER_UNDER 1
-#define TATTOO_LAYER_NORMAL 2
-#define TATTOO_LAYER_OVER 3
+#define CUSTOM_TATTOO_LAYER_UNDER 1
+#define CUSTOM_TATTOO_LAYER_NORMAL 2
+#define CUSTOM_TATTOO_LAYER_OVER 3
 
-// Tattoo preference path for easy reference
-#define TATTOO_PREFERENCE_PATH /datum/preference/toggle/allow_bodywriting
+// Tattoo preference path
+#define CUSTOM_TATTOO_PREFERENCE_PATH /datum/preference/toggle/allow_bodywriting
 
 // Maximum tattoos per body part
-#define MAX_TATTOOS_PER_PART 5
+#define CUSTOM_MAX_TATTOOS_PER_PART 5
 
 // Default tattoo application time
-#define TATTOO_APPLICATION_TIME (8 SECONDS)
+#define CUSTOM_TATTOO_APPLICATION_TIME (8 SECONDS)
 
-// Tattooable organ slots - now includes all available ERP organ slots
-#define TATTOOABLE_ORGAN_SLOTS list(\
+// Tattooable organ slots
+#define CUSTOM_TATTOOABLE_ORGAN_SLOTS list(\
 	ORGAN_SLOT_PENIS,\
 	ORGAN_SLOT_WOMB,\
 	ORGAN_SLOT_VAGINA,\
@@ -29,14 +29,8 @@
 	ORGAN_SLOT_WINGS\
 )
 
-// Surgery flags for tattoo removal
-#define SURGERY_MORBID_CURIOSITY (1<<14)
-
-// Initialization order for tattoo subsystem
-#define INIT_ORDER_TATTOO 95
-
-// Global list of available tattoo fonts
-GLOBAL_LIST_INIT(tattoo_fonts, list(
+// Custom tattoo fonts
+GLOBAL_LIST_INIT(custom_tattoo_fonts, list(
 	PEN_FONT,
 	FOUNTAIN_PEN_FONT,
 	CRAYON_FONT,
