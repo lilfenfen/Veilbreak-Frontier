@@ -53,8 +53,10 @@ export const TattooKit = (props) => {
     preview_text,
   } = data;
 
-  // Calculate if we can apply based on current data state - FIXED LOGIC
-  const canApply = artist_name && tattoo_design && artist_name.trim() !== '' && tattoo_design.trim() !== '';
+  // Calculate if we can apply - use the same pattern as ore machine
+  const canApply = artist_name && tattoo_design &&
+                  artist_name.trim().length > 0 &&
+                  tattoo_design.trim().length > 0;
 
   return (
     <Window
@@ -109,12 +111,12 @@ export const TattooKit = (props) => {
         {current_step === 'design_tattoo' && (
           <TattooDesign
             selectedZone={selected_zone_name}
-            artistName={artist_name || ''}
-            tattooDesign={tattoo_design || ''}
+            artistName={artist_name}
+            tattooDesign={tattoo_design}
             selectedLayer={selected_layer}
             selectedFont={selected_font}
             previewText={preview_text}
-            canApply={!!canApply}
+            canApply={canApply}
             onBack={() => act('back_to_selection')}
             onApply={() => act('apply_tattoo')}
             onSetArtist={(value) => act('set_artist_name', { value })}
@@ -221,9 +223,9 @@ const TattooDesign = (props: {
                   <LabeledList.Item label="Artist Name">
                     <Input
                       fluid
-                      value={artistName}
+                      value={artistName || ''}
                       placeholder="Enter artist name or use %s for your signature..."
-                      onChange={(e, value) => onSetArtist(value)}
+                      onInput={(e, value) => onSetArtist(value)}
                       maxLength={50}
                     />
                   </LabeledList.Item>
@@ -276,13 +278,13 @@ const TattooDesign = (props: {
               textArea
               fluid
               height="120px"
-              value={tattooDesign}
+              value={tattooDesign || ''}
               placeholder="Describe the tattoo design in detail. Be creative! You can include symbols, patterns, text, emojis, or any other elements you want in your tattoo. Maximum 500 characters."
-              onChange={(e, value) => onSetDesign(value)}
+              onInput={(e, value) => onSetDesign(value)}
               maxLength={500}
             />
             <Box mt={1} textAlign="right">
-              Characters: {tattooDesign.length}/500
+              Characters: {(tattooDesign || '').length}/500
             </Box>
           </Section>
         </Stack.Item>
