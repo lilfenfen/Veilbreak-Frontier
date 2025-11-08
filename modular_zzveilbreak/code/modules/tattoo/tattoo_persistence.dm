@@ -1,20 +1,17 @@
-// Tattoo Persistence System
-// Handles saving and loading tattoos between rounds
+// Custom Tattoo persistence - COMPLETELY SEPARATE from prison/memory tattoos
 
-/// Enhanced tattoo data saving with proper savefile integration
-/datum/preferences/proc/save_tattoo_data_zzveilbreak(list/save_data)
+/datum/preferences/proc/save_custom_tattoo_data()
 	if(!parent?.mob)
 		return
 
 	var/mob/living/carbon/human/H = parent.mob
-	if(!istype(H))
+	if(!istype(H) || QDELETED(H))
 		return
 
-	// Convert to saveable format
 	var/list/tattoo_data = list()
-	for(var/datum/tattoo/T as anything in H.body_tattoos)
+	for(var/datum/custom_tattoo/T as anything in H.custom_body_tattoos)
 		if(istype(T) && !QDELETED(T))
-			var/body_part_description = get_specific_body_part_description(T.body_part)
+			var/body_part_description = get_custom_tattoo_body_part_description(T.body_part)
 
 			tattoo_data += list(list(
 				"artist" = T.artist,
@@ -22,39 +19,23 @@
 				"body_part" = body_part_description,
 				"color" = T.color,
 				"date_applied" = T.date_applied,
-				"layer" = T.layer
+				"layer" = T.layer,
+				"is_signature" = T.is_signature,
+				"font" = T.font
 			))
 
-	// Store in the provided save_data list (character slot data)
-	save_data["tattoos_data"] = tattoo_data
+	// Save to a completely separate key
+	write_preference(GLOB.preference_entries[/datum/preference/text_list/custom_tattoos], tattoo_data)
 
-	// Also store in features for quick access
-	features["tattoos_data"] = tattoo_data
-	features["tattoos"] = H.body_tattoos.Copy()
-
-	// DEBUG: Log what we're saving
-	world.log << "DEBUG: Saving tattoo data: [json_encode(tattoo_data)]"
-
-/// Enhanced tattoo data loading with proper savefile integration
-/datum/preferences/proc/load_tattoo_data_zzveilbreak(list/save_data)
+/datum/preferences/proc/load_custom_tattoo_data()
 	if(!features)
 		features = list()
 
-	// Clear existing tattoos
-	features["tattoos"] = list()
-	features["tattoos_data"] = list()
-
-	// Load from the provided save_data list (character slot data)
-	var/list/tattoo_data = save_data?["tattoos_data"]
+	var/list/tattoo_data = read_preference(/datum/preference/text_list/custom_tattoos)
 
 	if(!islist(tattoo_data))
-		world.log << "DEBUG: No tattoo data found or not a list"
 		return
 
-	// DEBUG: Log what we're loading
-	world.log << "DEBUG: Loading tattoo data: [json_encode(tattoo_data)]"
-
-	// Convert loaded data back to tattoo datums
 	var/list/loaded_tattoos = list()
 
 	for(var/i in 1 to length(tattoo_data))
@@ -69,96 +50,60 @@
 		var/color = tattoo_info["color"]
 		var/layer = tattoo_info["layer"]
 		var/date_applied = tattoo_info["date_applied"]
+		var/is_signature = tattoo_info["is_signature"]
+		var/font = tattoo_info["font"]
 
 		if(!body_part_string)
 			continue
 
-		// Convert body part string back to define
-		var/body_part_define = get_standardized_body_part(body_part_string)
+		var/body_part_define = get_custom_tattoo_standardized_body_part(body_part_string)
 
 		if(!body_part_define)
 			continue
 
-		if(!is_valid_tattoo_bodypart(body_part_define))
+		if(!is_custom_tattoo_bodypart_valid(body_part_define))
 			continue
 
-		// DEBUG: Log each tattoo being created
-		world.log << "DEBUG: Creating tattoo from save - Artist: [artist], Design: [design], Body Part: [body_part_define]"
-
-		// PRESERVE original values - only apply defaults if truly empty
-		var/final_artist = artist
-		var/final_design = design
-
-		// Check if we need to apply defaults (only for truly empty/null values)
-		if(!final_artist || trimtext(final_artist) == "")
-			final_artist = "Unknown Artist"
-		else
-			final_artist = sanitize_text(final_artist)
-
-		if(!final_design || trimtext(final_design) == "")
-			final_design = "An intricate design"
-		else
-			final_design = sanitize_text(final_design)
-
+		var/final_artist = artist ? sanitize_text(artist) : "Unknown Artist"
+		var/final_design = design ? sanitize_text(design) : "An intricate design"
 		var/final_color = sanitize_hexcolor(color, default = "#000000")
-		var/final_layer = sanitize_integer(layer, 1, 3, 2)
+		var/final_layer = sanitize_integer(layer, CUSTOM_TATTOO_LAYER_UNDER, CUSTOM_TATTOO_LAYER_OVER, CUSTOM_TATTOO_LAYER_NORMAL)
+		var/final_is_signature = is_signature ? TRUE : FALSE
+		var/final_font = (font && (font in GLOB.custom_tattoo_fonts)) ? font : PEN_FONT
 
-		// Create the tattoo datum with the preserved values
-		var/datum/tattoo/T = new(
+		var/datum/custom_tattoo/T = new(
 			final_artist,
 			final_design,
 			body_part_define,
 			final_color,
-			final_layer
+			final_layer,
+			final_is_signature,
+			final_font
 		)
 
-		// Preserve the original date if available
 		if(date_applied)
 			T.date_applied = sanitize_text(date_applied)
 
 		loaded_tattoos += T
 
-	// Store in features
-	features["tattoos"] = loaded_tattoos
-	features["tattoos_data"] = tattoo_data
+	features["custom_tattoos"] = loaded_tattoos
 
-	world.log << "DEBUG: Loaded [length(loaded_tattoos)] tattoos"
-
-/// Enhanced tattoo application to mob
-/datum/preferences/proc/apply_tattoos_to_mob_zzveilbreak(mob/living/carbon/human/character)
-	if(!istype(character))
+// Apply saved custom tattoos to a mob
+/datum/preferences/proc/apply_custom_tattoos_to_mob(mob/living/carbon/human/H)
+	if(!istype(H) || !features["custom_tattoos"])
 		return
 
-	if(!features)
-		// If features isn't loaded, try to load from current character slot
-		var/list/current_save_data = savefile?.get_entry("character[default_slot]")
-		if(current_save_data)
-			load_tattoo_data_zzveilbreak(current_save_data)
+	// Clear any existing custom tattoos
+	H.custom_body_tattoos.Cut()
 
-	// Ensure we have tattoo data loaded
-	if(!features["tattoos"])
-		var/list/current_save_data = savefile?.get_entry("character[default_slot]")
-		if(current_save_data)
-			load_tattoo_data_zzveilbreak(current_save_data)
-
-	var/list/tattoos_to_apply = features["tattoos"]
-
-	if(!tattoos_to_apply || !islist(tattoos_to_apply))
-		character.body_tattoos = list()
+	// Apply tattoos from preferences
+	var/list/saved_tattoos = features["custom_tattoos"]
+	if(!islist(saved_tattoos))
 		return
 
-	// Apply tattoos to mob
-	character.body_tattoos = tattoos_to_apply.Copy()
-	character.regenerate_icons()
+	for(var/datum/custom_tattoo/T as anything in saved_tattoos)
+		if(istype(T) && !QDELETED(T))
+			H.add_custom_tattoo(T)
 
-	world.log << "DEBUG: Applied [length(tattoos_to_apply)] tattoos to mob"
-
-// Override the original procs with our enhanced versions
-/datum/preferences/proc/save_tattoo_data(list/save_data)
-	save_tattoo_data_zzveilbreak(save_data)
-
-/datum/preferences/proc/load_tattoo_data(list/save_data)
-	load_tattoo_data_zzveilbreak(save_data)
-
-/datum/preferences/proc/apply_tattoos_to_mob(mob/living/carbon/human/character)
-	apply_tattoos_to_mob_zzveilbreak(character)
+	// Update the mob's appearance
+	H.regenerate_icons()

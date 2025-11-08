@@ -27,7 +27,7 @@ type FaxHistory = {
   history_type: string;
   history_fax_name: string;
   history_time: string;
-};
+};tgui/packages/tgui/interfaces/Fax.tsx
 
 type FaxSpecial = {
   fax_name: string;

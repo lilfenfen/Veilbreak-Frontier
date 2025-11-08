@@ -366,7 +366,7 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	//Quirks
 	all_quirks = save_data?["all_quirks"]
 	load_character_skyrat(save_data) // SKYRAT EDIT ADDITION
-
+	load_custom_tattoo_data()
 	//try to fix any outdated data if necessary
 	//preference updating will handle saving the updated data for us.
 	if(SHOULD_UPDATE_DATA(data_validity_integer))
@@ -389,7 +389,6 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	custom_emote_panel = save_data?["custom_emote_panel"] || list()
 	custom_emote_panel = SANITIZE_LIST(custom_emote_panel)
 	// SPLURT EDIT END: CUSTOM EMOTE PANEL
-	load_tattoo_data(save_data)
 	return needs_update != -3 // BUBBER EDIT
 
 /datum/preferences/proc/save_character(update) // Skyrat edit - Choose when to update (This is stupid)
@@ -431,7 +430,7 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	//Quirks
 	save_data["all_quirks"] = all_quirks
 	save_character_skyrat(save_data, update) // SKYRAT EDIT ADDITION
-	save_tattoo_data(save_data)
+	save_custom_tattoo_data()
 	return TRUE
 
 /datum/preferences/proc/switch_to_slot(new_slot)

@@ -1,116 +1,107 @@
 /mob/living/carbon/human
-    var/list/datum/tattoo/body_tattoos = list()
+	var/list/datum/custom_tattoo/custom_body_tattoos = list()
 
-// Comparison proc for sorting tattoos by layer
-/proc/cmp_tattoo_layer_asc(datum/tattoo/A, datum/tattoo/B)
-    return A.layer - B.layer
+/proc/cmp_custom_tattoo_layer_asc(datum/custom_tattoo/A, datum/custom_tattoo/B)
+	return A.layer - B.layer
 
-// Override the original add_tattoo proc with enhanced functionality
-/mob/living/carbon/human/proc/add_tattoo_zzveilbreak(datum/tattoo/new_tattoo)
-    if(!new_tattoo || QDELETED(new_tattoo) || !istype(new_tattoo))
-        return FALSE
+/mob/living/carbon/human/proc/add_custom_tattoo(datum/custom_tattoo/new_tattoo)
+	if(!new_tattoo || QDELETED(new_tattoo) || !istype(new_tattoo))
+		return FALSE
 
-    if(!is_valid_tattoo_bodypart(new_tattoo.body_part))
-        return FALSE
+	if(!is_custom_tattoo_bodypart_valid(new_tattoo.body_part))
+		return FALSE
 
-    body_tattoos += new_tattoo
+	// Check if we've reached the maximum tattoos for this body part
+	var/current_tattoos = length(get_custom_tattoos(new_tattoo.body_part))
+	if(current_tattoos >= CUSTOM_MAX_TATTOOS_PER_PART)
+		return FALSE
 
-    // Enhanced saving to preferences - trigger character save
-    if(client?.prefs)
-        client.prefs.save_character()
+	LAZYADD(custom_body_tattoos, new_tattoo)
 
-    return TRUE
+	// Save to preferences if we have a client
+	if(client?.prefs)
+		client.prefs.save_custom_tattoo_data()
 
-// Override the original remove_tattoo proc
-/mob/living/carbon/human/proc/remove_tattoo_zzveilbreak(datum/tattoo/tattoo)
-    if(!tattoo || !(tattoo in body_tattoos))
-        return FALSE
+	// Update appearance
+	regenerate_icons()
 
-    body_tattoos -= tattoo
-    qdel(tattoo)
+	return TRUE
 
-    // Enhanced saving to preferences - trigger character save
-    if(client?.prefs)
-        client.prefs.save_character()
+/mob/living/carbon/human/proc/remove_custom_tattoo(datum/custom_tattoo/tattoo)
+	if(!tattoo || !(tattoo in custom_body_tattoos))
+		return FALSE
 
-    return TRUE
+	custom_body_tattoos -= tattoo
+	qdel(tattoo)
 
-// Enhanced tattoo retrieval with better error handling
-/mob/living/carbon/human/proc/get_tattoos_zzveilbreak(body_zone)
-    . = list()
-    for(var/datum/tattoo/T as anything in body_tattoos)
-        if(T.body_part == body_zone)
-            . += T
-    . = sortTim(., GLOBAL_PROC_REF(cmp_tattoo_layer_asc))
+	// Save to preferences if we have a client
+	if(client?.prefs)
+		client.prefs.save_custom_tattoo_data()
 
-// Enhanced visibility checking
-/mob/living/carbon/human/proc/get_visible_tattoos_zzveilbreak(mob/viewer)
-    . = list()
-    for(var/datum/tattoo/T as anything in body_tattoos)
-        var/visible = T.is_visible(viewer, src)
-        if(visible)
-            . += T
+	// Update appearance
+	regenerate_icons()
 
-    . = sortTim(., GLOBAL_PROC_REF(cmp_tattoo_layer_asc))
+	return TRUE
 
-// Override the original procs
-/mob/living/carbon/human/proc/add_tattoo(datum/tattoo/new_tattoo)
-	return add_tattoo_zzveilbreak(new_tattoo)
+/mob/living/carbon/human/proc/get_custom_tattoos(body_zone)
+	. = list()
+	if(!body_zone)
+		return .
+	for(var/datum/custom_tattoo/T as anything in custom_body_tattoos)
+		if(T.body_part == body_zone)
+			. += T
+	. = sortTim(., GLOBAL_PROC_REF(cmp_custom_tattoo_layer_asc))
 
-/mob/living/carbon/human/proc/remove_tattoo(datum/tattoo/tattoo)
-	return remove_tattoo_zzveilbreak(tattoo)
+/mob/living/carbon/human/proc/get_visible_custom_tattoos(mob/viewer)
+	. = list()
+	for(var/datum/custom_tattoo/T as anything in custom_body_tattoos)
+		var/visible = T.is_custom_tattoo_visible(viewer, src)
+		if(visible)
+			. += T
 
-/mob/living/carbon/human/proc/get_tattoos(body_zone)
-	return get_tattoos_zzveilbreak(body_zone)
+	. = sortTim(., GLOBAL_PROC_REF(cmp_custom_tattoo_layer_asc))
 
-/mob/living/carbon/human/proc/get_visible_tattoos(mob/viewer)
-	return get_visible_tattoos_zzveilbreak(viewer)
-
-// Enhanced examine with better formatting
 /mob/living/carbon/human/examine(mob/user)
 	. = ..()
 
-	var/list/visible_tattoos = get_visible_tattoos_zzveilbreak(user)
+	var/list/visible_tattoos = get_visible_custom_tattoos(user)
 
 	if(length(visible_tattoos))
 		. += span_notice("<b>Visible Tattoos:</b>")
-		for(var/datum/tattoo/T as anything in visible_tattoos)
+		for(var/datum/custom_tattoo/T as anything in visible_tattoos)
 			var/tattoo_text = T.get_examine_text(user, src)
 			if(tattoo_text)
-				. += " [tattoo_text]" // Indented bullet points
+				. += " [tattoo_text]"
 
-// Enhanced verb for players to check their own tattoos
-/mob/living/carbon/human/verb/examine_my_tattoos()
-    set name = "Examine My Tattoos"
-    set category = "IC"
-    set desc = "Look at your own tattoos"
+/mob/living/carbon/human/verb/examine_my_custom_tattoos()
+	set name = "Examine My Tattoos"
+	set category = "IC"
+	set desc = "Look at your own tattoos"
 
-    var/list/visible_tattoos = get_visible_tattoos_zzveilbreak(src)
-    if(!length(visible_tattoos))
-        to_chat(src, span_notice("You don't see any tattoos on your exposed skin."))
-        return
+	var/list/visible_tattoos = get_visible_custom_tattoos(src)
+	if(!length(visible_tattoos))
+		to_chat(src, span_notice("You don't see any tattoos on your exposed skin."))
+		return
 
-    to_chat(src, span_notice("<b>Your Visible Tattoos:</b>"))
-    for(var/datum/tattoo/T as anything in visible_tattoos)
-        var/tattoo_text = T.get_examine_text(src, src)
-        if(tattoo_text)
-            to_chat(src, " • [tattoo_text]")
+	to_chat(src, span_notice("<b>Your Visible Tattoos:</b>"))
+	for(var/datum/custom_tattoo/T as anything in visible_tattoos)
+		var/tattoo_text = T.get_examine_text(src, src)
+		if(tattoo_text)
+			to_chat(src, " • [tattoo_text]")
 
-// Enhanced login handling
 /mob/living/carbon/human/Login()
 	. = ..()
-
-	// Enhanced tattoo application with fallback
 	if(client?.prefs)
-		client.prefs.apply_tattoos_to_mob_zzveilbreak(src)
+		client.prefs.apply_custom_tattoos_to_mob(src)
+		// Force icon update after loading tattoos
+		regenerate_icons()
 
-// Enhanced initialization
 /mob/living/carbon/human/Initialize(mapload)
 	. = ..()
+	addtimer(CALLBACK(src, .proc/load_custom_tattoos_from_prefs), 1 SECONDS)
 
-	// Load tattoos after species and bodyparts are set up
-	addtimer(CALLBACK(src, .proc/load_tattoos_from_prefs_zzveilbreak), 1 SECONDS)
-
-/mob/living/carbon/human/proc/load_tattoos_from_prefs_zzveilbreak()
+/mob/living/carbon/human/proc/load_custom_tattoos_from_prefs()
 	if(client?.prefs)
-		client.prefs.apply_tattoos_to_mob_zzveilbreak(src)
+		client.prefs.apply_custom_tattoos_to_mob(src)
+		// Force icon update
+		addtimer(CALLBACK(src, .proc/regenerate_icons), 1 SECONDS)
