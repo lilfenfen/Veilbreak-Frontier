@@ -57,7 +57,7 @@ export const TattooKit = (props) => {
     <Window
       width={720}
       height={760}
-      theme="neutral"
+      theme="grey" // Changed to grey theme
       resizable
     >
       <Window.Content scrollable>
@@ -204,8 +204,16 @@ const TattooDesign = (props: {
   ];
 
   return (
-    <Section title={`Design Tattoo for ${selectedZone}`}>
+    <Section
+      title={`Design Tattoo for ${selectedZone}`}
+      buttons={
+        <Button icon="arrow-left" onClick={onBack}>
+          Back to Selection
+        </Button>
+      }
+    >
       <Stack vertical fill>
+        {/* Top row: Artist info and layer selection */}
         <Stack.Item>
           <Stack>
             <Stack.Item grow>
@@ -262,61 +270,55 @@ const TattooDesign = (props: {
           </Stack>
         </Stack.Item>
 
-        <Stack.Item grow>
-          <Stack vertical fill>
-            <Stack.Item grow>
-              <Section
-                title="Tattoo Design Description"
-                fill
-                scrollable
-                buttons={
-                  <Button icon="arrow-left" onClick={onBack}>
-                    Back to Selection
-                  </Button>
-                }
-              >
-                <Box height="200px">
-                  <Input
-                    textArea
-                    fluid
-                    height="100%"
-                    value={tattooDesign}
-                    placeholder="Describe the tattoo design in detail. Be creative! You can include symbols, patterns, text, emojis, or any other elements you want in your tattoo. Maximum 500 characters."
-                    onChange={(e, value) => onSetDesign(value)}
-                    maxLength={500}
-                  />
-                </Box>
-                <Box mt={1} textAlign="right">
-                  Characters: {tattooDesign.length}/500
-                </Box>
-              </Section>
-            </Stack.Item>
-
-            <Stack.Item>
-              <Section
-                title="Preview (Shows all tattoos on this body part)"
-                backgroundColor="rgba(0,0,0,0.1)"
-              >
-                <Box
-                  style={{
-                    'border': '2px solid #555',
-                    'padding': '0.75rem',
-                    'background': 'rgba(255,255,255,0.9)',
-                    'min-height': '100px',
-                    'border-radius': '4px',
-                  }}
-                  dangerouslySetInnerHTML={{
-                    __html: previewText || 'Enter tattoo details to see preview...',
-                  }}
-                />
-                <Box mt={1} fontSize="0.8rem" color="label">
-                  This preview shows how all tattoos on this body part will appear when examined, including layer ordering.
-                </Box>
-              </Section>
-            </Stack.Item>
-          </Stack>
+        {/* Tattoo Design Input - Now properly sized and positioned */}
+        <Stack.Item grow={1}>
+          <Section
+            title="Tattoo Design Description"
+            fill
+            scrollable
+          >
+            <Box height="150px">
+              <Input
+                textArea
+                fluid
+                height="100%"
+                value={tattooDesign}
+                placeholder="Describe the tattoo design in detail. Be creative! You can include symbols, patterns, text, emojis, or any other elements you want in your tattoo. Maximum 500 characters."
+                onChange={(e, value) => onSetDesign(value)}
+                maxLength={500}
+              />
+            </Box>
+            <Box mt={1} textAlign="right">
+              Characters: {tattooDesign.length}/500
+            </Box>
+          </Section>
         </Stack.Item>
 
+        {/* Preview Section */}
+        <Stack.Item>
+          <Section
+            title="Preview (Shows all tattoos on this body part)"
+            backgroundColor="rgba(255,255,255,0.9)" // Changed to white background for better contrast
+          >
+            <Box
+              style={{
+                'border': '2px solid #555',
+                'padding': '0.75rem',
+                'background': 'rgba(255,255,255,0.95)', // Nearly white background
+                'min-height': '100px',
+                'border-radius': '4px',
+              }}
+              dangerouslySetInnerHTML={{
+                __html: previewText || 'Enter tattoo details to see preview...',
+              }}
+            />
+            <Box mt={1} fontSize="0.8rem" color="label">
+              This preview shows how all tattoos on this body part will appear when examined, including layer ordering.
+            </Box>
+          </Section>
+        </Stack.Item>
+
+        {/* Apply Button */}
         <Stack.Item>
           <Button
             fluid
