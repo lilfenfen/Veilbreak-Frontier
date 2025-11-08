@@ -8,7 +8,6 @@ import {
   LabeledList,
   Section,
   Stack,
-  Tabs,
 } from 'tgui-core/components';
 
 import { useBackend } from '../backend';
@@ -50,33 +49,51 @@ export const TattooKit = (props) => {
 
 const TattooKitContent = (props) => {
   const { act, data } = useBackend<TattooKitData>();
+
+  // Provide safe defaults for all data
   const {
-    target_name,
-    ink_uses,
-    max_uses,
-    ink_color,
-    selected_zone,
-    selected_zone_name,
-    current_step,
-    selected_layer,
-    selected_font,
-    artist_name,
-    tattoo_design,
-    body_parts,
-    preview_text,
-  } = data;
+    target_name = "No Target",
+    ink_uses = 0,
+    max_uses = 20,
+    ink_color = "#000000",
+    selected_zone = "chest",
+    selected_zone_name = "chest",
+    current_step = "select_part",
+    selected_layer = 2,
+    selected_font = "Pen",
+    artist_name = "",
+    tattoo_design = "",
+    body_parts = [],
+    preview_text = "",
+  } = data || {};
 
   const [localArtist, setLocalArtist] = useState(artist_name);
   const [localDesign, setLocalDesign] = useState(tattoo_design);
 
   // Sync local state with backend data
   useEffect(() => {
-    setLocalArtist(artist_name);
+    setLocalArtist(artist_name || "");
   }, [artist_name]);
 
   useEffect(() => {
-    setLocalDesign(tattoo_design);
+    setLocalDesign(tattoo_design || "");
   }, [tattoo_design]);
+
+  // Safe layer options
+  const layerOptions = [
+    { value: '1', displayText: 'Under' },
+    { value: '2', displayText: 'Normal' },
+    { value: '3', displayText: 'Over' },
+  ];
+
+  // Safe font options
+  const fontOptions = [
+    { value: 'Pen', displayText: 'Pen' },
+    { value: 'Fountain Pen', displayText: 'Fountain' },
+    { value: 'Crayon', displayText: 'Crayon' },
+    { value: 'Printer', displayText: 'Printer' },
+    { value: 'Charcoal', displayText: 'Charcoal' },
+  ];
 
   // No target selected
   if (!target_name || target_name === "No Target") {
@@ -132,7 +149,7 @@ const TattooKitContent = (props) => {
             }
           >
             <Stack vertical>
-              {body_parts?.length > 0 ? (
+              {body_parts && body_parts.length > 0 ? (
                 body_parts.map((part) => (
                   <Stack.Item key={part.zone}>
                     <Button
@@ -217,12 +234,8 @@ const TattooKitContent = (props) => {
               <LabeledList.Item label="Layer">
                 <Dropdown
                   width="120px"
-                  selected={selected_layer.toString()}
-                  options={[
-                    { value: '1', displayText: 'Under' },
-                    { value: '2', displayText: 'Normal' },
-                    { value: '3', displayText: 'Over' },
-                  ]}
+                  selected={selected_layer?.toString() || '2'}
+                  options={layerOptions}
                   onSelected={(value) =>
                     act('set_layer', { layer: parseInt(value) })
                   }
@@ -231,14 +244,8 @@ const TattooKitContent = (props) => {
               <LabeledList.Item label="Font">
                 <Dropdown
                   width="120px"
-                  selected={selected_font}
-                  options={[
-                    { value: 'Pen', displayText: 'Pen' },
-                    { value: 'Fountain Pen', displayText: 'Fountain' },
-                    { value: 'Crayon', displayText: 'Crayon' },
-                    { value: 'Printer', displayText: 'Printer' },
-                    { value: 'Charcoal', displayText: 'Charcoal' },
-                  ]}
+                  selected={selected_font || 'Pen'}
+                  options={fontOptions}
                   onSelected={(value) => act('set_font', { font: value })}
                 />
               </LabeledList.Item>
@@ -281,7 +288,7 @@ const TattooKitContent = (props) => {
                 />
               </Stack.Item>
               <Stack.Item>
-                <Section title="Preview" fill>
+                <Section title="Preview">
                   <Box
                     dangerouslySetInnerHTML={{
                       __html: preview_text || 'No preview available',
@@ -294,7 +301,7 @@ const TattooKitContent = (props) => {
                   fluid
                   color="good"
                   icon="check"
-                  disabled={!localArtist.trim() || !localDesign.trim() || ink_uses <= 0}
+                  disabled={!localArtist?.trim() || !localDesign?.trim() || ink_uses <= 0}
                   onClick={() => act('apply_tattoo')}
                 >
                   Apply Tattoo (Costs 1 Ink)

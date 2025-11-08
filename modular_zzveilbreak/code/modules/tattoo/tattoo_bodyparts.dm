@@ -52,7 +52,7 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 /proc/get_all_custom_tattoo_body_parts(mob/living/carbon/human/H)
 	var/list/available_parts = list()
 
-	if(!istype(H))
+	if(!istype(H) || QDELETED(H))
 		return available_parts
 
 	// Scan through all possible custom tattooable body parts
@@ -63,25 +63,27 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 
 		var/display_name = get_custom_tattoo_body_part_description(zone)
 		var/exists = FALSE
-		var/type = "bodypart"
+		var/covered = TRUE
 
 		// Check if it's a standard bodypart (arms, legs, chest, head)
 		var/obj/item/bodypart/BP = H.get_bodypart(zone)
 		if(BP)
 			exists = TRUE
+			covered = !get_custom_tattoo_location_accessible(H, zone)
 		else
 			// Check if it's an organ slot that exists on the mob
 			var/obj/item/organ/organ = H.get_organ_slot(zone)
 			if(organ)
 				exists = TRUE
-				type = "organ"
+				covered = !get_custom_tattoo_location_accessible(H, zone)
 
 		if(exists)
 			available_parts[zone] = list(
-				"name" = display_name,
+				"name" = display_name || "Unknown",
 				"zone" = zone,
-				"type" = type,
-				"current_tattoos" = length(H.get_custom_tattoos(zone))
+				"covered" = covered,
+				"current_tattoos" = length(H.get_custom_tattoos(zone)),
+				"max_tattoos" = CUSTOM_MAX_TATTOOS_PER_PART
 			)
 
 	return available_parts

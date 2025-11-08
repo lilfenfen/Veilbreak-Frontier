@@ -118,6 +118,11 @@
 
 	var/mob/living/carbon/human/H = target
 
+	// Additional safety check
+	if(!istype(H) || QDELETED(operated_tattoo) || !(operated_tattoo in H.custom_body_tattoos))
+		to_chat(user, span_warning("The tattoo appears to have already been removed!"))
+		return FALSE
+
 	var/burn_damage = 5
 	var/tool_message = "carefully"
 

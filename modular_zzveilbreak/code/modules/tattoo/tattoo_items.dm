@@ -69,33 +69,35 @@
 /obj/item/custom_tattoo_kit/ui_data(mob/user)
 	var/list/data = list()
 
-	if(!current_target)
-		data["target_name"] = "No Target"
-		data["body_parts"] = list()
-		data["preview_text"] = ""
-	else
+	// Always provide safe defaults for all data
+	data["target_name"] = "No Target"
+	data["ink_uses"] = custom_tattoo_uses
+	data["max_uses"] = max_custom_tattoo_uses
+	data["ink_color"] = ink_color
+	data["selected_zone"] = selected_zone
+	data["selected_zone_name"] = "chest"
+	data["current_step"] = current_step
+	data["selected_layer"] = selected_layer
+	data["selected_font"] = selected_font
+	data["artist_name"] = artist_name
+	data["tattoo_design"] = tattoo_design
+	data["body_parts"] = list()
+	data["preview_text"] = ""
+
+	if(current_target && !QDELETED(current_target))
 		data["target_name"] = current_target.name
-		data["ink_uses"] = custom_tattoo_uses
-		data["max_uses"] = max_custom_tattoo_uses
-		data["ink_color"] = ink_color
-		data["selected_zone"] = selected_zone
 		data["selected_zone_name"] = get_custom_tattoo_body_part_description(selected_zone)
-		data["current_step"] = current_step
-		data["selected_layer"] = selected_layer
-		data["selected_font"] = selected_font
-		data["artist_name"] = artist_name
-		data["tattoo_design"] = tattoo_design
 
 		var/list/body_parts = list()
 		var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
 		for(var/zone in available_parts)
 			var/list/part_info = available_parts[zone]
 			body_parts += list(list(
-				"zone" = zone,
-				"name" = part_info["name"],
-				"covered" = !get_custom_tattoo_location_accessible(current_target, zone),
-				"current_tattoos" = part_info["current_tattoos"],
-				"max_tattoos" = CUSTOM_MAX_TATTOOS_PER_PART
+				"zone" = zone || "",
+				"name" = part_info["name"] || "Unknown",
+				"covered" = part_info["covered"] ? TRUE : FALSE,
+				"current_tattoos" = part_info["current_tattoos"] || 0,
+				"max_tattoos" = part_info["max_tattoos"] || CUSTOM_MAX_TATTOOS_PER_PART
 			))
 		data["body_parts"] = body_parts
 
@@ -104,7 +106,8 @@
 		if(selected_zone)
 			var/list/tattoos = current_target.get_custom_tattoos(selected_zone)
 			for(var/datum/custom_tattoo/T in tattoos)
-				preview_text += T.get_examine_text(user, current_target) + "<br>"
+				if(T && !QDELETED(T))
+					preview_text += T.get_examine_text(user, current_target) + "<br>"
 
 			// Add preview of new tattoo if we're in design mode
 			if(current_step == "design_tattoo" && tattoo_design && artist_name)
