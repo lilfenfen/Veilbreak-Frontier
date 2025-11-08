@@ -91,14 +91,20 @@ export const TattooKit = (props) => {
 
 const DesignTattooStep = (props) => {
   const { act, data } = useBackend();
-  const { ink_color, selected_zone_name, selected_layer } = data;
+  const { ink_color, selected_zone_name, selected_layer, ink_uses } = data;
 
-  // Use React state - this is the CORRECT pattern
+  // Use React state
   const [artistName, setArtistName] = useState('');
   const [tattooDesign, setTattooDesign] = useState('');
 
-  const handleApplyTattoo = () => {
-    // FIXED: Proper null checking before calling trim()
+  const handleApplyTattoo = (e) => {
+    // Prevent default behavior and stop propagation
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    // Trim values before sending
     const trimmedArtist = artistName ? artistName.trim() : '';
     const trimmedDesign = tattooDesign ? tattooDesign.trim() : '';
 
@@ -116,6 +122,9 @@ const DesignTattooStep = (props) => {
       design: trimmedDesign,
     });
   };
+
+  // Check if the apply button should be disabled
+  const canApply = artistName?.trim() && tattooDesign?.trim() && ink_uses > 0;
 
   return (
     <Window width={500} height={600}>
@@ -198,10 +207,11 @@ const DesignTattooStep = (props) => {
                 fluid
                 icon="check"
                 color="good"
+                disabled={!canApply}
                 onClick={handleApplyTattoo}
-                tooltip="Apply the tattoo to the selected body part"
+                tooltip={!canApply ? "Fill out all fields and ensure ink is available" : "Apply the tattoo to the selected body part"}
               >
-                Apply Tattoo
+                Apply Tattoo {ink_uses <= 0 ? "(No Ink)" : ""}
               </Button>
             </LabeledList.Item>
           </LabeledList>

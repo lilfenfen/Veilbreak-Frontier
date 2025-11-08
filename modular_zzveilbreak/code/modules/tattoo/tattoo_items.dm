@@ -23,11 +23,6 @@
 	if(!istype(target))
 		return ..()
 
-	// Prevent using the kit on yourself if you're holding it in your hand.
-	/*
-	if(target == user)
-		return ..()
-	*/
 	if(tattoo_uses <= 0)
 		to_chat(user, span_warning("This tattoo kit is out of ink!"))
 		return TRUE // Stop further processing
@@ -42,7 +37,7 @@
 	return TRUE // Stop further processing
 
 /obj/item/tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
-    // Standard TGUI initialization pattern [citation:2]
+    // Standard TGUI initialization pattern
     ui = SStgui.try_update_ui(user, src, ui)
     if(!ui)
         ui = new(user, src, "TattooKit", name)
@@ -133,7 +128,7 @@
 			. = TRUE
 
 		if("apply_tattoo")
-			// FIXED: Correct parameter names
+			// FIXED: Correct parameter names and proper handling
 			var/artist_name = params["artist"]
 			var/tattoo_design = params["design"]
 
