@@ -22,10 +22,166 @@ export const TattooKit = (props) => {
     ink_color = "#000000",
     body_parts = [],
     current_step = "select_part",
+    selected_zone_name = "Unknown",
+    selected_layer = 2,
   } = data || {};
 
+  // Local state for design step
+  const [artistName, setArtistName] = useState('');
+  const [tattooDesign, setTattooDesign] = useState('');
+
+  // Calculate canApply based on current data and local state
+  const canApply = current_step === 'design_tattoo'
+    && artistName.trim().length > 0
+    && tattooDesign.trim().length > 0
+    && ink_uses > 0;
+
+  // Reset form when step changes or when data updates
+  useEffect(() => {
+    if (current_step === 'select_part') {
+      setArtistName('');
+      setTattooDesign('');
+    }
+  }, [current_step, data]);
+
+  const handleApplyTattoo = () => {
+    if (!canApply) {
+      return;
+    }
+
+    act('apply_tattoo', {
+      artist: artistName.trim(),
+      design: tattooDesign.trim(),
+    });
+
+    // Clear form immediately for better UX
+    setArtistName('');
+    setTattooDesign('');
+  };
+
+  const handleArtistChange = (e, value) => {
+    setArtistName(value || '');
+  };
+
+  const handleDesignChange = (e, value) => {
+    setTattooDesign(value || '');
+  };
+
   if (current_step === 'design_tattoo') {
-    return <DesignTattooStep />;
+    return (
+      <Window width={500} height={600}>
+        <Window.Content scrollable>
+          <Section
+            title={`Design Tattoo for ${selected_zone_name}`}
+            buttons={
+              <Button
+                icon="arrow-left"
+                onClick={() => {
+                  setArtistName('');
+                  setTattooDesign('');
+                  act('back_to_selection');
+                }}
+              >
+                Back
+              </Button>
+            }
+          >
+            <LabeledList>
+              <LabeledList.Item label="Artist Name">
+                <Input
+                  fluid
+                  placeholder="Enter your name or signature..."
+                  value={artistName}
+                  onChange={handleArtistChange}
+                  maxLength={50}
+                />
+              </LabeledList.Item>
+              <LabeledList.Item label="Tattoo Design">
+                <TextArea
+                  fluid
+                  height="150px"
+                  placeholder="Describe the tattoo design in detail. Be creative!"
+                  value={tattooDesign}
+                  onChange={handleDesignChange}
+                  maxLength={500}
+                />
+              </LabeledList.Item>
+              <LabeledList.Item label="Ink Color">
+                <Stack>
+                  <Stack.Item>
+                    <Button
+                      icon="palette"
+                      onClick={() => act('change_ink_color')}
+                      tooltip="Change ink color"
+                    />
+                  </Stack.Item>
+                  <Stack.Item>
+                    <Box
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        backgroundColor: ink_color,
+                        border: '2px solid #000',
+                        marginLeft: '5px',
+                      }}
+                    />
+                  </Stack.Item>
+                  <Stack.Item>
+                    <Box ml={1}>
+                      {ink_color}
+                    </Box>
+                  </Stack.Item>
+                </Stack>
+              </LabeledList.Item>
+              <LabeledList.Item label="Layer">
+                <Stack>
+                  <Stack.Item>
+                    <Button
+                      selected={selected_layer === 1}
+                      onClick={() => act('set_layer', { layer: 1 })}
+                    >
+                      Under
+                    </Button>
+                  </Stack.Item>
+                  <Stack.Item>
+                    <Button
+                      selected={selected_layer === 2}
+                      onClick={() => act('set_layer', { layer: 2 })}
+                    >
+                      Normal
+                    </Button>
+                  </Stack.Item>
+                  <Stack.Item>
+                    <Button
+                      selected={selected_layer === 3}
+                      onClick={() => act('set_layer', { layer: 3 })}
+                    >
+                      Over
+                    </Button>
+                  </Stack.Item>
+                </Stack>
+              </LabeledList.Item>
+              <LabeledList.Item>
+                <Button
+                  fluid
+                  icon="check"
+                  color={canApply ? "good" : "bad"}
+                  disabled={!canApply}
+                  onClick={handleApplyTattoo}
+                  tooltip={
+                    !canApply
+                      ? `${ink_uses <= 0 ? 'No ink available' : 'Fill out artist name and tattoo design'}`
+                      : "Apply the tattoo to the selected body part"
+                  }
+                >
+                  {canApply ? "Apply Tattoo" : `Apply Tattoo${ink_uses <= 0 ? ' (No Ink)' : ''}`}
+                </Button>
+              </LabeledList.Item>
+            </LabeledList>
+          </Section>
+        </Window.Content>
+      </Window>
+    );
   }
 
   return (
@@ -91,186 +247,6 @@ export const TattooKit = (props) => {
               ))}
             </Stack>
           )}
-        </Section>
-      </Window.Content>
-    </Window>
-  );
-};
-
-const DesignTattooStep = (props) => {
-  const { act, data } = useBackend();
-
-  // Safe destructuring with defaults
-  const {
-    ink_color = "#000000",
-    selected_zone_name = "Unknown",
-    selected_layer = 2,
-    ink_uses = 0
-  } = data || {};
-
-  const [artistName, setArtistName] = useState('');
-  const [tattooDesign, setTattooDesign] = useState('');
-  const [canApply, setCanApply] = useState(false);
-
-  // Enhanced validation
-  useEffect(() => {
-    const trimmedArtist = (artistName || '').trim();
-    const trimmedDesign = (tattooDesign || '').trim();
-
-    const hasArtist = trimmedArtist.length > 0;
-    const hasDesign = trimmedDesign.length > 0;
-    const hasInk = (ink_uses || 0) > 0;
-
-    setCanApply(hasArtist && hasDesign && hasInk);
-  }, [artistName, tattooDesign, ink_uses]);
-
-  const handleApplyTattoo = (e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
-    if (!canApply) {
-      return;
-    }
-
-    const trimmedArtist = (artistName || '').trim();
-    const trimmedDesign = (tattooDesign || '').trim();
-
-    // Final safety check
-    if (!trimmedArtist || !trimmedDesign) {
-      return;
-    }
-
-    act('apply_tattoo', {
-      artist: trimmedArtist,
-      design: trimmedDesign,
-    });
-  };
-
-  const handleArtistChange = (e, value) => {
-    setArtistName(value || '');
-  };
-
-  const handleDesignChange = (e, value) => {
-    setTattooDesign(value || '');
-  };
-
-  // Real-time validation for UI feedback
-  const isArtistValid = (artistName || '').trim().length > 0;
-  const isDesignValid = (tattooDesign || '').trim().length > 0;
-  const hasInk = (ink_uses || 0) > 0;
-
-  return (
-    <Window width={500} height={600}>
-      <Window.Content scrollable>
-        <Section
-          title={`Design Tattoo for ${selected_zone_name}`}
-          buttons={
-            <Button
-              icon="arrow-left"
-              onClick={() => act('back_to_selection')}
-            >
-              Back
-            </Button>
-          }
-        >
-          <LabeledList>
-            <LabeledList.Item
-              label="Artist Name"
-            >
-              <Input
-                fluid
-                placeholder="Enter your name or signature..."
-                value={artistName}
-                onChange={handleArtistChange}
-                maxLength={50}
-              />
-            </LabeledList.Item>
-            <LabeledList.Item
-              label="Tattoo Design"
-            >
-              <TextArea
-                fluid
-                height="150px"
-                placeholder="Describe the tattoo design in detail. Be creative!"
-                value={tattooDesign}
-                onChange={handleDesignChange}
-                maxLength={500}
-              />
-            </LabeledList.Item>
-            <LabeledList.Item label="Ink Color">
-              <Stack>
-                <Stack.Item>
-                  <Button
-                    icon="palette"
-                    onClick={() => act('change_ink_color')}
-                    tooltip="Change ink color"
-                  />
-                </Stack.Item>
-                <Stack.Item>
-                  <Box
-                    style={{
-                      width: '24px',
-                      height: '24px',
-                      backgroundColor: ink_color,
-                      border: '2px solid #000',
-                      marginLeft: '5px',
-                    }}
-                  />
-                </Stack.Item>
-                <Stack.Item>
-                  <Box ml={1}>
-                    {ink_color}
-                  </Box>
-                </Stack.Item>
-              </Stack>
-            </LabeledList.Item>
-            <LabeledList.Item label="Layer">
-              <Stack>
-                <Stack.Item>
-                  <Button
-                    selected={selected_layer === 1}
-                    onClick={() => act('set_layer', { layer: 1 })}
-                  >
-                    Under
-                  </Button>
-                </Stack.Item>
-                <Stack.Item>
-                  <Button
-                    selected={selected_layer === 2}
-                    onClick={() => act('set_layer', { layer: 2 })}
-                  >
-                    Normal
-                  </Button>
-                </Stack.Item>
-                <Stack.Item>
-                  <Button
-                    selected={selected_layer === 3}
-                    onClick={() => act('set_layer', { layer: 3 })}
-                  >
-                    Over
-                  </Button>
-                </Stack.Item>
-              </Stack>
-            </LabeledList.Item>
-            <LabeledList.Item>
-              <Button
-                fluid
-                icon="check"
-                color={canApply ? "good" : "bad"}
-                disabled={!canApply}
-                onClick={handleApplyTattoo}
-                tooltip={
-                  !canApply
-                    ? `Fill out all fields${!hasInk ? ' and ensure ink is available' : ''}`
-                    : "Apply the tattoo to the selected body part"
-                }
-              >
-                {canApply ? "Apply Tattoo" : `Fill Required Fields${!hasInk ? ' (No Ink)' : ''}`}
-              </Button>
-            </LabeledList.Item>
-          </LabeledList>
         </Section>
       </Window.Content>
     </Window>

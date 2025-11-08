@@ -134,7 +134,6 @@
 			var/artist_name = params["artist"]
 			var/tattoo_design = params["design"]
 
-			// Enhanced validation
 			if(!artist_name || !istext(artist_name) || artist_name == "")
 				to_chat(user, span_warning("Please enter a valid artist name!"))
 				return FALSE
