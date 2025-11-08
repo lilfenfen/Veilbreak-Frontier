@@ -96,13 +96,9 @@
 
 	var/mob/user = usr
 
-	// Log ALL actions to see what's happening
-	world.log << "## TATTOO UI_ACT: Action=[action], Params=[json_encode(params)]"
-
 	switch(action)
 		if("select_bodypart")
 			var/zone = params["zone"]
-			world.log << "## TATTOO DEBUG: Selecting bodypart [zone]"
 			if(!zone || !body_part_exists(current_target, zone))
 				return FALSE
 
@@ -123,7 +119,6 @@
 		if("set_layer")
 			var/layer = text2num(params["layer"])
 			selected_layer = sanitize_integer(layer, 1, 3, 2)
-			world.log << "## TATTOO DEBUG: Setting layer to [selected_layer]"
 			. = TRUE
 
 		if("change_ink_color")
@@ -138,27 +133,32 @@
 			. = TRUE
 
 		if("apply_tattoo")
-			world.log << "## TATTOO DEBUG: apply_tattoo ACTION RECEIVED - FINALLY!"
+			// FIXED: Correct parameter names
+			var/artist_name = params["artist"]
+			var/tattoo_design = params["design"]
 
-			var/artist_name = params["artist_name"]
-			var/tattoo_design = params["tattoo_design"]
+			// Debug logging
+			world.log << "## TATTOO DEBUG: Raw params - artist_name: '[artist_name]', tattoo_design: '[tattoo_design]'"
 
-			world.log << "## TATTOO DEBUG: Received artist_name: '[artist_name]'"
-			world.log << "## TATTOO DEBUG: Received tattoo_design: '[tattoo_design]'"
-			world.log << "## TATTOO DEBUG: All params: [json_encode(params)]"
+			// Check if parameters exist and are valid
+			if(isnull(artist_name) || artist_name == "")
+				to_chat(user, span_warning("Please enter an artist name!"))
+				return FALSE
 
-			// Check if parameters exist
-			if(isnull(artist_name) || isnull(tattoo_design))
-				world.log << "## TATTOO DEBUG: ERROR - Parameters are null"
-				to_chat(user, span_warning("Data transmission failed. Please try again."))
+			if(isnull(tattoo_design) || tattoo_design == "")
+				to_chat(user, span_warning("Please enter a tattoo design description!"))
 				return FALSE
 
 			// Trim and validate
 			var/trimmed_artist = trimtext(artist_name)
 			var/trimmed_design = trimtext(tattoo_design)
 
-			if(!length(trimmed_artist) || !length(trimmed_design))
-				to_chat(user, span_warning("Please fill in both the artist name and tattoo design!"))
+			if(!length(trimmed_artist))
+				to_chat(user, span_warning("Artist name cannot be empty!"))
+				return FALSE
+
+			if(!length(trimmed_design))
+				to_chat(user, span_warning("Tattoo design cannot be empty!"))
 				return FALSE
 
 			// Coverage check
@@ -174,7 +174,6 @@
 			if(ui)
 				ui.close()
 
-			world.log << "## TATTOO DEBUG: Starting tattoo application process"
 			to_chat(user, span_notice("You begin carefully applying the tattoo..."))
 
 			if(do_after(user, 8 SECONDS, target = current_target))

@@ -98,18 +98,22 @@ const DesignTattooStep = (props) => {
   const [tattooDesign, setTattooDesign] = useState('');
 
   const handleApplyTattoo = () => {
-    // CRITICAL: Validate and send ALL data in one action
-    if (!artistName || artistName === '') {
-      return; // Don't send if empty
+    // Trim values before sending
+    const trimmedArtist = artistName.trim();
+    const trimmedDesign = tattooDesign.trim();
+
+    // Validate
+    if (!trimmedArtist) {
+      return;
     }
-    if (!tattooDesign || tattooDesign === '') {
-      return; // Don't send if empty
+    if (!trimmedDesign) {
+      return;
     }
 
-    // This is the line that MUST work - send all data at once
+    // Send the data with CORRECT parameter names
     act('apply_tattoo', {
-      artist_name: artistName,
-      tattoo_design: tattooDesign,
+      artist: trimmedArtist,
+      design: trimmedDesign,
     });
   };
 
@@ -190,7 +194,7 @@ const DesignTattooStep = (props) => {
               </Stack>
             </LabeledList.Item>
             <LabeledList.Item>
-              {/* CRITICAL FIX: Use the handler function directly */}
+              {/* FIXED: Use the handler function with correct parameter names */}
               <Button
                 fluid
                 icon="check"
