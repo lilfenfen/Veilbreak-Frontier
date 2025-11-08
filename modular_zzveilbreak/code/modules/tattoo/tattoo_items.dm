@@ -1,86 +1,59 @@
 /obj/item/tattoo_kit
 	name = "tattoo kit"
-	desc = "A professional tattoo application kit."
-	icon = 'modular_zzveilbreak/icons/item_icons/tattoo.dmi'
+	desc = "A professional tattoo kit with various inks and needles."
+	icon = 'modular_zzveilbreak/icons/item_icons/tattoo.dmi' // This should exist in most codebases
 	icon_state = "tgun"
-	force = 0
-	throwforce = 0
 	w_class = WEIGHT_CLASS_SMALL
-
+	var/max_tattoo_uses = 20
+	var/tattoo_uses = 20
 	var/ink_color = "#000000"
-	var/max_tattoos_per_part = MAX_TATTOOS_PER_PART
-	var/tattoo_uses = 10
-	var/tattoo_max_uses = 50
-
 	var/selected_zone = BODY_ZONE_CHEST
-	var/mob/living/carbon/human/current_target
 	var/current_step = "select_part"
 	var/selected_layer = TATTOO_LAYER_NORMAL
 	var/selected_font = PEN_FONT
 	var/artist_name = ""
 	var/tattoo_design = ""
+	var/mob/living/carbon/human/current_target
 
-/obj/item/tattoo_kit/proc/reset_ui_state()
-	selected_zone = BODY_ZONE_CHEST
-	current_step = "select_part"
-	selected_layer = TATTOO_LAYER_NORMAL
+/obj/item/tattoo_kit/Initialize(mapload)
+	. = ..()
+
+/obj/item/tattoo_kit/Destroy()
 	current_target = null
-	artist_name = ""
-	tattoo_design = ""
-	selected_font = PEN_FONT
+	return ..()
 
-/obj/item/tattoo_kit/attack(mob/living/carbon/human/target, mob/living/user)
-	if(!istype(target))
+/obj/item/tattoo_kit/examine(mob/user)
+	. = ..()
+	. += span_notice("It has [tattoo_uses] uses left.")
+
+/obj/item/tattoo_kit/attack(mob/living/target, mob/living/user)
+	if(!ishuman(target) || user == target)
 		return ..()
 
-	if(tattoo_uses <= 0)
-		to_chat(user, span_warning("This tattoo kit is out of ink!"))
-		return TRUE
+	var/mob/living/carbon/human/H = target
 
-	if(!target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
-		to_chat(user, span_warning("[target] doesn't allow body modifications!"))
-		return TRUE
+	if(!H.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
+		to_chat(user, span_warning("[H] doesn't allow body modifications!"))
+		return
 
-	current_target = target
-	current_step = "select_part"
+	if(!get_tattoo_location_accessible(H, user.zone_selected))
+		to_chat(user, span_warning("The body part is covered!"))
+		return
+
+	current_target = H
 	ui_interact(user)
-	return TRUE
 
 /obj/item/tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
 	ui = SStgui.try_update_ui(user, src, ui)
 	if(!ui)
-		ui = new(user, src, "TattooKit", name)
+		ui = new(user, src, "TattooKit")
 		ui.open()
-
-/obj/item/tattoo_kit/ui_close(mob/user, datum/tgui/ui)
-	// Don't reset state on close - allow reopening to continue where left off
-	return ..()
 
 /obj/item/tattoo_kit/ui_data(mob/user)
 	var/list/data = list()
-
-	if(!current_target && istype(user, /mob/living/carbon/human))
-		current_target = user
-
-	if(!current_target)
-		data["target_name"] = "No target"
-		data["ink_uses"] = tattoo_uses
-		data["max_uses"] = tattoo_max_uses
-		data["ink_color"] = ink_color
-		data["selected_zone"] = selected_zone
-		data["selected_zone_name"] = "Unknown"
-		data["current_step"] = current_step
-		data["selected_layer"] = selected_layer
-		data["selected_font"] = selected_font
-		data["artist_name"] = artist_name
-		data["tattoo_design"] = tattoo_design
-		data["body_parts"] = list()
-		data["preview_text"] = ""
-		return data
-
-	data["target_name"] = current_target.name
+	data["target_name"] = current_target ? current_target.name : "No Target"
 	data["ink_uses"] = tattoo_uses
-	data["max_uses"] = tattoo_max_uses
+	data["max_uses"] = max_tattoo_uses
 	data["ink_color"] = ink_color
 	data["selected_zone"] = selected_zone
 	data["selected_zone_name"] = get_body_zone_display_name(selected_zone)
@@ -91,25 +64,26 @@
 	data["tattoo_design"] = tattoo_design
 
 	var/list/body_parts = list()
-	var/list/all_parts = get_all_available_body_parts(current_target)
-
-	for(var/zone in all_parts)
-		var/list/part_info = all_parts[zone]
-		var/covered = !get_tattoo_location_accessible(current_target, zone)
-		var/current_tattoos = length(current_target.get_tattoos(zone))
-
-		body_parts += list(list(
-			"zone" = zone,
-			"name" = part_info["name"],
-			"covered" = covered,
-			"current_tattoos" = current_tattoos,
-			"max_tattoos" = max_tattoos_per_part
-		))
-
+	if(current_target)
+		var/list/available_parts = get_all_available_body_parts(current_target)
+		for(var/zone in available_parts)
+			var/list/part_info = available_parts[zone]
+			body_parts += list(list(
+				"zone" = zone,
+				"name" = part_info["name"],
+				"covered" = !get_tattoo_location_accessible(current_target, zone),
+				"current_tattoos" = part_info["current_tattoos"],
+				"max_tattoos" = MAX_TATTOOS_PER_PART
+			))
 	data["body_parts"] = body_parts
 
-	// Generate preview data
-	data["preview_text"] = generate_preview_text()
+	// Generate preview text
+	var/preview_text = ""
+	if(current_target && selected_zone)
+		var/list/tattoos = current_target.get_tattoos(selected_zone)
+		for(var/datum/tattoo/T in tattoos)
+			preview_text += T.get_examine_text(user, current_target) + "<br>"
+	data["preview_text"] = preview_text
 
 	return data
 
@@ -132,8 +106,8 @@
 				return FALSE
 
 			var/current_tattoos = current_target.get_tattoos(zone)
-			if(length(current_tattoos) >= max_tattoos_per_part)
-				to_chat(user, span_warning("This body part already has the maximum number of tattoos! (Max: [max_tattoos_per_part])"))
+			if(length(current_tattoos) >= MAX_TATTOOS_PER_PART)
+				to_chat(user, span_warning("This body part already has the maximum number of tattoos! (Max: [MAX_TATTOOS_PER_PART])"))
 				return FALSE
 
 			selected_zone = zone
@@ -176,7 +150,6 @@
 				. = TRUE
 
 		if("apply_tattoo")
-			// Use the current state values instead of params
 			if(!artist_name || !istext(artist_name) || artist_name == "")
 				to_chat(user, span_warning("Please enter a valid artist name!"))
 				return FALSE
@@ -242,8 +215,8 @@
 					to_chat(user, span_warning("You must be holding the tattoo kit to apply a tattoo!"))
 					return FALSE
 
-				// Handle signature placeholders like paper system
-				var/list/processed_data = process_signature_placeholders(trimmed_artist, user)
+				// Handle signature placeholders
+				var/list/processed_data = process_tattoo_signature_placeholders(trimmed_artist, user)
 				var/final_artist = processed_data["text"]
 				var/is_signature = processed_data["is_signature"]
 
@@ -276,78 +249,18 @@
 
 	return .
 
-/**
- * Processes signature placeholders in the artist name, similar to the paper system.
- * Replaces %s and %sign with the user's real name, and handles date/time placeholders.
- * Returns a list containing the processed text and whether it's a signature.
- *
- * Arguments:
- * * text - The text to process for placeholders
- * * user - The mob whose signature should be used
- */
-/obj/item/tattoo_kit/proc/process_signature_placeholders(text, mob/user)
-	if(!text || !user)
-		return list("text" = text, "is_signature" = FALSE)
+// Custom signature processing for tattoos
+/obj/item/tattoo_kit/proc/process_tattoo_signature_placeholders(text, mob/user)
+	var/list/signatures = list(
+		"%s" = user.real_name,
+		"%sign" = user.real_name,
+		"%d" = time2text(world.realtime, "YYYY-MM-DD"),
+		"%date" = time2text(world.realtime, "YYYY-MM-DD"),
+		"%t" = time2text(world.realtime, "hh:mm:ss"),
+		"%time" = time2text(world.realtime, "hh:mm:ss"),
+	)
 
-	var/processed_text = text
-	var/is_signature = FALSE
+	for(var/ph in signatures)
+		text = replacetext(text, ph, signatures[ph])
 
-	// Handle signature placeholders
-	if((processed_text == "%sign") || (processed_text == "%s"))
-		processed_text = user.real_name
-		is_signature = TRUE
-
-	// Handle date and time placeholders for consistency with paper system
-	else if((processed_text == "%date") || (processed_text == "%d"))
-		processed_text = "[time2text(world.timeofday, "DD/MM", NO_TIMEZONE)]/[CURRENT_STATION_YEAR]"
-	else if((processed_text == "%time") || (processed_text == "%t"))
-		processed_text = time2text(world.timeofday, "hh:mm", NO_TIMEZONE)
-
-	return list("text" = processed_text, "is_signature" = is_signature)
-
-/**
- * Generates preview text for the tattoo that shows how it will appear in examination.
- * This includes existing tattoos on the selected body part to show layering.
- */
-/obj/item/tattoo_kit/proc/generate_preview_text()
-	if(!selected_zone)
-		return ""
-
-	var/body_part_description = get_specific_body_part_description(selected_zone)
-	var/list/all_tattoos = list()
-
-	// Add existing tattoos on the selected body part
-	if(current_target)
-		var/list/existing_tattoos = current_target.get_tattoos(selected_zone)
-		all_tattoos += existing_tattoos
-
-	// Add the current tattoo being designed (if any)
-	if(tattoo_design && artist_name)
-		var/list/processed_data = process_signature_placeholders(artist_name, usr)
-		var/final_artist = processed_data["text"]
-		var/is_signature = processed_data["is_signature"]
-
-		var/preview_tattoo = new /datum/tattoo(
-			final_artist,
-			tattoo_design,
-			selected_zone,
-			ink_color,
-			selected_layer,
-			is_signature,
-			selected_font
-		)
-		all_tattoos += preview_tattoo
-
-	// Sort tattoos by layer for proper preview
-	all_tattoos = sortTim(all_tattoos, GLOBAL_PROC_REF(cmp_tattoo_layer_asc))
-
-	var/preview_text = ""
-	for(var/datum/tattoo/T as anything in all_tattoos)
-		var/tattoo_text = T.get_examine_text(usr, current_target)
-		if(tattoo_text)
-			preview_text += "[tattoo_text]\n"
-
-	if(preview_text == "")
-		preview_text = "No tattoos on [body_part_description]."
-
-	return preview_text
+	return list("text" = text, "is_signature" = (findtext(text, user.real_name) ? TRUE : FALSE))

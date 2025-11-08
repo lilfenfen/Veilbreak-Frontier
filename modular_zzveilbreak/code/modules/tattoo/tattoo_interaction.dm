@@ -8,8 +8,6 @@
 /datum/preference/toggle/allow_bodywriting/apply_to_client(client/client, value)
 	return ..()
 
-/datum/preference/toggle/allow_bodywriting/init_possible_values()
-	return list(FALSE, TRUE)
 
 // Enhanced preference loading
 /proc/modular_zzveilbreak_erp_pref_override()
@@ -20,72 +18,3 @@
 /hook/preferences_loaded/proc/setup_tattoo_preferences()
 	modular_zzveilbreak_erp_pref_override()
 	return TRUE
-
-// Enhanced interactable component for tattoo preferences
-/datum/component/interactable
-	var/static/list/tattoo_preference_paths = list(
-		"allow_bodywriting_pref" = /datum/preference/toggle/allow_bodywriting
-	)
-
-/datum/component/interactable/ui_data(mob/living/user)
-	. = ..()
-
-	if(user?.client?.prefs)
-		for(var/entry in tattoo_preference_paths)
-			var/pref_path = tattoo_preference_paths[entry]
-			if(pref_path)
-				.[entry] = user.client.prefs.read_preference(pref_path)
-
-/datum/component/interactable/update_cached_preferences(mob/living/user, list/preferences)
-	if(!user?.client?.prefs)
-		cached_preferences = list()
-		return
-
-	if(LAZYLEN(preferences))
-		for(var/entry in preferences)
-			var/pref_path
-			if(character_preference_paths[entry])
-				pref_path = character_preference_paths[entry]
-			else if(preference_paths[entry])
-				pref_path = preference_paths[entry]
-			else if(tattoo_preference_paths[entry])
-				pref_path = tattoo_preference_paths[entry]
-
-			if(pref_path)
-				cached_preferences[entry] = user.client.prefs.read_preference(pref_path)
-		return
-
-	cached_preferences = list()
-
-	for(var/entry in character_preference_paths)
-		cached_preferences[entry] = user.client.prefs.read_preference(character_preference_paths[entry])
-	for(var/entry in preference_paths)
-		cached_preferences[entry] = user.client.prefs.read_preference(preference_paths[entry])
-	for(var/entry in tattoo_preference_paths)
-		cached_preferences[entry] = user.client.prefs.read_preference(tattoo_preference_paths[entry])
-
-/datum/component/interactable/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
-	. = ..()
-	if(.)
-		return
-
-	switch(action)
-		if("pref")
-			var/pref_key = params["pref"]
-			var/datum/preference/preference
-
-			if(character_preference_paths[pref_key])
-				preference = GLOB.preference_entries[character_preference_paths[pref_key]]
-			else if(preference_paths[pref_key])
-				preference = GLOB.preference_entries[preference_paths[pref_key]]
-			else if(tattoo_preference_paths[pref_key])
-				preference = GLOB.preference_entries[tattoo_preference_paths[pref_key]]
-
-			if(preference && usr?.client?.prefs)
-				var/current_value = usr.client.prefs.read_preference(preference.type)
-				var/new_value = !current_value
-				usr.client.prefs.write_preference(preference, new_value)
-				update_cached_preferences(usr, list(pref_key))
-				return TRUE
-
-	return FALSE
