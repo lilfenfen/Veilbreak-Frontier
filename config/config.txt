@@ -29,28 +29,28 @@ $include splurt/age_gate.txt
 # There are various options which are hard-locked for security reasons.
 
 ## Server name: This appears at the top of the screen in-game and in the BYOND hub. Uncomment and replace 'tgstation' with the name of your choice.
-# SERVERNAME tgstation
+SERVERNAME Veilbreak Frontier
 
 ## Server tagline: This will appear right below the server's title.
-# SERVERTAGLINE A generic TG-based server
+SERVERTAGLINE MRP ERP with new pve content to explore! Whitelisting is required to play, join here https://discord.gg/ychmq3tZQY
 
 ## Discord Link: This is the link to Skyrat's discord server
-# DISCORD_LINK https://discord.gg/hGpZ4Z3
+https://discord.gg/ychmq3tZQY
 
 ## Server SQL name: This is the name used to identify the server to the SQL DB, distinct from SERVERNAME as it must be at most 32 characters.
 # SERVERSQLNAME tgstation
 
 ## Station name: The name of the station as it is referred to in-game. If commented out, the game will generate a random name instead.
-STATIONNAME Space Station 13
+#STATIONNAME Space Station 13
 
 ## Put on byond hub: Uncomment this to put your server on the byond hub.
 #HUB
 
 ## Once the server population reaches this number, it will be taken off the byond hub. 0 disables.
-#MAX_HUB_POP 100
+#MAX_HUB_POP 0
 
 ## Lobby time: This is the amount of time between rounds that players have to setup their characters and be ready.
-LOBBY_COUNTDOWN 120
+LOBBY_COUNTDOWN 180
 
 ## Round End Time: This is the amount of time after the round ends that players have to murder death kill each other.
 ROUND_END_COUNTDOWN 90
@@ -58,7 +58,7 @@ ROUND_END_COUNTDOWN 90
 ## Comment this out if you want to use the SQL based admin system, the legacy system uses admins.txt.
 ## You need to set up your database to use the SQL based system.
 ## This flag is automatically enabled if SQL_ENABLED isn't
-ADMIN_LEGACY_SYSTEM
+#ADMIN_LEGACY_SYSTEM
 
 ##Uncomment this to stop any admins loaded by the legacy system from having their rank edited by the permissions panel
 #PROTECT_LEGACY_ADMINS
@@ -71,7 +71,7 @@ ADMIN_LEGACY_SYSTEM
 #LOAD_LEGACY_RANKS_ONLY
 
 ## Comment this out to stop locally connected clients from being given the almost full access !localhost! admin rank
-ENABLE_LOCALHOST_RANK
+#ENABLE_LOCALHOST_RANK
 
 ## Uncomment this entry to have certain jobs require your account to be at least a certain number of days old to select. You can configure the exact age requirement for different jobs by editing
 ## the minimal_player_age variable in the files in folder /code/game/jobs/job/.. for the job you want to edit. Set minimal_player_age to 0 to disable age requirement for that job.
@@ -160,17 +160,17 @@ NO_DEAD_VOTE
 ## 0 = Cannot respawn (default)
 ## 1 = Can respawn
 ## 2 = Can respawn if choosing a different character
-ALLOW_RESPAWN 0
+ALLOW_RESPAWN 1
 
 ## Respawn delay (deciseconds), which doesn't allow to return to lobby
 RESPAWN_DELAY 0
 
 ## set a hosted by name for unix platforms
-HOSTEDBY Yournamehere
+HOSTEDBY Veilbreak Team!
 
 ## Uncomment this to stop people connecting to your server without a registered ckey. (i.e. guest-* are all blocked from connecting).
 ## You probably want this enabled for a production server.
-#GUEST_BAN
+GUEST_BAN
 
 ## IPINTEL:
 ## This allows you to detect likely proxies by checking ips against getipintel.net
@@ -249,7 +249,7 @@ IPINTEL_REJECT_BAD
 ## from https://github.com/yt-dlp/yt-dlp/releases
 ## or your package manager
 ## The default value assumes yt-dlp is in your system PATH
-# INVOKE_YOUTUBEDL yt-dlp
+ INVOKE_YOUTUBEDL yt-dlp
 
 ## Comment this out to disable users ability to use the request internet sounds to be played.
 REQUEST_INTERNET_SOUND
@@ -285,7 +285,7 @@ ALLOW_HOLIDAYS
 #SHOW_IRC_NAME
 
 ## Uncomment to prevent machines syncing to the Science techweb by default.
-#NO_DEFAULT_TECHWEB_LINK
+NO_DEFAULT_TECHWEB_LINK
 
 ##Defines the ticklag for the world. Ticklag is the amount of time between game ticks (aka byond ticks) (in 1/10ths of a second).
 ##	This also controls the client network update rate, as well as the default client fps
@@ -501,13 +501,13 @@ BASE_MC_TICK_RATE 1
 HIGH_POP_MC_TICK_RATE 1.1
 
 ##Engage high pop mode if player count raises above this (Player in this context means any connected user. Lobby, ghost or in-game all count)
-HIGH_POP_MC_MODE_AMOUNT 65
+HIGH_POP_MC_MODE_AMOUNT 100
 
 ##Disengage high pop mode if player count drops below this
-DISABLE_HIGH_POP_MC_MODE_AMOUNT 60
+DISABLE_HIGH_POP_MC_MODE_AMOUNT 95
 
 ## Uncomment to prevent the world from sleeping while no players are connected after initializations
-#RESUME_AFTER_INITIALIZATIONS
+RESUME_AFTER_INITIALIZATIONS
 
 ## Uncomment to set the number of /world/Reboot()s before the DreamDaemon restarts itself. 0 means restart every round. Requires tgstation server tools.
 #ROUNDS_UNTIL_HARD_RESTART 10

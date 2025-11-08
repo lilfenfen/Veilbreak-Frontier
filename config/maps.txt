@@ -18,18 +18,19 @@ endmap
 # Production-level maps.
 
 map deltastation
-	minplayers 50
+	minplayers 0
 	votable
 endmap
 
 map Veilbreak
 	minplayers 0
 	votable
+	default
 endmap
 
 map icebox
-	minplayers 25
-	votable
+	minplayers 0
+	disabled
 endmap
 
 map catwalkstation
@@ -91,6 +92,12 @@ endmap
 map voidraptor
 	minplayers 40
 	votable
+endmap
+
+map Veilbreak
+	minplayers 0
+	votable
+	default
 endmap
 
 # Debug-only maps.
