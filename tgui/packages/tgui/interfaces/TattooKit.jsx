@@ -51,6 +51,7 @@ const TattooKitContent = (props) => {
   const { act, data } = useBackend<TattooKitData>();
 
   // Provide safe defaults for all data
+  const safeData = data || {};
   const {
     target_name = "No Target",
     ink_uses = 0,
@@ -65,7 +66,7 @@ const TattooKitContent = (props) => {
     tattoo_design = "",
     body_parts = [],
     preview_text = "",
-  } = data || {};
+  } = safeData;
 
   const [localArtist, setLocalArtist] = useState(artist_name);
   const [localDesign, setLocalDesign] = useState(tattoo_design);
@@ -94,6 +95,9 @@ const TattooKitContent = (props) => {
     { value: 'Printer', displayText: 'Printer' },
     { value: 'Charcoal', displayText: 'Charcoal' },
   ];
+
+  // Safe body parts array
+  const safeBodyParts = Array.isArray(body_parts) ? body_parts : [];
 
   // No target selected
   if (!target_name || target_name === "No Target") {
@@ -149,45 +153,53 @@ const TattooKitContent = (props) => {
             }
           >
             <Stack vertical>
-              {body_parts && body_parts.length > 0 ? (
-                body_parts.map((part) => (
-                  <Stack.Item key={part.zone}>
-                    <Button
-                      fluid
-                      disabled={part.covered || part.current_tattoos >= part.max_tattoos}
-                      onClick={() =>
-                        act('select_bodypart', { zone: part.zone })
-                      }
-                    >
-                      <Stack align="center">
-                        <Stack.Item grow>
-                          <Box fontSize="1.2em">{part.name}</Box>
-                          <Box>
-                            Tattoos: {part.current_tattoos}/{part.max_tattoos}
-                          </Box>
-                        </Stack.Item>
-                        <Stack.Item>
-                          {part.covered && (
-                            <Box color="bad" bold>
-                              COVERED
+              {safeBodyParts.length > 0 ? (
+                safeBodyParts.map((part) => {
+                  // Safe part data
+                  const safePart = part || {};
+                  const partZone = safePart.zone || "";
+                  const partName = safePart.name || "Unknown";
+                  const partCovered = !!safePart.covered;
+                  const partCurrentTattoos = Number(safePart.current_tattoos) || 0;
+                  const partMaxTattoos = Number(safePart.max_tattoos) || 5;
+
+                  return (
+                    <Stack.Item key={partZone}>
+                      <Button
+                        fluid
+                        disabled={partCovered || partCurrentTattoos >= partMaxTattoos}
+                        onClick={() => act('select_bodypart', { zone: partZone })}
+                      >
+                        <Stack align="center">
+                          <Stack.Item grow>
+                            <Box fontSize="1.2em">{partName}</Box>
+                            <Box>
+                              Tattoos: {partCurrentTattoos}/{partMaxTattoos}
                             </Box>
-                          )}
-                          {part.current_tattoos >= part.max_tattoos && (
-                            <Box color="bad" bold>
-                              FULL
-                            </Box>
-                          )}
-                          {!part.covered &&
-                            part.current_tattoos < part.max_tattoos && (
-                            <Box color="good" bold>
-                              AVAILABLE
-                            </Box>
-                          )}
-                        </Stack.Item>
-                      </Stack>
-                    </Button>
-                  </Stack.Item>
-                ))
+                          </Stack.Item>
+                          <Stack.Item>
+                            {partCovered && (
+                              <Box color="bad" bold>
+                                COVERED
+                              </Box>
+                            )}
+                            {partCurrentTattoos >= partMaxTattoos && (
+                              <Box color="bad" bold>
+                                FULL
+                              </Box>
+                            )}
+                            {!partCovered &&
+                              partCurrentTattoos < partMaxTattoos && (
+                              <Box color="good" bold>
+                                AVAILABLE
+                              </Box>
+                            )}
+                          </Stack.Item>
+                        </Stack>
+                      </Button>
+                    </Stack.Item>
+                  );
+                })
               ) : (
                 <Stack.Item>
                   <Box textAlign="center" color="bad">
@@ -234,11 +246,14 @@ const TattooKitContent = (props) => {
               <LabeledList.Item label="Layer">
                 <Dropdown
                   width="120px"
-                  selected={selected_layer?.toString() || '2'}
+                  selected={String(selected_layer || 2)}
                   options={layerOptions}
-                  onSelected={(value) =>
-                    act('set_layer', { layer: parseInt(value) })
-                  }
+                  onSelected={(value) => {
+                    const layerNum = parseInt(value, 10);
+                    if (!isNaN(layerNum)) {
+                      act('set_layer', { layer: layerNum });
+                    }
+                  }}
                 />
               </LabeledList.Item>
               <LabeledList.Item label="Font">
@@ -262,12 +277,16 @@ const TattooKitContent = (props) => {
                       fluid
                       value={localArtist}
                       onChange={(e, value) => setLocalArtist(value)}
-                      onEnter={() =>
-                        act('set_artist_name', { value: localArtist })
-                      }
-                      onBlur={() =>
-                        act('set_artist_name', { value: localArtist })
-                      }
+                      onEnter={() => {
+                        if (localArtist?.trim()) {
+                          act('set_artist_name', { value: localArtist });
+                        }
+                      }}
+                      onBlur={() => {
+                        if (localArtist?.trim()) {
+                          act('set_artist_name', { value: localArtist });
+                        }
+                      }}
                       placeholder="Enter artist name..."
                     />
                   </LabeledList.Item>
@@ -280,10 +299,16 @@ const TattooKitContent = (props) => {
                   height="100px"
                   value={localDesign}
                   onChange={(e, value) => setLocalDesign(value)}
-                  onEnter={() =>
-                    act('set_tattoo_design', { value: localDesign })
-                  }
-                  onBlur={() => act('set_tattoo_design', { value: localDesign })}
+                  onEnter={() => {
+                    if (localDesign?.trim()) {
+                      act('set_tattoo_design', { value: localDesign });
+                    }
+                  }}
+                  onBlur={() => {
+                    if (localDesign?.trim()) {
+                      act('set_tattoo_design', { value: localDesign });
+                    }
+                  }}
                   placeholder="Describe the tattoo design..."
                 />
               </Stack.Item>

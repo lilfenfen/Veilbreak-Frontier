@@ -86,12 +86,15 @@
 
 	if(current_target && !QDELETED(current_target))
 		data["target_name"] = current_target.name
-		data["selected_zone_name"] = get_custom_tattoo_body_part_description(selected_zone)
+		data["selected_zone_name"] = get_custom_tattoo_body_part_description(selected_zone) || "chest"
 
 		var/list/body_parts = list()
 		var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
 		for(var/zone in available_parts)
 			var/list/part_info = available_parts[zone]
+			if(!part_info)
+				continue
+
 			body_parts += list(list(
 				"zone" = zone || "",
 				"name" = part_info["name"] || "Unknown",
@@ -105,14 +108,19 @@
 		var/preview_text = ""
 		if(selected_zone)
 			var/list/tattoos = current_target.get_custom_tattoos(selected_zone)
-			for(var/datum/custom_tattoo/T in tattoos)
-				if(T && !QDELETED(T))
-					preview_text += T.get_examine_text(user, current_target) + "<br>"
+			if(tattoos)
+				for(var/datum/custom_tattoo/T in tattoos)
+					if(T && !QDELETED(T))
+						var/tattoo_text = T.get_examine_text(user, current_target)
+						if(tattoo_text)
+							preview_text += tattoo_text + "<br>"
 
 			// Add preview of new tattoo if we're in design mode
 			if(current_step == "design_tattoo" && tattoo_design && artist_name)
 				var/datum/custom_tattoo/preview_tattoo = new(artist_name, tattoo_design, selected_zone, ink_color, selected_layer, FALSE, selected_font)
-				preview_text += preview_tattoo.get_examine_text(user, current_target) + "<br>"
+				var/preview_tattoo_text = preview_tattoo.get_examine_text(user, current_target)
+				if(preview_tattoo_text)
+					preview_text += preview_tattoo_text + "<br>"
 				qdel(preview_tattoo)
 
 		data["preview_text"] = preview_text
