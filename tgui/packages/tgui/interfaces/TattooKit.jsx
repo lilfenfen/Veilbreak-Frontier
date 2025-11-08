@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -69,6 +69,29 @@ const TattooKitContent = (props) => {
   const [localArtist, setLocalArtist] = useState(artist_name);
   const [localDesign, setLocalDesign] = useState(tattoo_design);
 
+  // Sync local state with backend data
+  useEffect(() => {
+    setLocalArtist(artist_name);
+  }, [artist_name]);
+
+  useEffect(() => {
+    setLocalDesign(tattoo_design);
+  }, [tattoo_design]);
+
+  // No target selected
+  if (!target_name || target_name === "No Target") {
+    return (
+      <Section fill>
+        <Box textAlign="center" fontSize="1.5em" bold>
+          No Target Selected
+        </Box>
+        <Box textAlign="center" mt={2}>
+          Use the tattoo kit on someone to apply tattoos.
+        </Box>
+      </Section>
+    );
+  }
+
   if (current_step === 'select_part') {
     return (
       <Stack fill vertical>
@@ -76,7 +99,7 @@ const TattooKitContent = (props) => {
           <Section title="Target Information">
             <LabeledList>
               <LabeledList.Item label="Target">
-                {target_name || 'No Target Selected'}
+                {target_name}
               </LabeledList.Item>
               <LabeledList.Item label="Ink Remaining">
                 {ink_uses} / {max_uses}
@@ -109,44 +132,52 @@ const TattooKitContent = (props) => {
             }
           >
             <Stack vertical>
-              {body_parts?.map((part) => (
-                <Stack.Item key={part.zone}>
-                  <Button
-                    fluid
-                    disabled={part.covered || part.current_tattoos >= part.max_tattoos}
-                    onClick={() =>
-                      act('select_bodypart', { zone: part.zone })
-                    }
-                  >
-                    <Stack align="center">
-                      <Stack.Item grow>
-                        <Box fontSize="1.2em">{part.name}</Box>
-                        <Box>
-                          Tattoos: {part.current_tattoos}/{part.max_tattoos}
-                        </Box>
-                      </Stack.Item>
-                      <Stack.Item>
-                        {part.covered && (
-                          <Box color="bad" bold>
-                            COVERED
+              {body_parts?.length > 0 ? (
+                body_parts.map((part) => (
+                  <Stack.Item key={part.zone}>
+                    <Button
+                      fluid
+                      disabled={part.covered || part.current_tattoos >= part.max_tattoos}
+                      onClick={() =>
+                        act('select_bodypart', { zone: part.zone })
+                      }
+                    >
+                      <Stack align="center">
+                        <Stack.Item grow>
+                          <Box fontSize="1.2em">{part.name}</Box>
+                          <Box>
+                            Tattoos: {part.current_tattoos}/{part.max_tattoos}
                           </Box>
-                        )}
-                        {part.current_tattoos >= part.max_tattoos && (
-                          <Box color="bad" bold>
-                            FULL
-                          </Box>
-                        )}
-                        {!part.covered &&
-                          part.current_tattoos < part.max_tattoos && (
-                          <Box color="good" bold>
-                            AVAILABLE
-                          </Box>
-                        )}
-                      </Stack.Item>
-                    </Stack>
-                  </Button>
+                        </Stack.Item>
+                        <Stack.Item>
+                          {part.covered && (
+                            <Box color="bad" bold>
+                              COVERED
+                            </Box>
+                          )}
+                          {part.current_tattoos >= part.max_tattoos && (
+                            <Box color="bad" bold>
+                              FULL
+                            </Box>
+                          )}
+                          {!part.covered &&
+                            part.current_tattoos < part.max_tattoos && (
+                            <Box color="good" bold>
+                              AVAILABLE
+                            </Box>
+                          )}
+                        </Stack.Item>
+                      </Stack>
+                    </Button>
+                  </Stack.Item>
+                ))
+              ) : (
+                <Stack.Item>
+                  <Box textAlign="center" color="bad">
+                    No available body parts found!
+                  </Box>
                 </Stack.Item>
-              ))}
+              )}
             </Stack>
           </Section>
         </Stack.Item>
@@ -186,11 +217,11 @@ const TattooKitContent = (props) => {
               <LabeledList.Item label="Layer">
                 <Dropdown
                   width="120px"
-                  selected={selected_layer}
+                  selected={selected_layer.toString()}
                   options={[
-                    { value: 1, displayText: 'Under' },
-                    { value: 2, displayText: 'Normal' },
-                    { value: 3, displayText: 'Over' },
+                    { value: '1', displayText: 'Under' },
+                    { value: '2', displayText: 'Normal' },
+                    { value: '3', displayText: 'Over' },
                   ]}
                   onSelected={(value) =>
                     act('set_layer', { layer: parseInt(value) })
@@ -250,7 +281,7 @@ const TattooKitContent = (props) => {
                 />
               </Stack.Item>
               <Stack.Item>
-                <Section title="Preview">
+                <Section title="Preview" fill>
                   <Box
                     dangerouslySetInnerHTML={{
                       __html: preview_text || 'No preview available',
@@ -263,7 +294,7 @@ const TattooKitContent = (props) => {
                   fluid
                   color="good"
                   icon="check"
-                  disabled={!localArtist.trim() || !localDesign.trim()}
+                  disabled={!localArtist.trim() || !localDesign.trim() || ink_uses <= 0}
                   onClick={() => act('apply_tattoo')}
                 >
                   Apply Tattoo (Costs 1 Ink)

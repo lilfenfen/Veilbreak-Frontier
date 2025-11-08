@@ -18,8 +18,12 @@
 
 	LAZYADD(custom_body_tattoos, new_tattoo)
 
+	// Save to preferences if we have a client
 	if(client?.prefs)
 		client.prefs.save_custom_tattoo_data()
+
+	// Update appearance
+	regenerate_icons()
 
 	return TRUE
 
@@ -30,8 +34,12 @@
 	custom_body_tattoos -= tattoo
 	qdel(tattoo)
 
+	// Save to preferences if we have a client
 	if(client?.prefs)
 		client.prefs.save_custom_tattoo_data()
+
+	// Update appearance
+	regenerate_icons()
 
 	return TRUE
 
@@ -85,6 +93,8 @@
 	. = ..()
 	if(client?.prefs)
 		client.prefs.apply_custom_tattoos_to_mob(src)
+		// Force icon update after loading tattoos
+		regenerate_icons()
 
 /mob/living/carbon/human/Initialize(mapload)
 	. = ..()
@@ -93,3 +103,5 @@
 /mob/living/carbon/human/proc/load_custom_tattoos_from_prefs()
 	if(client?.prefs)
 		client.prefs.apply_custom_tattoos_to_mob(src)
+		// Force icon update
+		addtimer(CALLBACK(src, .proc/regenerate_icons), 1 SECONDS)

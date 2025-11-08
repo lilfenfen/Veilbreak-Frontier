@@ -366,7 +366,7 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	//Quirks
 	all_quirks = save_data?["all_quirks"]
 	load_character_skyrat(save_data) // SKYRAT EDIT ADDITION
-
+	load_custom_tattoo_data()
 	//try to fix any outdated data if necessary
 	//preference updating will handle saving the updated data for us.
 	if(SHOULD_UPDATE_DATA(data_validity_integer))
@@ -430,6 +430,7 @@ SAVEFILE UPDATING/VERSIONING - 'Simplified', or rather, more coder-friendly ~Car
 	//Quirks
 	save_data["all_quirks"] = all_quirks
 	save_character_skyrat(save_data, update) // SKYRAT EDIT ADDITION
+	save_custom_tattoo_data()
 	return TRUE
 
 /datum/preferences/proc/switch_to_slot(new_slot)
