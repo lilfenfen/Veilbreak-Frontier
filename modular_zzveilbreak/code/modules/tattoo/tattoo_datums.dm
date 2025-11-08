@@ -5,14 +5,18 @@
 	var/color = "#000000"
 	var/date_applied = ""
 	var/layer = TATTOO_LAYER_NORMAL
+	var/is_signature = FALSE  // Whether this tattoo uses a signature as the artist name
+	var/font = PEN_FONT       // Font used for the tattoo design
 
-/datum/tattoo/New(artist, design, body_part, color, layer = TATTOO_LAYER_NORMAL)
+/datum/tattoo/New(artist, design, body_part, color, layer = TATTOO_LAYER_NORMAL, is_signature = FALSE, font = PEN_FONT)
 	src.artist = artist || "Unknown Artist"
 	src.design = design || "An intricate design"
 	src.body_part = body_part || BODY_ZONE_CHEST
 	src.color = sanitize_hexcolor(color, default = "#000000")
 	src.layer = sanitize_integer(layer, TATTOO_LAYER_UNDER, TATTOO_LAYER_OVER, TATTOO_LAYER_NORMAL)
 	src.date_applied = time2text(world.realtime, "YYYY-MM-DD")
+	src.is_signature = is_signature
+	src.font = (font in GLOB.tattoo_fonts) ? font : PEN_FONT
 
 /datum/tattoo/proc/get_examine_text(mob/viewer, mob/living/carbon/human/victim)
 	if(!is_visible(viewer, victim))
@@ -26,6 +30,14 @@
 
 	if(!display_artist || trimtext(display_artist) == "")
 		display_artist = "an unknown artist"
+
+	// Apply font to design if not default
+	if(font && font != PEN_FONT)
+		display_design = "<font face='[font]'>[display_design]</font>"
+
+	// Use fountain pen font for signatures, just like the paper system
+	if(is_signature)
+		display_artist = "<font face='[FOUNTAIN_PEN_FONT]'>[display_artist]</font>"
 
 	var/body_part_description = get_specific_body_part_description(body_part)
 

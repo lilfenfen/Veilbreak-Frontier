@@ -34,3 +34,13 @@
 
 // Initialization order for tattoo subsystem
 #define INIT_ORDER_TATTOO 95
+
+
+// Global list of available tattoo fonts
+GLOBAL_LIST_INIT(tattoo_fonts, list(
+	PEN_FONT,
+	FOUNTAIN_PEN_FONT,
+	CRAYON_FONT,
+	PRINTER_FONT,
+	CHARCOAL_FONT
+))

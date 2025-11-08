@@ -17,7 +17,9 @@
 				"body_part" = body_part_description,
 				"color" = T.color,
 				"date_applied" = T.date_applied,
-				"layer" = T.layer
+				"layer" = T.layer,
+				"is_signature" = T.is_signature,
+				"font" = T.font
 			))
 
 	save_data["tattoos_data"] = tattoo_data
@@ -50,6 +52,8 @@
 		var/color = tattoo_info["color"]
 		var/layer = tattoo_info["layer"]
 		var/date_applied = tattoo_info["date_applied"]
+		var/is_signature = tattoo_info["is_signature"]
+		var/font = tattoo_info["font"]
 
 		if(!body_part_string)
 			continue
@@ -66,13 +70,17 @@
 		var/final_design = design ? sanitize_text(design) : "An intricate design"
 		var/final_color = sanitize_hexcolor(color, default = "#000000")
 		var/final_layer = sanitize_integer(layer, TATTOO_LAYER_UNDER, TATTOO_LAYER_OVER, TATTOO_LAYER_NORMAL)
+		var/final_is_signature = is_signature ? TRUE : FALSE
+		var/final_font = (font && (font in GLOB.tattoo_fonts)) ? font : PEN_FONT
 
 		var/datum/tattoo/T = new(
 			final_artist,
 			final_design,
 			body_part_define,
 			final_color,
-			final_layer
+			final_layer,
+			final_is_signature,
+			final_font
 		)
 
 		if(date_applied)
@@ -83,28 +91,21 @@
 	features["tattoos"] = loaded_tattoos
 	features["tattoos_data"] = tattoo_data
 
-/datum/preferences/proc/apply_tattoos_to_mob(mob/living/carbon/human/character)
-	if(!istype(character))
+/datum/preferences/proc/apply_tattoos_to_mob(mob/living/carbon/human/H)
+	if(!istype(H) || !features["tattoos"])
 		return
 
-	// Clear existing tattoos
-	character.body_tattoos = list()
+	// Clear any existing tattoos
+	H.body_tattoos.Cut()
 
-	if(!features)
-		var/list/current_save_data = savefile?.get_entry("character[default_slot]")
-		if(current_save_data)
-			load_tattoo_data(current_save_data)
-
-	if(!features["tattoos"])
-		var/list/current_save_data = savefile?.get_entry("character[default_slot]")
-		if(current_save_data)
-			load_tattoo_data(current_save_data)
-
-	var/list/tattoos_to_apply = features["tattoos"]
-
-	if(!tattoos_to_apply || !islist(tattoos_to_apply))
-		character.body_tattoos = list()
+	// Apply tattoos from preferences
+	var/list/saved_tattoos = features["tattoos"]
+	if(!islist(saved_tattoos))
 		return
 
-	character.body_tattoos = tattoos_to_apply.Copy()
-	character.regenerate_icons()
+	for(var/datum/tattoo/T as anything in saved_tattoos)
+		if(istype(T) && !QDELETED(T))
+			H.add_tattoo(T)
+
+	// Update the mob's appearance
+	H.regenerate_icons()

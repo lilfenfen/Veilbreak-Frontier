@@ -1,5 +1,5 @@
 import { useBackend } from '../backend';
-import { Box, Button, Input, LabeledList, ProgressBar, Section, Stack, Tabs } from 'tgui-core/components';
+import { Box, Button, Dropdown, Input, LabeledList, ProgressBar, Section, Stack, Tabs } from 'tgui-core/components';
 import { Window } from '../layouts';
 
 type TattooKitData = {
@@ -11,9 +11,11 @@ type TattooKitData = {
   selected_zone_name: string;
   current_step: string;
   selected_layer: number;
+  selected_font: string;
   artist_name: string;
   tattoo_design: string;
   body_parts: BodyPart[];
+  preview_text: string;
 };
 
 type BodyPart = {
@@ -22,6 +24,15 @@ type BodyPart = {
   covered: boolean;
   current_tattoos: number;
   max_tattoos: number;
+};
+
+// Font options matching the DM defines
+const FONT_OPTIONS = {
+  'Verdana': 'Regular Pen',
+  'Segoe Script': 'Fountain Pen',
+  'Comic Sans MS': 'Crayon',
+  'Times New Roman': 'Printer',
+  'Candara': 'Charcoal',
 };
 
 export const TattooKit = (props) => {
@@ -35,13 +46,20 @@ export const TattooKit = (props) => {
     selected_zone_name,
     current_step,
     selected_layer,
+    selected_font,
     artist_name,
     tattoo_design,
     body_parts = [],
+    preview_text,
   } = data;
 
   return (
-    <Window width={500} height={600} theme="neutral">
+    <Window
+      width={720}
+      height={760}
+      theme="neutral"
+      resizable
+    >
       <Window.Content scrollable>
         <Section title="Tattoo Kit">
           <LabeledList>
@@ -58,7 +76,16 @@ export const TattooKit = (props) => {
               </ProgressBar>
             </LabeledList.Item>
             <LabeledList.Item label="Ink Color">
-              <Box inline width="64px" height="64px" backgroundColor={ink_color} />
+              <Box
+                inline
+                width="64px"
+                height="64px"
+                backgroundColor={ink_color}
+                style={{
+                  'border': '2px solid #555',
+                  'border-radius': '4px',
+                }}
+              />
               <Button
                 ml={1}
                 icon="palette"
@@ -82,17 +109,21 @@ export const TattooKit = (props) => {
             artistName={artist_name}
             tattooDesign={tattoo_design}
             selectedLayer={selected_layer}
+            selectedFont={selected_font}
+            previewText={preview_text}
             onBack={() => act('back_to_selection')}
-            onApply={(artist, design, layer) =>
+            onApply={(artist, design, layer, font) =>
               act('apply_tattoo', {
                 artist: artist,
                 design: design,
                 layer: layer,
+                font: font,
               })
             }
             onSetArtist={(name) => act('set_artist_name', { value: name })}
             onSetDesign={(design) => act('set_tattoo_design', { value: design })}
             onSetLayer={(layer) => act('set_layer', { layer: layer })}
+            onSetFont={(font) => act('set_font', { font: font })}
           />
         )}
       </Window.Content>
@@ -123,7 +154,11 @@ const BodyPartSelection = (props: {
                   : part.current_tattoos >= part.max_tattoos
                     ? 'Maximum tattoos reached for this body part'
                     : `Current tattoos: ${part.current_tattoos}/${part.max_tattoos}`
-              }>
+              }
+              style={{
+                'margin-bottom': '2px',
+              }}
+            >
               {part.name} ({part.current_tattoos}/{part.max_tattoos})
             </Button>
           </Stack.Item>
@@ -138,22 +173,28 @@ const TattooDesign = (props: {
   artistName: string;
   tattooDesign: string;
   selectedLayer: number;
+  selectedFont: string;
+  previewText: string;
   onBack: () => void;
-  onApply: (artist: string, design: string, layer: number) => void;
+  onApply: (artist: string, design: string, layer: number, font: string) => void;
   onSetArtist: (name: string) => void;
   onSetDesign: (design: string) => void;
   onSetLayer: (layer: number) => void;
+  onSetFont: (font: string) => void;
 }) => {
   const {
     selectedZone,
     artistName,
     tattooDesign,
     selectedLayer,
+    selectedFont,
+    previewText,
     onBack,
     onApply,
     onSetArtist,
     onSetDesign,
     onSetLayer,
+    onSetFont,
   } = props;
 
   const layerOptions = [
@@ -163,50 +204,117 @@ const TattooDesign = (props: {
   ];
 
   return (
-    <Section
-      title={`Design Tattoo - ${selectedZone}`}
-      buttons={<Button icon="arrow-left" onClick={onBack}>Back</Button>}>
+    <Section title={`Design Tattoo for ${selectedZone}`}>
       <Stack vertical fill>
         <Stack.Item>
-          <LabeledList>
-            <LabeledList.Item label="Artist Name">
-              <Input
-                fluid
-                value={artistName}
-                placeholder="Enter artist name..."
-                onChange={(e, value) => onSetArtist(value)}
-                maxLength={50}
-              />
-            </LabeledList.Item>
-            <LabeledList.Item label="Tattoo Layer">
-              <Tabs fluid>
-                {layerOptions.map((layer) => (
-                  <Tabs.Tab
-                    key={layer.value}
-                    selected={selectedLayer === layer.value}
-                    icon="layer-group"
-                    tooltip={layer.tooltip}
-                    onClick={() => onSetLayer(layer.value)}>
-                    {layer.label}
-                  </Tabs.Tab>
-                ))}
-              </Tabs>
-            </LabeledList.Item>
-          </LabeledList>
+          <Stack>
+            <Stack.Item grow>
+              <Section title="Artist Information">
+                <LabeledList>
+                  <LabeledList.Item label="Artist Name">
+                    <Input
+                      fluid
+                      value={artistName}
+                      placeholder="Enter artist name or use %s for your signature..."
+                      onChange={(e, value) => onSetArtist(value)}
+                      maxLength={50}
+                    />
+                  </LabeledList.Item>
+                  <LabeledList.Item label="Tattoo Font">
+                    <Dropdown
+                      width="100%"
+                      selected={FONT_OPTIONS[selectedFont] || selectedFont}
+                      options={Object.values(FONT_OPTIONS)}
+                      onSelected={(value) => {
+                        const fontKey = Object.keys(FONT_OPTIONS).find(
+                          key => FONT_OPTIONS[key] === value
+                        );
+                        onSetFont(fontKey || 'Verdana');
+                      }}
+                    />
+                  </LabeledList.Item>
+                </LabeledList>
+                <Box fontSize="0.8rem" color="label" mt={1}>
+                  <div><strong>Placeholders:</strong></div>
+                  <div>%s or %sign - Your signature</div>
+                  <div>%d or %date - Current date</div>
+                  <div>%t or %time - Current time</div>
+                </Box>
+              </Section>
+            </Stack.Item>
+            <Stack.Item>
+              <Section title="Tattoo Layer">
+                <Tabs vertical>
+                  {layerOptions.map((layer) => (
+                    <Tabs.Tab
+                      key={layer.value}
+                      selected={selectedLayer === layer.value}
+                      icon="layer-group"
+                      tooltip={layer.tooltip}
+                      onClick={() => onSetLayer(layer.value)}
+                    >
+                      {layer.label}
+                    </Tabs.Tab>
+                  ))}
+                </Tabs>
+              </Section>
+            </Stack.Item>
+          </Stack>
         </Stack.Item>
 
         <Stack.Item grow>
-          <Section title="Tattoo Design" fill scrollable>
-            <Input
-              textArea
-              fluid
-              height="100px"
-              value={tattooDesign}
-              placeholder="Describe the tattoo design in detail..."
-              onChange={(e, value) => onSetDesign(value)}
-              maxLength={500}
-            />
-          </Section>
+          <Stack vertical fill>
+            <Stack.Item grow>
+              <Section
+                title="Tattoo Design Description"
+                fill
+                scrollable
+                buttons={
+                  <Button icon="arrow-left" onClick={onBack}>
+                    Back to Selection
+                  </Button>
+                }
+              >
+                <Box height="200px">
+                  <Input
+                    textArea
+                    fluid
+                    height="100%"
+                    value={tattooDesign}
+                    placeholder="Describe the tattoo design in detail. Be creative! You can include symbols, patterns, text, emojis, or any other elements you want in your tattoo. Maximum 500 characters."
+                    onChange={(e, value) => onSetDesign(value)}
+                    maxLength={500}
+                  />
+                </Box>
+                <Box mt={1} textAlign="right">
+                  Characters: {tattooDesign.length}/500
+                </Box>
+              </Section>
+            </Stack.Item>
+
+            <Stack.Item>
+              <Section
+                title="Preview (Shows all tattoos on this body part)"
+                backgroundColor="rgba(0,0,0,0.1)"
+              >
+                <Box
+                  style={{
+                    'border': '2px solid #555',
+                    'padding': '0.75rem',
+                    'background': 'rgba(255,255,255,0.9)',
+                    'min-height': '100px',
+                    'border-radius': '4px',
+                  }}
+                  dangerouslySetInnerHTML={{
+                    __html: previewText || 'Enter tattoo details to see preview...',
+                  }}
+                />
+                <Box mt={1} fontSize="0.8rem" color="label">
+                  This preview shows how all tattoos on this body part will appear when examined, including layer ordering.
+                </Box>
+              </Section>
+            </Stack.Item>
+          </Stack>
         </Stack.Item>
 
         <Stack.Item>
@@ -214,14 +322,20 @@ const TattooDesign = (props: {
             fluid
             icon="check"
             color="good"
+            fontSize="16px"
+            py={1}
             disabled={!artistName.trim() || !tattooDesign.trim()}
-            onClick={() => onApply(artistName, tattooDesign, selectedLayer)}
+            onClick={() => onApply(artistName, tattooDesign, selectedLayer, selectedFont)}
             tooltip={
               !artistName.trim() || !tattooDesign.trim()
                 ? 'Please fill in both artist name and tattoo design'
-                : 'Apply tattoo'
-            }>
-            Apply Tattoo
+                : `Apply tattoo to ${selectedZone}`
+            }
+            style={{
+              'margin-top': '4px',
+            }}
+          >
+            APPLY TATTOO TO {selectedZone.toUpperCase()}
           </Button>
         </Stack.Item>
       </Stack>

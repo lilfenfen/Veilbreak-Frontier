@@ -16,6 +16,7 @@
 	var/mob/living/carbon/human/current_target
 	var/current_step = "select_part"
 	var/selected_layer = TATTOO_LAYER_NORMAL
+	var/selected_font = PEN_FONT
 	var/artist_name = ""
 	var/tattoo_design = ""
 
@@ -26,6 +27,7 @@
 	current_target = null
 	artist_name = ""
 	tattoo_design = ""
+	selected_font = PEN_FONT
 
 /obj/item/tattoo_kit/attack(mob/living/carbon/human/target, mob/living/user)
 	if(!istype(target))
@@ -69,9 +71,11 @@
 		data["selected_zone_name"] = "Unknown"
 		data["current_step"] = current_step
 		data["selected_layer"] = selected_layer
+		data["selected_font"] = selected_font
 		data["artist_name"] = artist_name
 		data["tattoo_design"] = tattoo_design
 		data["body_parts"] = list()
+		data["preview_text"] = ""
 		return data
 
 	data["target_name"] = current_target.name
@@ -82,6 +86,7 @@
 	data["selected_zone_name"] = get_body_zone_display_name(selected_zone)
 	data["current_step"] = current_step
 	data["selected_layer"] = selected_layer
+	data["selected_font"] = selected_font
 	data["artist_name"] = artist_name
 	data["tattoo_design"] = tattoo_design
 
@@ -102,6 +107,10 @@
 		))
 
 	data["body_parts"] = body_parts
+
+	// Generate preview data
+	data["preview_text"] = generate_preview_text()
+
 	return data
 
 /obj/item/tattoo_kit/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
@@ -137,6 +146,12 @@
 				selected_layer = sanitize_integer(layer, TATTOO_LAYER_UNDER, TATTOO_LAYER_OVER, TATTOO_LAYER_NORMAL)
 				. = TRUE
 
+		if("set_font")
+			var/font = params["font"]
+			if(font && (font in GLOB.tattoo_fonts))
+				selected_font = font
+				. = TRUE
+
 		if("change_ink_color")
 			var/new_color = input(user, "Choose ink color:", "Tattoo Kit", ink_color) as color|null
 			if(new_color)
@@ -164,6 +179,7 @@
 			var/artist_name_param = params["artist"]
 			var/tattoo_design_param = params["design"]
 			var/layer_param = text2num(params["layer"])
+			var/font_param = params["font"]
 
 			// Enhanced validation like fax machine
 			if(!artist_name_param || !istext(artist_name_param) || artist_name_param == "")
@@ -231,11 +247,17 @@
 					to_chat(user, span_warning("You must be holding the tattoo kit to apply a tattoo!"))
 					return FALSE
 
-				var/sanitized_artist = sanitize_text(trimmed_artist)
+				// Handle signature placeholders like paper system
+				var/list/processed_data = process_signature_placeholders(trimmed_artist, user)
+				var/final_artist = processed_data["text"]
+				var/is_signature = processed_data["is_signature"]
+
+				var/sanitized_artist = sanitize_text(final_artist)
 				var/sanitized_design = sanitize_text(trimmed_design)
 				var/sanitized_layer = sanitize_integer(layer_param, TATTOO_LAYER_UNDER, TATTOO_LAYER_OVER, selected_layer)
+				var/sanitized_font = (font_param in GLOB.tattoo_fonts) ? font_param : selected_font
 
-				var/datum/tattoo/new_tattoo = new(sanitized_artist, sanitized_design, selected_zone, ink_color, sanitized_layer)
+				var/datum/tattoo/new_tattoo = new(sanitized_artist, sanitized_design, selected_zone, ink_color, sanitized_layer, is_signature, sanitized_font)
 
 				if(current_target.add_tattoo(new_tattoo))
 					if(current_target.client?.prefs)
@@ -254,6 +276,83 @@
 			current_step = "select_part"
 			artist_name = ""
 			tattoo_design = ""
+			selected_font = PEN_FONT
 			. = TRUE
 
 	return .
+
+/**
+ * Processes signature placeholders in the artist name, similar to the paper system.
+ * Replaces %s and %sign with the user's real name, and handles date/time placeholders.
+ * Returns a list containing the processed text and whether it's a signature.
+ *
+ * Arguments:
+ * * text - The text to process for placeholders
+ * * user - The mob whose signature should be used
+ */
+/obj/item/tattoo_kit/proc/process_signature_placeholders(text, mob/user)
+	if(!text || !user)
+		return list("text" = text, "is_signature" = FALSE)
+
+	var/processed_text = text
+	var/is_signature = FALSE
+
+	// Handle signature placeholders
+	if((processed_text == "%sign") || (processed_text == "%s"))
+		processed_text = user.real_name
+		is_signature = TRUE
+
+	// Handle date and time placeholders for consistency with paper system
+	else if((processed_text == "%date") || (processed_text == "%d"))
+		processed_text = "[time2text(world.timeofday, "DD/MM", NO_TIMEZONE)]/[CURRENT_STATION_YEAR]"
+	else if((processed_text == "%time") || (processed_text == "%t"))
+		processed_text = time2text(world.timeofday, "hh:mm", NO_TIMEZONE)
+
+	return list("text" = processed_text, "is_signature" = is_signature)
+
+/**
+ * Generates preview text for the tattoo that shows how it will appear in examination.
+ * This includes existing tattoos on the selected body part to show layering.
+ */
+/obj/item/tattoo_kit/proc/generate_preview_text()
+	if(!selected_zone)
+		return ""
+
+	var/body_part_description = get_specific_body_part_description(selected_zone)
+	var/list/all_tattoos = list()
+
+	// Add existing tattoos on the selected body part
+	if(current_target)
+		var/list/existing_tattoos = current_target.get_tattoos(selected_zone)
+		all_tattoos += existing_tattoos
+
+	// Add the current tattoo being designed (if any)
+	if(tattoo_design && artist_name)
+		var/list/processed_data = process_signature_placeholders(artist_name, usr)
+		var/final_artist = processed_data["text"]
+		var/is_signature = processed_data["is_signature"]
+
+		var/preview_tattoo = new /datum/tattoo(
+			final_artist,
+			tattoo_design,
+			selected_zone,
+			ink_color,
+			selected_layer,
+			is_signature,
+			selected_font
+		)
+		all_tattoos += preview_tattoo
+
+	// Sort tattoos by layer for proper preview
+	all_tattoos = sortTim(all_tattoos, GLOBAL_PROC_REF(cmp_tattoo_layer_asc))
+
+	var/preview_text = ""
+	for(var/datum/tattoo/T as anything in all_tattoos)
+		var/tattoo_text = T.get_examine_text(usr, current_target)
+		if(tattoo_text)
+			preview_text += "[tattoo_text]\n"
+
+	if(preview_text == "")
+		preview_text = "No tattoos on [body_part_description]."
+
+	return preview_text
