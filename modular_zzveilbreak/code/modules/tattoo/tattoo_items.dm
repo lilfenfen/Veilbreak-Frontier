@@ -16,10 +16,16 @@
 	var/mob/living/carbon/human/current_target
 	var/current_step = "select_part"
 	var/selected_layer = TATTOO_LAYER_NORMAL
-
-	// FORM STATE - Managed by backend
 	var/artist_name = ""
 	var/tattoo_design = ""
+
+/obj/item/tattoo_kit/proc/reset_ui_state()
+	selected_zone = BODY_ZONE_CHEST
+	current_step = "select_part"
+	selected_layer = TATTOO_LAYER_NORMAL
+	current_target = null
+	artist_name = ""
+	tattoo_design = ""
 
 /obj/item/tattoo_kit/attack(mob/living/carbon/human/target, mob/living/user)
 	if(!istype(target))
@@ -35,11 +41,6 @@
 
 	current_target = target
 	current_step = "select_part"
-	selected_zone = BODY_ZONE_CHEST
-	selected_layer = TATTOO_LAYER_NORMAL
-	artist_name = ""
-	tattoo_design = ""
-
 	ui_interact(user)
 	return TRUE
 
@@ -49,8 +50,15 @@
 		ui = new(user, src, "TattooKit", name)
 		ui.open()
 
+/obj/item/tattoo_kit/ui_close(mob/user, datum/tgui/ui)
+	// Don't reset state on close - allow reopening to continue where left off
+	return ..()
+
 /obj/item/tattoo_kit/ui_data(mob/user)
 	var/list/data = list()
+
+	if(!current_target && istype(user, /mob/living/carbon/human))
+		current_target = user
 
 	if(!current_target)
 		data["target_name"] = "No target"
@@ -121,8 +129,6 @@
 
 			selected_zone = zone
 			current_step = "design_tattoo"
-			artist_name = ""
-			tattoo_design = ""
 			. = TRUE
 
 		if("set_layer")
@@ -140,33 +146,36 @@
 
 		if("back_to_selection")
 			current_step = "select_part"
-			artist_name = ""
-			tattoo_design = ""
 			. = TRUE
 
-		if("update_artist")
-			var/new_artist = params["artist"]
-			if(istext(new_artist))
-				artist_name = sanitize_text(new_artist)
+		if("set_artist_name")
+			var/new_name = params["value"]
+			if(new_name)
+				artist_name = sanitize_text(new_name)
 				. = TRUE
 
-		if("update_design")
-			var/new_design = params["design"]
-			if(istext(new_design))
+		if("set_tattoo_design")
+			var/new_design = params["value"]
+			if(new_design)
 				tattoo_design = sanitize_text(new_design)
 				. = TRUE
 
 		if("apply_tattoo")
-			if(!artist_name || artist_name == "")
+			var/artist_name_param = params["artist"]
+			var/tattoo_design_param = params["design"]
+			var/layer_param = text2num(params["layer"])
+
+			// Enhanced validation like fax machine
+			if(!artist_name_param || !istext(artist_name_param) || artist_name_param == "")
 				to_chat(user, span_warning("Please enter a valid artist name!"))
 				return FALSE
 
-			if(!tattoo_design || tattoo_design == "")
+			if(!tattoo_design_param || !istext(tattoo_design_param) || tattoo_design_param == "")
 				to_chat(user, span_warning("Please enter a valid tattoo design description!"))
 				return FALSE
 
-			var/trimmed_artist = trimtext(artist_name)
-			var/trimmed_design = trimtext(tattoo_design)
+			var/trimmed_artist = trimtext(artist_name_param)
+			var/trimmed_design = trimtext(tattoo_design_param)
 
 			if(!length(trimmed_artist))
 				to_chat(user, span_warning("Artist name cannot be empty or just spaces!"))
@@ -224,8 +233,9 @@
 
 				var/sanitized_artist = sanitize_text(trimmed_artist)
 				var/sanitized_design = sanitize_text(trimmed_design)
+				var/sanitized_layer = sanitize_integer(layer_param, TATTOO_LAYER_UNDER, TATTOO_LAYER_OVER, selected_layer)
 
-				var/datum/tattoo/new_tattoo = new(sanitized_artist, sanitized_design, selected_zone, ink_color, selected_layer)
+				var/datum/tattoo/new_tattoo = new(sanitized_artist, sanitized_design, selected_zone, ink_color, sanitized_layer)
 
 				if(current_target.add_tattoo(new_tattoo))
 					if(current_target.client?.prefs)
@@ -240,6 +250,7 @@
 			else
 				to_chat(user, span_warning("Tattoo application interrupted!"))
 
+			// Reset state after successful application
 			current_step = "select_part"
 			artist_name = ""
 			tattoo_design = ""

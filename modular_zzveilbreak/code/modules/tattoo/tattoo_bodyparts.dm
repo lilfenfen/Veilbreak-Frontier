@@ -51,31 +51,6 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 	if(!body_zone)
 		return "Unknown"
 
-	// Handle organ slots first
-	switch(body_zone)
-		if(ORGAN_SLOT_PENIS)
-			return "Penis"
-		if(ORGAN_SLOT_WOMB)
-			return "Womb"
-		if(ORGAN_SLOT_VAGINA)
-			return "Vagina"
-		if(ORGAN_SLOT_TESTICLES)
-			return "Testicles"
-		if(ORGAN_SLOT_BREASTS)
-			return "Breasts"
-		if(ORGAN_SLOT_ANUS)
-			return "Anus"
-		if(ORGAN_SLOT_NIPPLES)
-			return "Nipples"
-		if(ORGAN_SLOT_TAIL)
-			return "Tail"
-		if(ORGAN_SLOT_SLIT)
-			return "Slit"
-		if(ORGAN_SLOT_SHEATH)
-			return "Sheath"
-		if(ORGAN_SLOT_WINGS)
-			return "Wings"
-
 	var/name = ""
 	switch(body_zone)
 		if(BODY_ZONE_HEAD) name = "Head"
@@ -89,6 +64,15 @@ GLOBAL_LIST_INIT(tattoo_blacklist, list(
 		if(BODY_ZONE_PRECISE_L_FOOT) name = "Left Foot"
 		if(BODY_ZONE_PRECISE_R_FOOT) name = "Right Foot"
 		if(BODY_ZONE_PRECISE_GROIN) name = "Groin"
+		// Organ slot display names
+		if(ORGAN_SLOT_BELLY) name = "Stomach"
+		if(ORGAN_SLOT_BUTT) name = "Butt"
+		if(ORGAN_SLOT_EXTERNAL_TAIL) name = "Tail"
+		if(ORGAN_SLOT_EXTERNAL_SPINES) name = "Spines"
+		if(ORGAN_SLOT_EXTERNAL_FRILLS) name = "Frills"
+		if(ORGAN_SLOT_EXTERNAL_HORNS) name = "Horns"
+		if(ORGAN_SLOT_EXTERNAL_WINGS) name = "Wings"
+		if(ORGAN_SLOT_WINGS) name = "Wings"
 		else
 			// For any custom body zones, format the text nicely
 			name = replacetext(replacetext("[body_zone]", "BODY_ZONE_", ""), "_", " ")
