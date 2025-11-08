@@ -56,8 +56,8 @@ export const TattooKit = (props) => {
   return (
     <Window
       width={720}
-      height={760}
-      theme="grey" // Changed to grey theme
+      height={800} // Increased height to accommodate layout
+      theme="grey"
       resizable
     >
       <Window.Content scrollable>
@@ -112,18 +112,17 @@ export const TattooKit = (props) => {
             selectedFont={selected_font}
             previewText={preview_text}
             onBack={() => act('back_to_selection')}
-            onApply={(artist, design, layer, font) =>
-              act('apply_tattoo', {
-                artist: artist,
-                design: design,
-                layer: layer,
-                font: font,
-              })
-            }
+            onApply={() => act('apply_tattoo', {
+              artist: artist_name,
+              design: tattoo_design,
+              layer: selected_layer,
+              font: selected_font,
+            })}
             onSetArtist={(name) => act('set_artist_name', { value: name })}
             onSetDesign={(design) => act('set_tattoo_design', { value: design })}
             onSetLayer={(layer) => act('set_layer', { layer: layer })}
             onSetFont={(font) => act('set_font', { font: font })}
+            canApply={artist_name?.trim() && tattoo_design?.trim()}
           />
         )}
       </Window.Content>
@@ -176,11 +175,12 @@ const TattooDesign = (props: {
   selectedFont: string;
   previewText: string;
   onBack: () => void;
-  onApply: (artist: string, design: string, layer: number, font: string) => void;
+  onApply: () => void;
   onSetArtist: (name: string) => void;
   onSetDesign: (design: string) => void;
   onSetLayer: (layer: number) => void;
   onSetFont: (font: string) => void;
+  canApply: boolean;
 }) => {
   const {
     selectedZone,
@@ -195,6 +195,7 @@ const TattooDesign = (props: {
     onSetDesign,
     onSetLayer,
     onSetFont,
+    canApply,
   } = props;
 
   const layerOptions = [
@@ -213,7 +214,7 @@ const TattooDesign = (props: {
       }
     >
       <Stack vertical fill>
-        {/* Top row: Artist info and layer selection */}
+        {/* Configuration Section */}
         <Stack.Item>
           <Stack>
             <Stack.Item grow>
@@ -270,46 +271,38 @@ const TattooDesign = (props: {
           </Stack>
         </Stack.Item>
 
-        {/* Tattoo Design Input - Now properly sized and positioned */}
-        <Stack.Item grow={1}>
-          <Section
-            title="Tattoo Design Description"
-            fill
-            scrollable
-          >
-            <Box height="150px">
-              <Input
-                textArea
-                fluid
-                height="100%"
-                value={tattooDesign}
-                placeholder="Describe the tattoo design in detail. Be creative! You can include symbols, patterns, text, emojis, or any other elements you want in your tattoo. Maximum 500 characters."
-                onChange={(e, value) => onSetDesign(value)}
-                maxLength={500}
-              />
-            </Box>
+        {/* Tattoo Design Input - Fixed layout */}
+        <Stack.Item>
+          <Section title="Tattoo Design Description">
+            <Input
+              textArea
+              fluid
+              height="120px"
+              value={tattooDesign}
+              placeholder="Describe the tattoo design in detail. Be creative! You can include symbols, patterns, text, emojis, or any other elements you want in your tattoo. Maximum 500 characters."
+              onChange={(e, value) => onSetDesign(value)}
+              maxLength={500}
+            />
             <Box mt={1} textAlign="right">
-              Characters: {tattooDesign.length}/500
+              Characters: {tattooDesign?.length || 0}/500
             </Box>
           </Section>
         </Stack.Item>
 
-        {/* Preview Section */}
+        {/* Preview Section - Fixed background and text visibility */}
         <Stack.Item>
-          <Section
-            title="Preview (Shows all tattoos on this body part)"
-            backgroundColor="rgba(255,255,255,0.9)" // Changed to white background for better contrast
-          >
+          <Section title="Preview (Shows all tattoos on this body part)">
             <Box
               style={{
                 'border': '2px solid #555',
                 'padding': '0.75rem',
-                'background': 'rgba(255,255,255,0.95)', // Nearly white background
-                'min-height': '100px',
+                'background': 'rgba(100,100,100,0.8)', // Grey background for contrast
+                'min-height': '120px',
                 'border-radius': '4px',
+                'color': '#ffffff', // White text for readability
               }}
               dangerouslySetInnerHTML={{
-                __html: previewText || 'Enter tattoo details to see preview...',
+                __html: previewText || '<span style="color: #cccccc;">Enter tattoo details to see preview...</span>',
               }}
             />
             <Box mt={1} fontSize="0.8rem" color="label">
@@ -318,7 +311,7 @@ const TattooDesign = (props: {
           </Section>
         </Stack.Item>
 
-        {/* Apply Button */}
+        {/* Apply Button - Fixed condition */}
         <Stack.Item>
           <Button
             fluid
@@ -326,10 +319,10 @@ const TattooDesign = (props: {
             color="good"
             fontSize="16px"
             py={1}
-            disabled={!artistName.trim() || !tattooDesign.trim()}
-            onClick={() => onApply(artistName, tattooDesign, selectedLayer, selectedFont)}
+            disabled={!canApply}
+            onClick={onApply}
             tooltip={
-              !artistName.trim() || !tattooDesign.trim()
+              !canApply
                 ? 'Please fill in both artist name and tattoo design'
                 : `Apply tattoo to ${selectedZone}`
             }
