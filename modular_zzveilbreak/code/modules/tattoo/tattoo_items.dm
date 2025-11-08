@@ -91,12 +91,16 @@
 		var/list/body_parts = list()
 		var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
 		for(var/zone in available_parts)
+			// CRITICAL FIX: Skip invalid zones immediately
+			if(!zone || !istext(zone))
+				continue
+
 			var/list/part_info = available_parts[zone]
 			if(!part_info)
 				continue
 
 			body_parts += list(list(
-				"zone" = zone || "",
+				"zone" = zone, // LINE 89: Use actual zone, no fallbacks
 				"name" = part_info["name"] || "Unknown",
 				"covered" = part_info["covered"] ? TRUE : FALSE,
 				"current_tattoos" = part_info["current_tattoos"] || 0,
@@ -142,7 +146,12 @@
 	switch(action)
 		if("select_bodypart")
 			var/zone = params["zone"]
-			if(!zone || !is_custom_tattoo_bodypart_existing(current_target, zone))
+
+			// CRITICAL FIX: Validate zone string before processing (LINE 145)
+			if(!zone || !istext(zone) || zone == "")
+				return FALSE
+
+			if(!is_custom_tattoo_bodypart_existing(current_target, zone))
 				return FALSE
 
 			if(!get_custom_tattoo_location_accessible(current_target, zone))
@@ -155,8 +164,13 @@
 				to_chat(user, span_warning("This body part already has the maximum number of tattoos! (Max: [CUSTOM_MAX_TATTOOS_PER_PART])"))
 				return FALSE
 
+			// LINE 165: Update state
 			selected_zone = zone
 			current_step = "design_tattoo"
+
+			// CRITICAL FIX: Force UI to update with new state
+			SStgui.update_uis(src)
+
 			. = TRUE
 
 		if("set_layer")

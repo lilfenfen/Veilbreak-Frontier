@@ -50,7 +50,7 @@ export const TattooKit = (props) => {
 const TattooKitContent = (props) => {
   const { act, data } = useBackend<TattooKitData>();
 
-  // Provide safe defaults for all data
+  // LINE 45: Provide safe defaults for all data
   const safeData = data || {};
   const {
     target_name = "No Target",
@@ -68,8 +68,8 @@ const TattooKitContent = (props) => {
     preview_text = "",
   } = safeData;
 
-  const [localArtist, setLocalArtist] = useState(artist_name);
-  const [localDesign, setLocalDesign] = useState(tattoo_design);
+  const [localArtist, setLocalArtist] = useState(artist_name || "");
+  const [localDesign, setLocalDesign] = useState(tattoo_design || "");
 
   // Sync local state with backend data
   useEffect(() => {
@@ -96,8 +96,26 @@ const TattooKitContent = (props) => {
     { value: 'Charcoal', displayText: 'Charcoal' },
   ];
 
-  // Safe body parts array
-  const safeBodyParts = Array.isArray(body_parts) ? body_parts : [];
+  // LINE 85: CRITICAL FIX - Only include body parts with valid zones
+  const safeBodyParts = (() => {
+    if (!body_parts) return [];
+    if (!Array.isArray(body_parts)) return [];
+    return body_parts.filter(part =>
+      part &&
+      typeof part === 'object' &&
+      part.zone &&
+      typeof part.zone === 'string' &&
+      part.zone.trim() !== ''
+    );
+  })();
+
+  // LINE 97: CRITICAL FIX - Safe body part selection handler
+  const handleSelectBodypart = (zone: string) => {
+    if (!zone || typeof zone !== 'string' || zone.trim() === '') {
+      return;
+    }
+    act('select_bodypart', { zone: zone });
+  };
 
   // No target selected
   if (!target_name || target_name === "No Target") {
@@ -155,20 +173,19 @@ const TattooKitContent = (props) => {
             <Stack vertical>
               {safeBodyParts.length > 0 ? (
                 safeBodyParts.map((part) => {
-                  // Safe part data
-                  const safePart = part || {};
-                  const partZone = safePart.zone || "";
-                  const partName = safePart.name || "Unknown";
-                  const partCovered = !!safePart.covered;
-                  const partCurrentTattoos = Number(safePart.current_tattoos) || 0;
-                  const partMaxTattoos = Number(safePart.max_tattoos) || 5;
+                  // LINE 160: CRITICAL FIX - Use actual zone from data, no fallbacks
+                  const partZone = part.zone;
+                  const partName = part.name || "Unknown";
+                  const partCovered = !!part.covered;
+                  const partCurrentTattoos = Number(part.current_tattoos) || 0;
+                  const partMaxTattoos = Number(part.max_tattoos) || 5;
 
                   return (
                     <Stack.Item key={partZone}>
                       <Button
                         fluid
                         disabled={partCovered || partCurrentTattoos >= partMaxTattoos}
-                        onClick={() => act('select_bodypart', { zone: partZone })}
+                        onClick={() => handleSelectBodypart(partZone)}
                       >
                         <Stack align="center">
                           <Stack.Item grow>
@@ -276,7 +293,7 @@ const TattooKitContent = (props) => {
                     <Input
                       fluid
                       value={localArtist}
-                      onChange={(e, value) => setLocalArtist(value)}
+                      onChange={(e, value) => setLocalArtist(value || "")}
                       onEnter={() => {
                         if (localArtist?.trim()) {
                           act('set_artist_name', { value: localArtist });
@@ -298,7 +315,7 @@ const TattooKitContent = (props) => {
                   fluid
                   height="100px"
                   value={localDesign}
-                  onChange={(e, value) => setLocalDesign(value)}
+                  onChange={(e, value) => setLocalDesign(value || "")}
                   onEnter={() => {
                     if (localDesign?.trim()) {
                       act('set_tattoo_design', { value: localDesign });
