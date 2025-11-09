@@ -107,7 +107,7 @@
 				"expanded" = (zone in expanded_parts) ? TRUE : FALSE
 			))
 
-	// DEBUG: Log the data being sent
+	// DEBUG: Log the data being sent - FIXED FORMAT
 	to_chat(user, span_warning("DEBUG UI_DATA:"))
 	to_chat(user, span_warning("  target_name: [data["target_name"]]"))
 	to_chat(user, span_warning("  ink_uses: [data["ink_uses"]]"))
@@ -174,7 +174,7 @@
 			if(isnull(value))
 				value = ""
 			artist_names[zone] = value
-			to_chat(user, span_warning("DEBUG: set_artist [zone] = '[value]' (istext: [istext(value)], length: [length(value)]"))
+			to_chat(user, span_warning("DEBUG: set_artist [zone] = '[value]' (istext: [istext(value)], length: [length(value)])"))
 			to_chat(user, span_warning("DEBUG: artist_names[zone] is now: '[artist_names[zone]]'"))
 			// Force immediate UI update
 			SStgui.update_uis(src)
@@ -187,7 +187,7 @@
 			if(isnull(value))
 				value = ""
 			tattoo_designs[zone] = value
-			to_chat(user, span_warning("DEBUG: set_design [zone] = '[value]' (istext: [istext(value)], length: [length(value)]"))
+			to_chat(user, span_warning("DEBUG: set_design [zone] = '[value]' (istext: [istext(value)], length: [length(value)])"))
 			to_chat(user, span_warning("DEBUG: tattoo_designs[zone] is now: '[tattoo_designs[zone]]'"))
 			// Force immediate UI update
 			SStgui.update_uis(src)

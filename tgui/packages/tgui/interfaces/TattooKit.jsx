@@ -307,13 +307,14 @@ const BodyPartSection = (props) => {
                   value={artist_name || ''}
                   placeholder="Enter artist name..."
                   onChange={(e, value) => {
-                    // Send the actual value, not a "safe" empty string
+                    // Send the raw value but ensure it's not undefined
+                    const rawValue = value === undefined ? '' : value;
                     act('debug_log', {
-                      message: `UI: set_artist for ${part_zone} with raw value: "${value}" (type: ${typeof value})`
+                      message: `UI: set_artist for ${part_zone} with raw value: "${rawValue}"`
                     });
                     act('set_artist', {
                       zone: part_zone,
-                      value: value, // Send the actual value, not a processed one
+                      value: rawValue,
                     });
                   }}
                 />
@@ -325,13 +326,14 @@ const BodyPartSection = (props) => {
                   value={tattoo_design || ''}
                   placeholder="Describe the tattoo design..."
                   onChange={(e, value) => {
-                    // Send the actual value, not a "safe" empty string
+                    // Send the raw value but ensure it's not undefined
+                    const rawValue = value === undefined ? '' : value;
                     act('debug_log', {
-                      message: `UI: set_design for ${part_zone} with raw value: "${value}" (type: ${typeof value})`
+                      message: `UI: set_design for ${part_zone} with raw value: "${rawValue}"`
                     });
                     act('set_design', {
                       zone: part_zone,
-                      value: value, // Send the actual value, not a processed one
+                      value: rawValue,
                     });
                   }}
                 />
