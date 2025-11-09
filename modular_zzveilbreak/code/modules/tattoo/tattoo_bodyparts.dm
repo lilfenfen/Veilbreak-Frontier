@@ -147,7 +147,7 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 			var/string_zone = zone_to_string(zone)
 			available_parts[string_zone] = list(
 				"name" = display_name || "Unknown",
-				"zone" = string_zone,  // LINE 136: Send string to TGUI
+				"zone" = string_zone,
 				"covered" = covered,
 				"current_tattoos" = length(H.get_custom_tattoos(zone)),
 				"max_tattoos" = CUSTOM_MAX_TATTOOS_PER_PART
@@ -155,12 +155,11 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 
 	return available_parts
 
-// FIX: Removed duplicate function definition
 /proc/is_custom_tattoo_bodypart_existing(mob/living/carbon/human/H, body_zone)
 	if(!istype(H) || !body_zone)
 		return FALSE
 
-	// CRITICAL FIX: Convert string zone back to BYOND define for checking
+	// CRITICAL FIX: Handle both string and define zones properly
 	var/actual_zone = istext(body_zone) ? string_to_zone(body_zone) : body_zone
 
 	// Skip blacklisted zones
@@ -177,12 +176,11 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 
 	return FALSE
 
-// Update other functions to handle string zones
 /proc/get_custom_tattoo_location_accessible(mob/living/carbon/human/H, body_zone)
 	if(!istype(H) || !body_zone)
 		return FALSE
 
-	// CRITICAL FIX: Convert string zone back to BYOND define
+	// CRITICAL FIX: Handle both string and define zones properly
 	var/actual_zone = istext(body_zone) ? string_to_zone(body_zone) : body_zone
 
 	// For organ slots, we need special handling since they're not standard body parts
@@ -199,4 +197,3 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 
 /proc/is_custom_tattoo_bodypart_valid(body_zone)
 	return (body_zone in GLOB.custom_tattooable_body_parts) && !(body_zone in GLOB.custom_tattoo_blacklist)
-

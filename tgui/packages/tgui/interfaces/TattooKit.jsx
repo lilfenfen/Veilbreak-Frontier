@@ -8,6 +8,7 @@ import {
   LabeledList,
   Section,
   Stack,
+  Table,
 } from 'tgui-core/components';
 
 import { useBackend } from '../backend';
@@ -50,7 +51,7 @@ export const TattooKit = (props) => {
 const TattooKitContent = (props) => {
   const { act, data } = useBackend<TattooKitData>();
 
-  // LINE 45: Provide safe defaults for all data
+  // Provide safe defaults for all data with proper null checks
   const safeData = data || {};
   const {
     target_name = "No Target",
@@ -96,20 +97,20 @@ const TattooKitContent = (props) => {
     { value: 'Charcoal', displayText: 'Charcoal' },
   ];
 
-  // LINE 85: CRITICAL FIX - Only include body parts with valid zones
+  // CRITICAL FIX: Enhanced body part validation with proper array checking
   const safeBodyParts = (() => {
     if (!body_parts) return [];
     if (!Array.isArray(body_parts)) return [];
-    return body_parts.filter(part =>
-      part &&
-      typeof part === 'object' &&
-      part.zone &&
-      typeof part.zone === 'string' &&
-      part.zone.trim() !== ''
-    );
+
+    return body_parts.filter(part => {
+      if (!part || typeof part !== 'object') return false;
+      if (!part.zone || typeof part.zone !== 'string' || part.zone.trim() === '') return false;
+      if (!part.name || typeof part.name !== 'string') return false;
+      return true;
+    });
   })();
 
-  // LINE 97: CRITICAL FIX - Safe body part selection handler
+  // CRITICAL FIX: Safe body part selection handler
   const handleSelectBodypart = (zone: string) => {
     if (!zone || typeof zone !== 'string' || zone.trim() === '') {
       return;
@@ -173,7 +174,7 @@ const TattooKitContent = (props) => {
             <Stack vertical>
               {safeBodyParts.length > 0 ? (
                 safeBodyParts.map((part) => {
-                  // LINE 160: CRITICAL FIX - Use actual zone from data, no fallbacks
+                  // Use actual zone from data
                   const partZone = part.zone;
                   const partName = part.name || "Unknown";
                   const partCovered = !!part.covered;

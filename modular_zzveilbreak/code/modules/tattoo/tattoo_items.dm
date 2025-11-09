@@ -7,7 +7,7 @@
 	var/custom_tattoo_uses = 20
 	var/max_custom_tattoo_uses = 20
 	var/ink_color = "#000000"
-	var/selected_zone = "chest"  // LINE 8: Start with string zone
+	var/selected_zone = "chest"
 	var/current_step = "select_part"
 	var/selected_layer = CUSTOM_TATTOO_LAYER_NORMAL
 	var/selected_font = PEN_FONT
@@ -42,7 +42,7 @@
 	// Reset UI state if targeting a new person
 	if(current_target != H)
 		current_step = "select_part"
-		selected_zone = "chest"  // LINE 47: Reset to string zone
+		selected_zone = "chest"
 		artist_name = ""
 		tattoo_design = ""
 		selected_font = PEN_FONT
@@ -74,7 +74,7 @@
 	data["ink_uses"] = custom_tattoo_uses
 	data["max_uses"] = max_custom_tattoo_uses
 	data["ink_color"] = ink_color
-	data["selected_zone"] = selected_zone  // LINE 85: This is now a string
+	data["selected_zone"] = selected_zone
 	data["selected_zone_name"] = "chest"
 	data["current_step"] = current_step
 	data["selected_layer"] = selected_layer
@@ -101,7 +101,7 @@
 				continue
 
 			body_parts += list(list(
-				"zone" = zone, // LINE 108: This is now a string
+				"zone" = zone,
 				"name" = part_info["name"] || "Unknown",
 				"covered" = part_info["covered"] ? TRUE : FALSE,
 				"current_tattoos" = part_info["current_tattoos"] || 0,
@@ -151,12 +151,13 @@
 		if("select_bodypart")
 			var/zone = params["zone"]
 
-			// CRITICAL FIX: Zone is now a string from TGUI
+			// CRITICAL FIX: Zone is now a string from TGUI - validate it
 			if(!zone || !istext(zone) || zone == "")
 				return FALSE
 
 			// CRITICAL FIX: Use string zone directly for checks
 			if(!is_custom_tattoo_bodypart_existing(current_target, zone))
+				to_chat(user, span_warning("That body part doesn't exist!"))
 				return FALSE
 
 			if(!get_custom_tattoo_location_accessible(current_target, zone))
@@ -164,56 +165,56 @@
 				to_chat(user, span_warning("[current_target]'s [body_part_name] is covered! Expose it first."))
 				return FALSE
 
-			// CRITICAL FIX: Convert string zone to BYOND define for tattoo count check
+			// CRITICAL FIX: Check tattoo limit using converted zone
 			var/actual_zone = string_to_zone(zone)
 			var/current_tattoos = length(current_target.get_custom_tattoos(actual_zone))
 			if(current_tattoos >= CUSTOM_MAX_TATTOOS_PER_PART)
 				to_chat(user, span_warning("This body part already has the maximum number of tattoos! (Max: [CUSTOM_MAX_TATTOOS_PER_PART])"))
 				return FALSE
 
-			// LINE 185: Store string zone directly
+			// Store string zone directly
 			selected_zone = zone
 			current_step = "design_tattoo"
 
 			// Force UI to update with new state
 			SStgui.update_uis(src)
 
-			. = TRUE
+			return TRUE
 
 		if("set_layer")
 			var/layer = text2num(params["layer"])
 			if(isnum(layer))
 				selected_layer = sanitize_integer(layer, CUSTOM_TATTOO_LAYER_UNDER, CUSTOM_TATTOO_LAYER_OVER, CUSTOM_TATTOO_LAYER_NORMAL)
-				. = TRUE
+				return TRUE
 
 		if("set_font")
 			var/font = params["font"]
 			if(font && (font in GLOB.custom_tattoo_fonts))
 				selected_font = font
-				. = TRUE
+				return TRUE
 
 		if("change_ink_color")
 			var/new_color = input(user, "Choose ink color:", "Body Art Kit", ink_color) as color|null
 			if(new_color)
 				ink_color = sanitize_hexcolor(new_color, default = "#000000")
 				to_chat(user, span_notice("You change the ink color to [new_color]."))
-				. = TRUE
+				return TRUE
 
 		if("back_to_selection")
 			current_step = "select_part"
-			. = TRUE
+			return TRUE
 
 		if("set_artist_name")
 			var/new_name = params["value"]
 			if(!isnull(new_name))
 				artist_name = sanitize_text(new_name)
-				. = TRUE
+				return TRUE
 
 		if("set_tattoo_design")
 			var/new_design = params["value"]
 			if(!isnull(new_design))
 				tattoo_design = sanitize_text(new_design)
-				. = TRUE
+				return TRUE
 
 		if("apply_tattoo")
 			if(!artist_name || !istext(artist_name) || artist_name == "")
@@ -287,7 +288,9 @@
 				var/sanitized_layer = selected_layer
 				var/sanitized_font = selected_font
 
-				var/datum/custom_tattoo/new_tattoo = new(sanitized_artist, sanitized_design, selected_zone, ink_color, sanitized_layer, is_signature, sanitized_font)
+				// CRITICAL FIX: Convert selected_zone string back to BYOND define for tattoo creation
+				var/tattoo_zone_define = string_to_zone(selected_zone)
+				var/datum/custom_tattoo/new_tattoo = new(sanitized_artist, sanitized_design, tattoo_zone_define, ink_color, sanitized_layer, is_signature, sanitized_font)
 
 				if(current_target.add_custom_tattoo(new_tattoo))
 					if(current_target.client?.prefs)
@@ -309,7 +312,7 @@
 			else
 				to_chat(user, span_warning("Tattoo application interrupted!"))
 
-			. = TRUE
+			return TRUE
 
 	return .
 
