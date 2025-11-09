@@ -10,7 +10,7 @@
 
 /datum/custom_tattoo/New(artist, design, body_part, color, layer = CUSTOM_TATTOO_LAYER_NORMAL, is_signature = FALSE, font = PEN_FONT)
 	src.artist = artist || "Unknown Artist"
-	src.design = design || "An intricate design"
+	src.design = process_tattoo_design(design || "An intricate design", artist, is_signature)
 	src.body_part = body_part || BODY_ZONE_CHEST
 	src.color = sanitize_hexcolor(color, default = "#000000")
 	src.layer = sanitize_integer(layer, CUSTOM_TATTOO_LAYER_UNDER, CUSTOM_TATTOO_LAYER_OVER, CUSTOM_TATTOO_LAYER_NORMAL)
@@ -18,7 +18,7 @@
 	src.is_signature = is_signature
 	src.font = (font in GLOB.custom_tattoo_fonts) ? font : PEN_FONT
 
-/datum/custom_tattoo/proc/get_examine_text(mob/viewer, mob/living/carbon/human/victim)
+/datum/custom_tattoo/proc/get_examine_text(mob/viewer, mob/living/carbon/human/victim, use_emoji_images = FALSE)
 	if(!is_custom_tattoo_visible(viewer, victim))
 		return ""
 
@@ -31,18 +31,32 @@
 	if(!display_artist || trimtext(display_artist) == "")
 		display_artist = "an unknown artist"
 
-	// Apply font to design if not default
-	if(font && font != PEN_FONT)
+	// Handle %s signature replacement in examine text
+	if(findtext(display_design, "%s"))
+		display_design = replacetext(display_design, "%s", display_artist)
+
+	// Apply emoji parsing based on context
+	if(use_emoji_images && CONFIG_GET(flag/emojis))
+		display_design = emoji_parse(display_design)
+	else
+		// For non-TGUI contexts, use text-only emoji replacement
+		display_design = replace_emoji_codes_text(display_design)
+
+	// Apply font to design if not default - only in TGUI context
+	if(use_emoji_images && font && font != PEN_FONT)
 		display_design = "<font face='[font]'>[display_design]</font>"
 
-	// Use fountain pen font for signatures
-	if(is_signature)
+	// Use fountain pen font for signatures in TGUI context
+	if(use_emoji_images && is_signature)
 		display_artist = "<font face='[FOUNTAIN_PEN_FONT]'>[display_artist]</font>"
 
 	var/body_part_description = get_custom_tattoo_body_part_description(body_part)
 
 	var/text = "<span style='color:[color]'>- [body_part_description]: \"[display_design]\" (by [display_artist])</span>"
 	return text
+
+/datum/custom_tattoo/proc/get_examine_text_tgui(mob/viewer, mob/living/carbon/human/victim)
+	return get_examine_text(viewer, victim, TRUE)
 
 /datum/custom_tattoo/proc/is_custom_tattoo_visible(mob/viewer, mob/living/carbon/human/victim)
 	if(!victim || !viewer)
@@ -145,3 +159,58 @@
 			return ORGAN_SLOT_WINGS
 		else
 			return body_part_string
+
+// Process tattoo design with emoji and signature support
+/proc/process_tattoo_design(design, artist, is_signature)
+	if(!design || !istext(design))
+		return "An intricate design"
+
+	var/processed_design = design
+
+	// Handle %s signature replacement
+	if(findtext(processed_design, "%s"))
+		processed_design = replacetext(processed_design, "%s", artist || "Unknown Artist")
+
+	return processed_design
+
+// Replace emoji codes with text descriptions for non-TGUI contexts
+/proc/replace_emoji_codes_text(text)
+	if(!text)
+		return text
+
+	var/processed_text = text
+
+	// Basic emoji code to text mapping for examine contexts
+	var/static/list/emoji_to_text = list(
+		":heart:" = "♥",
+		":smile:" = "☺",
+		":sad:" = "☹",
+		":star:" = "★",
+		":skull:" = "☠",
+		":fire:" = "🔥",
+		":peace:" = "☮",
+		":radioactive:" = "☢",
+		":biohazard:" = "☣",
+		":yin_yang:" = "☯",
+		":note:" = "♪",
+		":sun:" = "☀",
+		":cloud:" = "☁",
+		":umbrella:" = "☂",
+		":snowman:" = "☃",
+		":phone:" = "☎",
+		":envelope:" = "✉",
+		":pencil:" = "✏",
+		":check:" = "✓",
+		":x:" = "✗",
+		":warning:" = "⚠",
+		":arrow_up:" = "↑",
+		":arrow_down:" = "↓",
+		":arrow_left:" = "←",
+		":arrow_right:" = "→"
+	)
+
+	for(var/emoji_code in emoji_to_text)
+		var/emoji_char = emoji_to_text[emoji_code]
+		processed_text = replacetext(processed_text, emoji_code, emoji_char)
+
+	return processed_text

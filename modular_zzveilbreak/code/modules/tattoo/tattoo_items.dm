@@ -8,11 +8,6 @@
 	var/max_ink_uses = 30
 	var/ink_color = "#000000"
 	var/mob/living/carbon/human/current_target
-	var/list/expanded_parts = list()
-	var/list/artist_names = list()
-	var/list/tattoo_designs = list()
-	var/list/selected_layers = list()
-	var/list/selected_fonts = list()
 	var/next_use = 0
 
 /obj/item/custom_tattoo_kit/Initialize(mapload)
@@ -79,11 +74,6 @@
 	data["ink_uses"] = ink_uses
 	data["max_ink_uses"] = max_ink_uses
 	data["ink_color"] = ink_color
-	data["expanded_parts"] = expanded_parts
-	data["artist_names"] = artist_names
-	data["tattoo_designs"] = tattoo_designs
-	data["selected_layers"] = selected_layers
-	data["selected_fonts"] = selected_fonts
 
 	data["body_parts"] = list()
 	if(current_target && !QDELETED(current_target))
@@ -92,6 +82,22 @@
 			var/list/part_info = available_parts[zone]
 			var/preview_text = generate_part_preview(zone, user)
 
+			// Get UI state from the target's tattoo UI data
+			var/datum/custom_tattoo_ui_data/ui_data = current_target.get_tattoo_ui_data(zone)
+
+			var/artist_name = ui_data?.artist_name || ""
+			var/tattoo_design = ui_data?.tattoo_design || ""
+			var/selected_layer = ui_data?.selected_layer || CUSTOM_TATTOO_LAYER_NORMAL
+			var/selected_font = ui_data?.selected_font || PEN_FONT
+			var/expanded = ui_data?.expanded || FALSE
+
+			// Calculate can_apply - Check for non-empty strings
+			var/can_apply = !part_info["covered"] && \
+			               (part_info["current_tattoos"] < part_info["max_tattoos"]) && \
+			               (ink_uses > 0) && \
+			               (artist_name != "") && \
+			               (tattoo_design != "")
+
 			data["body_parts"] += list(list(
 				"zone" = zone,
 				"name" = part_info["name"] || "Unknown",
@@ -99,6 +105,12 @@
 				"current_tattoos" = part_info["current_tattoos"] || 0,
 				"max_tattoos" = part_info["max_tattoos"] || CUSTOM_MAX_TATTOOS_PER_PART,
 				"preview_text" = preview_text,
+				"expanded" = expanded,
+				"artist_name" = artist_name,
+				"tattoo_design" = tattoo_design,
+				"selected_layer" = selected_layer,
+				"selected_font" = selected_font,
+				"can_apply" = can_apply,
 			))
 
 	return data
@@ -127,48 +139,41 @@
 	if(!(zone in available_parts))
 		return FALSE
 
+	// Get or create UI data for this zone
+	var/datum/custom_tattoo_ui_data/ui_data = current_target.get_tattoo_ui_data(zone)
+	if(!ui_data)
+		ui_data = new(zone)
+		current_target.set_tattoo_ui_data(zone, ui_data)
+
 	switch(action)
 		if("toggle_expand")
-			if(zone in expanded_parts)
-				expanded_parts -= zone
-			else
-				expanded_parts |= zone
-				if(!(zone in selected_layers))
-					selected_layers[zone] = CUSTOM_TATTOO_LAYER_NORMAL
-				if(!(zone in selected_fonts))
-					selected_fonts[zone] = PEN_FONT
-				if(!(zone in artist_names))
-					artist_names[zone] = ""
-				if(!(zone in tattoo_designs))
-					tattoo_designs[zone] = ""
+			ui_data.expanded = !ui_data.expanded
 			return TRUE
 
 		if("set_artist")
 			var/value = params["value"]
-			// PROPER null handling like the examples
 			if(isnull(value))
 				value = ""
-			artist_names[zone] = value
+			ui_data.artist_name = value
 			return TRUE
 
 		if("set_design")
 			var/value = params["value"]
-			// PROPER null handling like the examples
 			if(isnull(value))
 				value = ""
-			tattoo_designs[zone] = value
+			ui_data.tattoo_design = value
 			return TRUE
 
 		if("set_layer")
 			var/layer = params["layer"]
 			if(!isnull(layer))
-				selected_layers[zone] = text2num(layer)
+				ui_data.selected_layer = text2num(layer)
 				return TRUE
 
 		if("set_font")
 			var/font = params["font"]
 			if(!isnull(font))
-				selected_fonts[zone] = font
+				ui_data.selected_font = font
 				return TRUE
 
 		if("change_color")
@@ -195,19 +200,21 @@
 		for(var/datum/custom_tattoo/tattoo as anything in tattoos)
 			if(QDELETED(tattoo))
 				continue
-			var/tattoo_text = tattoo.get_examine_text(user, current_target)
+			// Use TGUI-specific examine text for emoji images
+			var/tattoo_text = tattoo.get_examine_text_tgui(user, current_target)
 			if(tattoo_text)
 				preview_text += tattoo_text + "<br>"
 
-	if(zone in tattoo_designs && zone in artist_names)
-		var/artist = artist_names[zone]
-		var/design = tattoo_designs[zone]
-		var/layer = selected_layers[zone] || CUSTOM_TATTOO_LAYER_NORMAL
-		var/font = selected_fonts[zone] || PEN_FONT
+	var/datum/custom_tattoo_ui_data/ui_data = current_target.get_tattoo_ui_data(zone)
+	if(ui_data)
+		var/artist = ui_data.artist_name
+		var/design = ui_data.tattoo_design
+		var/layer = ui_data.selected_layer || CUSTOM_TATTOO_LAYER_NORMAL
+		var/font = ui_data.selected_font || PEN_FONT
 
 		if(artist && design)
 			var/datum/custom_tattoo/preview_tattoo = new(artist, design, actual_zone, ink_color, layer, FALSE, font)
-			var/preview_tattoo_text = preview_tattoo.get_examine_text(user, current_target)
+			var/preview_tattoo_text = preview_tattoo.get_examine_text_tgui(user, current_target)
 			if(preview_tattoo_text)
 				preview_text += "<span style='color: [ink_color];'><b>Preview:</b> [preview_tattoo_text]</span><br>"
 			qdel(preview_tattoo)
@@ -239,8 +246,12 @@
 		to_chat(user, span_warning("The tattoo kit is out of ink!"))
 		return FALSE
 
-	var/artist_name = artist_names[zone]
-	var/tattoo_design = tattoo_designs[zone]
+	var/datum/custom_tattoo_ui_data/ui_data = current_target.get_tattoo_ui_data(zone)
+	if(!ui_data)
+		return FALSE
+
+	var/artist_name = ui_data.artist_name
+	var/tattoo_design = ui_data.tattoo_design
 
 	if(!artist_name || artist_name == "")
 		to_chat(user, span_warning("Please enter a valid artist name!"))
@@ -257,8 +268,8 @@
 		return FALSE
 
 	var/tattoo_zone_define = string_to_zone(zone)
-	var/layer = selected_layers[zone] || CUSTOM_TATTOO_LAYER_NORMAL
-	var/font = selected_fonts[zone] || PEN_FONT
+	var/layer = ui_data.selected_layer || CUSTOM_TATTOO_LAYER_NORMAL
+	var/font = ui_data.selected_font || PEN_FONT
 
 	var/datum/custom_tattoo/new_tattoo = new(artist_name, tattoo_design, tattoo_zone_define, ink_color, layer, FALSE, font)
 
@@ -266,17 +277,14 @@
 		ink_uses = max(0, ink_uses - 1)
 		next_use = world.time + 2 SECONDS
 
+		// Clear the UI data for this zone after successful application
+		current_target.clear_tattoo_ui_data(zone)
+
 		if(current_target.client?.prefs)
 			current_target.client.prefs.save_custom_tattoo_data()
 
 		current_target.regenerate_icons()
 		update_appearance()
-
-		// Clear form data for this zone
-		artist_names -= zone
-		tattoo_designs -= zone
-		selected_layers[zone] = CUSTOM_TATTOO_LAYER_NORMAL
-		selected_fonts[zone] = PEN_FONT
 
 		to_chat(user, span_green("Tattoo applied successfully to [current_target]'s [part_info["name"]]!"))
 		user.log_message("applied custom tattoo '[tattoo_design]' by [artist_name] to [current_target]'s [zone]", LOG_GAME)
@@ -284,3 +292,15 @@
 	else
 		to_chat(user, span_warning("Failed to apply tattoo!"))
 		return FALSE
+
+// UI Data storage datum
+/datum/custom_tattoo_ui_data
+	var/zone
+	var/artist_name = ""
+	var/tattoo_design = ""
+	var/selected_layer = CUSTOM_TATTOO_LAYER_NORMAL
+	var/selected_font = PEN_FONT
+	var/expanded = FALSE
+
+	New(new_zone)
+		zone = new_zone

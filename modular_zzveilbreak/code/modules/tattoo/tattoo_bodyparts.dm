@@ -49,7 +49,7 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 
 	return parts
 
-// CRITICAL FIX: Enhanced zone conversion with null protection
+// Enhanced zone conversion with null protection
 /proc/zone_to_string(zone)
 	if(isnull(zone))
 		return "chest"
@@ -88,7 +88,7 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 		else
 			return "chest" // SAFE FALLBACK
 
-// CRITICAL FIX: Enhanced string to zone conversion with validation
+// Enhanced string to zone conversion with validation
 /proc/string_to_zone(zone_string)
 	if(!zone_string || !istext(zone_string))
 		return BODY_ZONE_CHEST
@@ -122,50 +122,6 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 		if("wings") return ORGAN_SLOT_WINGS
 		else
 			return BODY_ZONE_CHEST // SAFE FALLBACK
-
-/proc/get_all_custom_tattoo_body_parts(mob/living/carbon/human/H)
-	var/list/available_parts = list()
-
-	if(!istype(H) || QDELETED(H))
-		return available_parts
-
-	// Scan through all possible custom tattooable body parts
-	for(var/zone in GLOB.custom_tattooable_body_parts)
-		// Skip blacklisted zones
-		if(zone in GLOB.custom_tattoo_blacklist)
-			continue
-
-		var/display_name = get_custom_tattoo_body_part_description(zone)
-		var/exists = FALSE
-		var/covered = TRUE
-
-		// Check if it's a standard bodypart (arms, legs, chest, head)
-		var/obj/item/bodypart/BP = H.get_bodypart(zone)
-		if(BP)
-			exists = TRUE
-			covered = !get_custom_tattoo_location_accessible(H, zone)
-		else
-			// Check if it's an organ slot that exists on the mob
-			var/obj/item/organ/organ = H.get_organ_slot(zone)
-			if(organ)
-				exists = TRUE
-				covered = !get_custom_tattoo_location_accessible(H, zone)
-
-		if(exists)
-			// Convert BYOND define to string for TGUI with validation
-			var/string_zone = zone_to_string(zone)
-			if(!string_zone || !istext(string_zone))
-				continue
-
-			available_parts[string_zone] = list(
-				"name" = display_name || "Unknown",
-				"zone" = string_zone,
-				"covered" = covered,
-				"current_tattoos" = length(H.get_custom_tattoos(zone)),
-				"max_tattoos" = CUSTOM_MAX_TATTOOS_PER_PART
-			)
-
-	return available_parts
 
 /proc/is_custom_tattoo_bodypart_existing(mob/living/carbon/human/H, body_zone)
 	if(!istype(H) || !body_zone)
@@ -215,3 +171,50 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 
 /proc/is_custom_tattoo_bodypart_valid(body_zone)
 	return (body_zone in GLOB.custom_tattooable_body_parts) && !(body_zone in GLOB.custom_tattoo_blacklist)
+
+/proc/get_all_custom_tattoo_body_parts(mob/living/carbon/human/H)
+	var/list/available_parts = list()
+
+	if(!istype(H) || QDELETED(H))
+		return available_parts
+
+	// Scan through all possible custom tattooable body parts
+	for(var/zone in GLOB.custom_tattooable_body_parts)
+		// Skip blacklisted zones
+		if(zone in GLOB.custom_tattoo_blacklist)
+			continue
+
+		var/display_name = get_custom_tattoo_body_part_description(zone)
+		var/exists = FALSE
+		var/covered = TRUE
+
+		// Check if it's a standard bodypart (arms, legs, chest, head)
+		var/obj/item/bodypart/BP = H.get_bodypart(zone)
+		if(BP)
+			exists = TRUE
+			covered = !get_custom_tattoo_location_accessible(H, zone)
+		else
+			// Check if it's an organ slot that exists on the mob
+			var/obj/item/organ/organ = H.get_organ_slot(zone)
+			if(organ)
+				exists = TRUE
+				covered = !get_custom_tattoo_location_accessible(H, zone)
+
+		if(exists)
+			// Convert BYOND define to string for TGUI with validation
+			var/string_zone = zone_to_string(zone)
+			if(!string_zone || !istext(string_zone))
+				continue
+
+			// Use the same string zone for consistent comparison
+			var/current_tattoos = length(H.get_custom_tattoos(string_zone))
+
+			available_parts[string_zone] = list(
+				"name" = display_name || "Unknown",
+				"zone" = string_zone,
+				"covered" = covered,
+				"current_tattoos" = current_tattoos,
+				"max_tattoos" = CUSTOM_MAX_TATTOOS_PER_PART
+			)
+
+	return available_parts

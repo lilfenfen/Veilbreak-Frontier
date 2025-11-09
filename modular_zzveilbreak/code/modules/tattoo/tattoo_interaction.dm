@@ -8,7 +8,6 @@
 /datum/preference/toggle/allow_bodywriting/apply_to_client(client/client, value)
 	return ..()
 
-
 // Enhanced preference loading
 /proc/modular_zzveilbreak_erp_pref_override()
 	if(!GLOB.preference_entries[/datum/preference/toggle/allow_bodywriting])

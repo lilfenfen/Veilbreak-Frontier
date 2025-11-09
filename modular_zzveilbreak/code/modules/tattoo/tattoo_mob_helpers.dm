@@ -1,5 +1,6 @@
 /mob/living/carbon/human
 	var/list/datum/custom_tattoo/custom_body_tattoos = list()
+	var/list/datum/custom_tattoo_ui_data/tattoo_ui_data = list() // Store UI state per zone
 
 /proc/cmp_custom_tattoo_layer_asc(datum/custom_tattoo/A, datum/custom_tattoo/B)
 	return A.layer - B.layer
@@ -43,19 +44,6 @@
 
 	return TRUE
 
-/mob/living/carbon/human/proc/get_custom_tattoos(body_zone)
-	. = list()
-	if(!body_zone)
-		return .
-	for(var/datum/custom_tattoo/T as anything in custom_body_tattoos)
-		// CRITICAL FIX: Convert both sides to comparable values
-		var/tattoo_zone_string = zone_to_string(T.body_part)
-		var/search_zone_string = istext(body_zone) ? body_zone : zone_to_string(body_zone)
-
-		if(tattoo_zone_string == search_zone_string)
-			. += T
-	. = sortTim(., GLOBAL_PROC_REF(cmp_custom_tattoo_layer_asc))
-
 /mob/living/carbon/human/examine(mob/user)
 	. = ..()
 
@@ -64,7 +52,8 @@
 	if(length(visible_tattoos))
 		. += span_notice("<b>Visible Tattoos:</b>")
 		for(var/datum/custom_tattoo/T as anything in visible_tattoos)
-			var/tattoo_text = T.get_examine_text(user, src)
+			// Use text-only emoji for examine (no images)
+			var/tattoo_text = T.get_examine_text(user, src, FALSE)
 			if(tattoo_text)
 				. += " [tattoo_text]"
 
@@ -80,7 +69,8 @@
 
 	to_chat(src, span_notice("<b>Your Visible Tattoos:</b>"))
 	for(var/datum/custom_tattoo/T as anything in visible_tattoos)
-		var/tattoo_text = T.get_examine_text(src, src)
+		// Use text-only emoji for examine (no images)
+		var/tattoo_text = T.get_examine_text(src, src, FALSE)
 		if(tattoo_text)
 			to_chat(src, " • [tattoo_text]")
 
@@ -106,6 +96,36 @@
 	for(var/datum/custom_tattoo/T as anything in custom_body_tattoos)
 		var/visible = T.is_custom_tattoo_visible(viewer, src)
 		if(visible)
+			. += T
+
+	. = sortTim(., GLOBAL_PROC_REF(cmp_custom_tattoo_layer_asc))
+
+/mob/living/carbon/human/proc/get_tattoo_ui_data(zone)
+	return LAZYACCESS(tattoo_ui_data, zone)
+
+/mob/living/carbon/human/proc/set_tattoo_ui_data(zone, datum/custom_tattoo_ui_data/data)
+	LAZYSET(tattoo_ui_data, zone, data)
+
+/mob/living/carbon/human/proc/clear_tattoo_ui_data(zone)
+	LAZYREMOVE(tattoo_ui_data, zone)
+
+/mob/living/carbon/human/proc/get_custom_tattoos(body_zone)
+	. = list()
+	if(!body_zone)
+		return .
+
+	// Convert the search zone to a standardized format
+	var/search_zone = istext(body_zone) ? string_to_zone(body_zone) : body_zone
+	var/search_zone_string = zone_to_string(search_zone)
+
+	for(var/datum/custom_tattoo/T as anything in custom_body_tattoos)
+		if(QDELETED(T))
+			continue
+
+		var/tattoo_zone_string = zone_to_string(T.body_part)
+
+		// Compare the string representations
+		if(tattoo_zone_string == search_zone_string)
 			. += T
 
 	. = sortTim(., GLOBAL_PROC_REF(cmp_custom_tattoo_layer_asc))

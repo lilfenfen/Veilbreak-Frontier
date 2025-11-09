@@ -19,11 +19,6 @@ export const TattooKit = (props) => {
     ink_uses,
     max_ink_uses,
     ink_color,
-    expanded_parts = [],
-    artist_names = {},
-    tattoo_designs = {},
-    selected_layers = {},
-    selected_fonts = {},
     body_parts = [],
   } = data;
 
@@ -77,12 +72,6 @@ export const TattooKit = (props) => {
               <BodyPartSection
                 key={part.zone}
                 part={part}
-                expanded={expanded_parts.includes(part.zone)}
-                artist_name={artist_names[part.zone] || ''}
-                tattoo_design={tattoo_designs[part.zone] || ''}
-                selected_layer={selected_layers[part.zone]}
-                selected_font={selected_fonts[part.zone]}
-                ink_uses={ink_uses}
                 act={act}
               />
             ))
@@ -94,23 +83,22 @@ export const TattooKit = (props) => {
 };
 
 const BodyPartSection = (props) => {
+  const { part, act } = props;
+
   const {
-    part,
+    zone,
+    name,
+    covered,
+    current_tattoos,
+    max_tattoos,
+    preview_text,
     expanded,
     artist_name,
     tattoo_design,
-    selected_layer = 2,
-    selected_font = "Pen",
-    ink_uses = 0,
-    act,
-  } = props;
-
-  const part_name = part?.name || "Unknown";
-  const part_zone = part?.zone || "unknown";
-  const part_covered = part?.covered || false;
-  const part_current_tattoos = part?.current_tattoos || 0;
-  const part_max_tattoos = part?.max_tattoos || 5;
-  const part_preview_text = part?.preview_text || "No tattoos yet.";
+    selected_layer,
+    selected_font,
+    can_apply,
+  } = part;
 
   const fontOptions = [
     { key: "Pen", label: "Pen" },
@@ -124,14 +112,14 @@ const BodyPartSection = (props) => {
     <Section
       title={
         <Box inline>
-          {part_name}
-          {part_covered && (
+          {name}
+          {covered && (
             <Box inline color="bad" ml={1}>
               (Covered)
             </Box>
           )}
           <Box inline color="label" ml={1}>
-            ({part_current_tattoos}/{part_max_tattoos} tattoos)
+            ({current_tattoos}/{max_tattoos} tattoos)
           </Box>
         </Box>
       }
@@ -139,18 +127,18 @@ const BodyPartSection = (props) => {
         <Button
           icon={expanded ? 'chevron-up' : 'chevron-down'}
           color="transparent"
-          onClick={() => act('toggle_expand', { zone: part_zone })}
+          onClick={() => act('toggle_expand', { zone: zone })}
         />
       }>
       {!expanded ? (
         <Box color="label">
-          <div dangerouslySetInnerHTML={{ __html: part_preview_text }} />
+          <div dangerouslySetInnerHTML={{ __html: preview_text }} />
         </Box>
       ) : (
         <Stack vertical>
           <Stack.Item>
             <Box color="label" mb={1}>
-              <div dangerouslySetInnerHTML={{ __html: part_preview_text }} />
+              <div dangerouslySetInnerHTML={{ __html: preview_text }} />
             </Box>
           </Stack.Item>
 
@@ -159,10 +147,10 @@ const BodyPartSection = (props) => {
               <LabeledList.Item label="Artist Name">
                 <Input
                   fluid
-                  value={artist_name}
+                  value={artist_name || ''}
                   placeholder="Enter artist name..."
                   onChange={(e, value) => act('set_artist', {
-                    zone: part_zone,
+                    zone: zone,
                     value: value,
                   })}
                 />
@@ -171,10 +159,10 @@ const BodyPartSection = (props) => {
               <LabeledList.Item label="Tattoo Design">
                 <Input
                   fluid
-                  value={tattoo_design}
-                  placeholder="Describe the tattoo design..."
+                  value={tattoo_design || ''}
+                  placeholder="Describe the tattoo design... Use %s for signature, :heart: for emoji"
                   onChange={(e, value) => act('set_design', {
-                    zone: part_zone,
+                    zone: zone,
                     value: value,
                   })}
                 />
@@ -186,7 +174,7 @@ const BodyPartSection = (props) => {
                     <Button
                       selected={selected_layer === 1}
                       onClick={() => act('set_layer', {
-                        zone: part_zone,
+                        zone: zone,
                         layer: 1
                       })}>
                       Under
@@ -196,7 +184,7 @@ const BodyPartSection = (props) => {
                     <Button
                       selected={selected_layer === 2}
                       onClick={() => act('set_layer', {
-                        zone: part_zone,
+                        zone: zone,
                         layer: 2
                       })}>
                       Normal
@@ -206,7 +194,7 @@ const BodyPartSection = (props) => {
                     <Button
                       selected={selected_layer === 3}
                       onClick={() => act('set_layer', {
-                        zone: part_zone,
+                        zone: zone,
                         layer: 3
                       })}>
                       Over
@@ -222,7 +210,7 @@ const BodyPartSection = (props) => {
                       key={font.key}
                       selected={selected_font === font.key}
                       onClick={() => act('set_font', {
-                        zone: part_zone,
+                        zone: zone,
                         font: font.key
                       })}>
                       {font.label}
@@ -238,15 +226,9 @@ const BodyPartSection = (props) => {
               fluid
               icon="paint-brush"
               color="good"
-              disabled={
-                part_covered ||
-                part_current_tattoos >= part_max_tattoos ||
-                ink_uses <= 0 ||
-                !artist_name ||
-                !tattoo_design
-              }
-              onClick={() => act('apply_tattoo', { zone: part_zone })}>
-              Apply Tattoo to {part_name}
+              disabled={!can_apply}
+              onClick={() => act('apply_tattoo', { zone: zone })}>
+              Apply Tattoo to {name}
             </Button>
           </Stack.Item>
         </Stack>
