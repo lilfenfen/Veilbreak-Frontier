@@ -1,28 +1,29 @@
 /obj/item/custom_tattoo_kit
-	name = "body art kit"
-	desc = "A professional tattoo kit with various inks and needles for custom body art."
+	name = "professional tattoo kit"
+	desc = "A complete tattoo application system with multiple ink reservoirs and precision needles."
 	icon = 'modular_zzveilbreak/icons/item_icons/tattoo.dmi'
 	icon_state = "tgun"
 	w_class = WEIGHT_CLASS_SMALL
-
-	/// How many uses of ink remain
-	var/custom_tattoo_uses = 20
-	/// Maximum uses of ink
-	var/max_custom_tattoo_uses = 20
-	/// Current ink color
+	/// Current ink uses remaining
+	var/ink_uses = 30
+	/// Maximum ink capacity
+	var/max_ink_uses = 30
+	/// Current selected ink color
 	var/ink_color = "#000000"
-	/// The human we're currently working on
+	/// Currently targeted human
 	var/mob/living/carbon/human/current_target
-	/// Which body parts are currently expanded in the UI
+	/// Which body parts are expanded in UI
 	var/list/expanded_parts = list()
-	/// Artist names for each body part
+	/// Temporary storage for artist names per body part
 	var/list/artist_names = list()
-	/// Tattoo designs for each body part
+	/// Temporary storage for tattoo designs per body part
 	var/list/tattoo_designs = list()
-	/// Selected layers for each body part
+	/// Selected layers per body part
 	var/list/selected_layers = list()
-	/// Selected fonts for each body part
+	/// Selected fonts per body part
 	var/list/selected_fonts = list()
+	/// Cooldown to prevent spam
+	var/next_use = 0
 
 /obj/item/custom_tattoo_kit/Initialize(mapload)
 	. = ..()
@@ -39,8 +40,13 @@
 
 /obj/item/custom_tattoo_kit/examine(mob/user)
 	. = ..()
-	. += span_notice("It has [custom_tattoo_uses] uses left.")
-	. += span_notice("Use it on someone to apply tattoos.")
+	. += span_info("Ink remaining: [ink_uses]/[max_ink_uses]")
+	. += span_info("Current color: <font color='[ink_color]'>█</font>")
+	. += span_info("Use on someone to apply tattoos.")
+
+/obj/item/custom_tattoo_kit/update_icon_state()
+	icon_state = "tattoo_kit[ink_uses > 0 ? "" : "_empty"]"
+	return ..()
 
 /obj/item/custom_tattoo_kit/attack(mob/living/target, mob/living/user, params)
 	if(!ishuman(target))
@@ -48,18 +54,19 @@
 
 	var/mob/living/carbon/human/human_target = target
 
-	// Check if target allows body modifications
+	// Check preferences
 	if(!human_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
 		to_chat(user, span_warning("[human_target] doesn't allow body modifications!"))
 		return TRUE
 
-	// Reset UI state if targeting a new person
+	// Check cooldown
+	if(world.time < next_use)
+		to_chat(user, span_warning("The kit needs a moment to recharge."))
+		return TRUE
+
+	// Reset UI state if new target
 	if(current_target != human_target)
-		expanded_parts = list()
-		artist_names = list()
-		tattoo_designs = list()
-		selected_layers = list()
-		selected_fonts = list()
+		reset_ui_state()
 		current_target = human_target
 
 	ui_interact(user)
@@ -67,7 +74,23 @@
 
 /obj/item/custom_tattoo_kit/attack_self(mob/user)
 	. = ..()
-	to_chat(user, span_notice("Use the tattoo kit on someone to apply tattoos."))
+	refill_ink(user)
+
+/obj/item/custom_tattoo_kit/proc/reset_ui_state()
+	expanded_parts = list()
+	artist_names = list()
+	tattoo_designs = list()
+	selected_layers = list()
+	selected_fonts = list()
+
+/obj/item/custom_tattoo_kit/proc/refill_ink(mob/user)
+	if(ink_uses >= max_ink_uses)
+		to_chat(user, span_warning("The ink reservoir is already full!"))
+		return
+
+	ink_uses = max_ink_uses
+	to_chat(user, span_notice("Tattoo kit refilled. Current ink: [ink_uses]/[max_ink_uses]"))
+	update_appearance()
 
 /obj/item/custom_tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
 	if(!current_target)
@@ -82,45 +105,125 @@
 /obj/item/custom_tattoo_kit/ui_data(mob/user)
 	var/list/data = list()
 
-	data["target_name"] = current_target?.name || "No Target"
-	data["ink_uses"] = custom_tattoo_uses
-	data["max_uses"] = max_custom_tattoo_uses
+	data["target_name"] = current_target?.name || "Unknown Target"
+	data["ink_uses"] = ink_uses
+	data["max_ink_uses"] = max_ink_uses
 	data["ink_color"] = ink_color
 	data["expanded_parts"] = expanded_parts
 	data["artist_names"] = artist_names
 	data["tattoo_designs"] = tattoo_designs
 	data["selected_layers"] = selected_layers
 	data["selected_fonts"] = selected_fonts
+
+	// Get available body parts
 	data["body_parts"] = list()
+	if(current_target && !QDELETED(current_target))
+		var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
+		for(var/zone in available_parts)
+			var/list/part_info = available_parts[zone]
+			var/preview_text = generate_part_preview(zone, user)
 
-	if(!current_target || QDELETED(current_target))
-		return data
+			data["body_parts"] += list(list(
+				"zone" = zone,
+				"name" = part_info["name"] || "Unknown",
+				"covered" = part_info["covered"] ? TRUE : FALSE,
+				"current_tattoos" = part_info["current_tattoos"] || 0,
+				"max_tattoos" = part_info["max_tattoos"] || CUSTOM_MAX_TATTOOS_PER_PART,
+				"preview_text" = preview_text,
+				"expanded" = (zone in expanded_parts) ? TRUE : FALSE
+			))
 
-	var/list/body_parts = list()
-	var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
-
-	for(var/zone in available_parts)
-		var/list/part_info = available_parts[zone]
-		if(!part_info)
-			continue
-
-		// Generate preview text for this specific body part
-		var/preview_text = generate_part_preview(zone, user)
-
-		body_parts += list(list(
-			"zone" = zone,
-			"name" = part_info["name"] || "Unknown",
-			"covered" = part_info["covered"] ? TRUE : FALSE,
-			"current_tattoos" = part_info["current_tattoos"] || 0,
-			"max_tattoos" = part_info["max_tattoos"] || CUSTOM_MAX_TATTOOS_PER_PART,
-			"preview_text" = preview_text,
-			"expanded" = (zone in expanded_parts) ? TRUE : FALSE
-		))
-
-	data["body_parts"] = body_parts
 	return data
 
-/// Generates preview text for a specific body part
+/obj/item/custom_tattoo_kit/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
+	. = ..()
+	if(.)
+		return
+
+	var/mob/user = usr
+
+	// Safety checks
+	if(!can_interact_with_target(user))
+		return FALSE
+
+	switch(action)
+		if("toggle_expand")
+			var/zone = params["zone"]
+			if(validate_zone(zone))
+				if(zone in expanded_parts)
+					expanded_parts -= zone
+				else
+					expanded_parts |= zone
+					// Initialize defaults for new expanded part
+					if(!(zone in selected_layers))
+						selected_layers[zone] = CUSTOM_TATTOO_LAYER_NORMAL
+					if(!(zone in selected_fonts))
+						selected_fonts[zone] = PEN_FONT
+				return TRUE
+
+		if("set_artist")
+			var/zone = params["zone"]
+			var/value = params["value"]
+			if(validate_zone(zone) && !isnull(value))
+				artist_names[zone] = sanitize_text(value, 50)
+				return TRUE
+
+		if("set_design")
+			var/zone = params["zone"]
+			var/value = params["value"]
+			if(validate_zone(zone) && !isnull(value))
+				tattoo_designs[zone] = sanitize_text(value, 500)
+				return TRUE
+
+		if("set_layer")
+			var/zone = params["zone"]
+			var/layer = text2num(params["layer"])
+			if(validate_zone(zone) && !isnull(layer))
+				selected_layers[zone] = sanitize_integer(layer, CUSTOM_TATTOO_LAYER_UNDER, CUSTOM_TATTOO_LAYER_OVER, CUSTOM_TATTOO_LAYER_NORMAL)
+				return TRUE
+
+		if("set_font")
+			var/zone = params["zone"]
+			var/font = params["font"]
+			if(validate_zone(zone) && !isnull(font) && (font in GLOB.custom_tattoo_fonts))
+				selected_fonts[zone] = font
+				return TRUE
+
+		if("change_color")
+			var/new_color = input(user, "Choose ink color:", "Tattoo Kit", ink_color) as color|null
+			if(new_color)
+				ink_color = sanitize_hexcolor(new_color, default = "#000000")
+				return TRUE
+
+		if("apply_tattoo")
+			var/zone = params["zone"]
+			return handle_apply_tattoo(user, zone)
+
+		if("refill_ink")
+			refill_ink(user)
+			return TRUE
+
+	return FALSE
+
+/obj/item/custom_tattoo_kit/proc/can_interact_with_target(mob/user)
+	if(!current_target || QDELETED(current_target) || !istype(current_target, /mob/living/carbon/human))
+		to_chat(user, span_warning("The target is no longer valid!"))
+		current_target = null
+		return FALSE
+
+	if(!user.is_holding(src))
+		to_chat(user, span_warning("You must be holding the tattoo kit!"))
+		return FALSE
+
+	return TRUE
+
+/obj/item/custom_tattoo_kit/proc/validate_zone(zone)
+	if(!zone || !istext(zone))
+		return FALSE
+
+	var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
+	return (zone in available_parts)
+
 /obj/item/custom_tattoo_kit/proc/generate_part_preview(zone, mob/user)
 	var/preview_text = ""
 	var/actual_zone = string_to_zone(zone)
@@ -135,7 +238,7 @@
 			if(tattoo_text)
 				preview_text += tattoo_text + "<br>"
 
-	// Show preview of new tattoo if we have design data
+	// Show preview of new tattoo
 	if(zone in tattoo_designs && zone in artist_names)
 		var/artist = artist_names[zone]
 		var/design = tattoo_designs[zone]
@@ -146,140 +249,17 @@
 			var/datum/custom_tattoo/preview_tattoo = new(artist, design, actual_zone, ink_color, layer, FALSE, font)
 			var/preview_tattoo_text = preview_tattoo.get_examine_text(user, current_target)
 			if(preview_tattoo_text)
-				preview_text += preview_tattoo_text + "<br>"
+				preview_text += "<span style='color: [ink_color];'><b>Preview:</b> [preview_tattoo_text]</span><br>"
 			qdel(preview_tattoo)
 
-	return preview_text
+	return preview_text || "No tattoos yet."
 
-/obj/item/custom_tattoo_kit/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
-	. = ..()
-	if(.)
-		return
-
-	var/mob/user = usr
-
-	// Safety validation
-	if(!can_interact_with_target(user))
-		return FALSE
-
-	switch(action)
-		if("toggle_expand")
-			return handle_toggle_expand(params["zone"])
-
-		if("set_artist_name")
-			return handle_set_artist_name(params["zone"], params["value"])
-
-		if("set_tattoo_design")
-			return handle_set_tattoo_design(params["zone"], params["value"])
-
-		if("set_layer")
-			return handle_set_layer(params["zone"], params["layer"])
-
-		if("set_font")
-			return handle_set_font(params["zone"], params["font"])
-
-		if("change_ink_color")
-			return handle_change_ink_color(user)
-
-		if("apply_tattoo")
-			return handle_apply_tattoo(user, params["zone"])
-
-	return FALSE
-
-/// Check if we can safely interact with the current target
-/obj/item/custom_tattoo_kit/proc/can_interact_with_target(mob/user)
-	if(!current_target || QDELETED(current_target) || !istype(current_target, /mob/living/carbon/human))
-		to_chat(user, span_warning("The target is no longer valid!"))
-		current_target = null
-		return FALSE
-
-	if(!user.is_holding(src))
-		to_chat(user, span_warning("You must be holding the body art kit!"))
-		return FALSE
-
-	return TRUE
-
-/// Validate that a zone exists and is accessible
-/obj/item/custom_tattoo_kit/proc/validate_zone(zone)
-	if(!zone || !istext(zone))
-		return FALSE
-
-	var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
-	return (zone in available_parts)
-
-/// Handle toggling expansion of a body part section
-/obj/item/custom_tattoo_kit/proc/handle_toggle_expand(zone)
-	if(!validate_zone(zone))
-		return FALSE
-
-	if(zone in expanded_parts)
-		expanded_parts -= zone
-	else
-		expanded_parts |= zone
-		// Initialize default values for new expanded part
-		if(!(zone in selected_layers))
-			selected_layers[zone] = CUSTOM_TATTOO_LAYER_NORMAL
-		if(!(zone in selected_fonts))
-			selected_fonts[zone] = PEN_FONT
-
-	return TRUE
-
-/// Handle setting artist name for a body part
-/obj/item/custom_tattoo_kit/proc/handle_set_artist_name(zone, value)
-	if(!validate_zone(zone) || isnull(value))
-		return FALSE
-
-	artist_names[zone] = sanitize_text(value)
-	return TRUE
-
-/// Handle setting tattoo design for a body part
-/obj/item/custom_tattoo_kit/proc/handle_set_tattoo_design(zone, value)
-	if(!validate_zone(zone) || isnull(value))
-		return FALSE
-
-	tattoo_designs[zone] = sanitize_text(value)
-	return TRUE
-
-/// Handle setting layer for a body part
-/obj/item/custom_tattoo_kit/proc/handle_set_layer(zone, layer_string)
-	if(!validate_zone(zone) || !layer_string)
-		return FALSE
-
-	var/layer = text2num(layer_string)
-	if(!isnum(layer))
-		return FALSE
-
-	selected_layers[zone] = sanitize_integer(layer, CUSTOM_TATTOO_LAYER_UNDER, CUSTOM_TATTOO_LAYER_OVER, CUSTOM_TATTOO_LAYER_NORMAL)
-	return TRUE
-
-/// Handle setting font for a body part
-/obj/item/custom_tattoo_kit/proc/handle_set_font(zone, font)
-	if(!validate_zone(zone) || !font)
-		return FALSE
-
-	if(!(font in GLOB.custom_tattoo_fonts))
-		return FALSE
-
-	selected_fonts[zone] = font
-	return TRUE
-
-/// Handle changing ink color
-/obj/item/custom_tattoo_kit/proc/handle_change_ink_color(mob/user)
-	var/new_color = input(user, "Choose ink color:", "Body Art Kit", ink_color) as color|null
-	if(!new_color)
-		return FALSE
-
-	ink_color = sanitize_hexcolor(new_color, default = "#000000")
-	to_chat(user, span_notice("You change the ink color to [new_color]."))
-	return TRUE
-
-/// Handle applying a tattoo to a body part
 /obj/item/custom_tattoo_kit/proc/handle_apply_tattoo(mob/user, zone)
 	if(!validate_zone(zone))
 		to_chat(user, span_warning("Invalid body part selection!"))
 		return FALSE
 
-	// Get and validate form data
+	// Validate tattoo data
 	var/list/validation_result = validate_tattoo_data(zone, user)
 	if(!validation_result["success"])
 		to_chat(user, span_warning(validation_result["message"]))
@@ -291,13 +271,15 @@
 	var/font = validation_result["font"]
 	var/part_info = validation_result["part_info"]
 
+	// Start application
 	to_chat(user, span_notice("You begin carefully applying the tattoo to [current_target]'s [part_info["name"]]..."))
+	current_target.visible_message(span_notice("[user] begins tattooing [current_target]'s [part_info["name"]]."), span_notice("You feel a sharp, buzzing sensation on your [part_info["name"]] as [user] begins tattooing."))
 
 	if(!do_after(user, CUSTOM_TATTOO_APPLICATION_TIME, target = current_target))
 		to_chat(user, span_warning("Tattoo application interrupted!"))
 		return FALSE
 
-	// Re-validate everything after the delay
+	// Re-validate after delay
 	if(!can_interact_with_target(user))
 		return FALSE
 
@@ -306,26 +288,24 @@
 		to_chat(user, span_warning(revalidation_result["message"]))
 		return FALSE
 
-	// Process signature placeholders and create tattoo
-	var/list/processed_data = process_custom_tattoo_signature_placeholders(artist_name, user)
+	// Create and apply tattoo
+	var/tattoo_zone_define = string_to_zone(zone)
+	var/list/processed_data = process_signature_placeholders(artist_name, user)
 	var/final_artist = processed_data["text"]
 	var/is_signature = processed_data["is_signature"]
 
 	var/sanitized_artist = sanitize_text(final_artist)
 	var/sanitized_design = sanitize_text(tattoo_design)
 
-	// Create and apply the tattoo
-	var/tattoo_zone_define = string_to_zone(zone)
 	var/datum/custom_tattoo/new_tattoo = new(sanitized_artist, sanitized_design, tattoo_zone_define, ink_color, layer, is_signature, font)
 
 	if(current_target.add_custom_tattoo(new_tattoo))
 		on_tattoo_applied_success(user, zone, sanitized_artist, sanitized_design, part_info)
+		return TRUE
 	else
 		to_chat(user, span_warning("Failed to apply tattoo! The body part may have reached its tattoo limit."))
+		return FALSE
 
-	return TRUE
-
-/// Validate tattoo data before application
 /obj/item/custom_tattoo_kit/proc/validate_tattoo_data(zone, mob/user)
 	var/list/result = list("success" = FALSE)
 
@@ -376,8 +356,8 @@
 		result["message"] = "[current_target] doesn't allow body modifications!"
 		return result
 
-	if(custom_tattoo_uses <= 0)
-		result["message"] = "This body art kit is out of ink!"
+	if(ink_uses <= 0)
+		result["message"] = "The tattoo kit is out of ink!"
 		return result
 
 	// All validation passed
@@ -390,7 +370,6 @@
 
 	return result
 
-/// Re-validate tattoo data after do_after delay
 /obj/item/custom_tattoo_kit/proc/revalidate_tattoo_data(zone)
 	var/list/result = list("success" = FALSE)
 
@@ -400,22 +379,25 @@
 		result["message"] = "The body part became unavailable during application!"
 		return result
 
-	if(custom_tattoo_uses <= 0)
-		result["message"] = "The body art kit ran out of ink during application!"
+	if(ink_uses <= 0)
+		result["message"] = "The tattoo kit ran out of ink during application!"
 		return result
 
 	result["success"] = TRUE
 	return result
 
-/// Handle successful tattoo application
 /obj/item/custom_tattoo_kit/proc/on_tattoo_applied_success(mob/user, zone, artist, design, part_info)
+	// Update state
+	ink_uses = max(0, ink_uses - 1)
+	next_use = world.time + 2 SECONDS
+
 	// Save to preferences
 	if(current_target.client?.prefs)
 		current_target.client.prefs.save_custom_tattoo_data()
 
-	// Update state
-	custom_tattoo_uses = max(0, custom_tattoo_uses - 1)
+	// Update appearance
 	current_target.regenerate_icons()
+	update_appearance()
 
 	// Clear form data for this body part
 	artist_names -= zone
@@ -423,12 +405,13 @@
 	selected_layers[zone] = CUSTOM_TATTOO_LAYER_NORMAL
 	selected_fonts[zone] = PEN_FONT
 
-	// Notify user and log
+	// Notify and log
 	to_chat(user, span_green("Tattoo applied successfully to [current_target]'s [part_info["name"]]!"))
+	to_chat(current_target, span_notice("You feel a lasting impression on your [part_info["name"]] as the tattoo is completed."))
+
 	user.log_message("applied custom tattoo '[design]' by [artist] to [current_target]'s [zone]", LOG_GAME)
 
-// Custom signature processing for tattoos
-/obj/item/custom_tattoo_kit/proc/process_custom_tattoo_signature_placeholders(text, mob/user)
+/obj/item/custom_tattoo_kit/proc/process_signature_placeholders(text, mob/user)
 	var/list/signatures = list(
 		"%s" = user.real_name,
 		"%sign" = user.real_name,
