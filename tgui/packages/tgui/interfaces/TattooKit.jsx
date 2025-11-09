@@ -103,6 +103,15 @@ const BodyPartSection = (props) => {
   const part_max_tattoos = part?.max_tattoos || 5;
   const part_preview_text = part?.preview_text || "No tattoos yet.";
 
+  // Font options that match DM defines
+  const fontOptions = [
+    { key: "Pen", label: "Pen" },
+    { key: "Fountain Pen", label: "Fountain Pen" },
+    { key: "Crayon", label: "Crayon" },
+    { key: "Printer", label: "Printer" },
+    { key: "Charcoal", label: "Charcoal" },
+  ];
+
   return (
     <Section
       title={
@@ -210,56 +219,19 @@ const BodyPartSection = (props) => {
 
               <LabeledList.Item label="Font">
                 <Tabs>
-                  <Tabs.Tab
-                    selected={selected_font === 'Pen'}
-                    onClick={() =>
-                      act('set_font', {
-                        zone: part_zone,
-                        font: 'Pen',
-                      })
-                    }>
-                    Pen
-                  </Tabs.Tab>
-                  <Tabs.Tab
-                    selected={selected_font === 'Fountain Pen'}
-                    onClick={() =>
-                      act('set_font', {
-                        zone: part_zone,
-                        font: 'Fountain Pen',
-                      })
-                    }>
-                    Fountain Pen
-                  </Tabs.Tab>
-                  <Tabs.Tab
-                    selected={selected_font === 'Crayon'}
-                    onClick={() =>
-                      act('set_font', {
-                        zone: part_zone,
-                        font: 'Crayon',
-                      })
-                    }>
-                    Crayon
-                  </Tabs.Tab>
-                  <Tabs.Tab
-                    selected={selected_font === 'Printer'}
-                    onClick={() =>
-                      act('set_font', {
-                        zone: part_zone,
-                        font: 'Printer',
-                      })
-                    }>
-                    Printer
-                  </Tabs.Tab>
-                  <Tabs.Tab
-                    selected={selected_font === 'Charcoal'}
-                    onClick={() =>
-                      act('set_font', {
-                        zone: part_zone,
-                        font: 'Charcoal',
-                      })
-                    }>
-                    Charcoal
-                  </Tabs.Tab>
+                  {fontOptions.map((font) => (
+                    <Tabs.Tab
+                      key={font.key}
+                      selected={selected_font === font.key}
+                      onClick={() =>
+                        act('set_font', {
+                          zone: part_zone,
+                          font: font.key,
+                        })
+                      }>
+                      {font.label}
+                    </Tabs.Tab>
+                  ))}
                 </Tabs>
               </LabeledList.Item>
             </LabeledList>

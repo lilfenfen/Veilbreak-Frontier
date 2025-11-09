@@ -159,20 +159,33 @@
 						selected_layers[zone] = CUSTOM_TATTOO_LAYER_NORMAL
 					if(!(zone in selected_fonts))
 						selected_fonts[zone] = PEN_FONT
+					// Initialize empty artist and design if not set
+					if(!(zone in artist_names))
+						artist_names[zone] = ""
+					if(!(zone in tattoo_designs))
+						tattoo_designs[zone] = ""
 				return TRUE
 
 		if("set_artist")
 			var/zone = params["zone"]
 			var/value = params["value"]
 			if(validate_zone(zone) && !isnull(value))
-				artist_names[zone] = sanitize_text(value, 50)
+				// Properly sanitize: trim and limit length
+				var/trimmed_value = trimtext(value)
+				if(length(trimmed_value) > 50)
+					trimmed_value = copytext(trimmed_value, 1, 51)
+				artist_names[zone] = trimmed_value
 				return TRUE
 
 		if("set_design")
 			var/zone = params["zone"]
 			var/value = params["value"]
 			if(validate_zone(zone) && !isnull(value))
-				tattoo_designs[zone] = sanitize_text(value, 500)
+				// Properly sanitize: trim and limit length
+				var/trimmed_value = trimtext(value)
+				if(length(trimmed_value) > 500)
+					trimmed_value = copytext(trimmed_value, 1, 501)
+				tattoo_designs[zone] = trimmed_value
 				return TRUE
 
 		if("set_layer")
@@ -309,18 +322,18 @@
 /obj/item/custom_tattoo_kit/proc/validate_tattoo_data(zone, mob/user)
 	var/list/result = list("success" = FALSE)
 
-	// Get form data
-	var/artist_name = artist_names[zone]
-	var/tattoo_design = tattoo_designs[zone]
+	// Get form data - use empty strings as defaults
+	var/artist_name = artist_names[zone] || ""
+	var/tattoo_design = tattoo_designs[zone] || ""
 	var/layer = selected_layers[zone] || CUSTOM_TATTOO_LAYER_NORMAL
 	var/font = selected_fonts[zone] || PEN_FONT
 
-	// Validate required fields
-	if(!artist_name || !istext(artist_name) || trimtext(artist_name) == "")
+	// Validate required fields - check for empty strings after trim
+	if(!istext(artist_name) || trimtext(artist_name) == "")
 		result["message"] = "Please enter a valid artist name!"
 		return result
 
-	if(!tattoo_design || !istext(tattoo_design) || trimtext(tattoo_design) == "")
+	if(!istext(tattoo_design) || trimtext(tattoo_design) == "")
 		result["message"] = "Please enter a valid tattoo design description!"
 		return result
 
