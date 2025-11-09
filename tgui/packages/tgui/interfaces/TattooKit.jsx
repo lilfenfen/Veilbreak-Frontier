@@ -151,12 +151,13 @@ const BodyPartSection = (props) => {
                   fluid
                   value={artist_name || ''}
                   placeholder="Enter artist name..."
-                  onChange={(e, value) =>
+                  onChange={(e, value) => {
+                    console.log('set_artist called with:', value);
                     act('set_artist', {
                       zone: part_zone,
                       value: value,
-                    })
-                  }
+                    });
+                  }}
                 />
               </LabeledList.Item>
 
@@ -165,12 +166,13 @@ const BodyPartSection = (props) => {
                   fluid
                   value={tattoo_design || ''}
                   placeholder="Describe the tattoo design..."
-                  onChange={(e, value) =>
+                  onChange={(e, value) => {
+                    console.log('set_design called with:', value);
                     act('set_design', {
                       zone: part_zone,
                       value: value,
-                    })
-                  }
+                    });
+                  }}
                 />
               </LabeledList.Item>
 
@@ -179,36 +181,21 @@ const BodyPartSection = (props) => {
                   <Stack.Item>
                     <Button
                       selected={selected_layer === 1}
-                      onClick={() =>
-                        act('set_layer', {
-                          zone: part_zone,
-                          layer: 1,
-                        })
-                      }>
+                      onClick={() => act('set_layer', { zone: part_zone, layer: 1 })}>
                       Under
                     </Button>
                   </Stack.Item>
                   <Stack.Item>
                     <Button
                       selected={selected_layer === 2}
-                      onClick={() =>
-                        act('set_layer', {
-                          zone: part_zone,
-                          layer: 2,
-                        })
-                      }>
+                      onClick={() => act('set_layer', { zone: part_zone, layer: 2 })}>
                       Normal
                     </Button>
                   </Stack.Item>
                   <Stack.Item>
                     <Button
                       selected={selected_layer === 3}
-                      onClick={() =>
-                        act('set_layer', {
-                          zone: part_zone,
-                          layer: 3,
-                        })
-                      }>
+                      onClick={() => act('set_layer', { zone: part_zone, layer: 3 })}>
                       Over
                     </Button>
                   </Stack.Item>
@@ -221,12 +208,7 @@ const BodyPartSection = (props) => {
                     <Tabs.Tab
                       key={font.key}
                       selected={selected_font === font.key}
-                      onClick={() =>
-                        act('set_font', {
-                          zone: part_zone,
-                          font: font.key,
-                        })
-                      }>
+                      onClick={() => act('set_font', { zone: part_zone, font: font.key })}>
                       {font.label}
                     </Tabs.Tab>
                   ))}
