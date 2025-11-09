@@ -1,6 +1,6 @@
 /obj/item/custom_tattoo_kit
-	name = "professional tattoo kit - DEBUG MODE"
-	desc = "A complete tattoo application system with multiple ink reservoirs and precision needles. DEBUG MODE ACTIVE."
+	name = "professional tattoo kit"
+	desc = "A complete tattoo application system with multiple ink reservoirs and precision needles."
 	icon = 'modular_zzveilbreak/icons/item_icons/tattoo.dmi'
 	icon_state = "tgun"
 	w_class = WEIGHT_CLASS_SMALL
@@ -26,7 +26,6 @@
 /obj/item/custom_tattoo_kit/examine(mob/user)
 	. = ..()
 	. += span_info("Ink remaining: [ink_uses]/[max_ink_uses]")
-	. += span_warning("DEBUG MODE ACTIVE - Extra logging enabled")
 
 /obj/item/custom_tattoo_kit/update_icon_state()
 	icon_state = "tattoo_kit[ink_uses > 0 ? "" : "_empty"]"
@@ -46,10 +45,7 @@
 		to_chat(user, span_warning("The kit needs a moment to recharge."))
 		return TRUE
 
-	if(current_target != human_target)
-		current_target = human_target
-		to_chat(user, span_warning("DEBUG: New target set: [current_target]"))
-
+	current_target = human_target
 	ui_interact(user)
 	return TRUE
 
@@ -75,7 +71,6 @@
 	if(!ui)
 		ui = new(user, src, "TattooKit")
 		ui.open()
-		to_chat(user, span_warning("DEBUG: UI opened for target [current_target]"))
 
 /obj/item/custom_tattoo_kit/ui_data(mob/user)
 	var/list/data = list()
@@ -104,20 +99,7 @@
 				"current_tattoos" = part_info["current_tattoos"] || 0,
 				"max_tattoos" = part_info["max_tattoos"] || CUSTOM_MAX_TATTOOS_PER_PART,
 				"preview_text" = preview_text,
-				"expanded" = (zone in expanded_parts) ? TRUE : FALSE
 			))
-
-	// DEBUG: Log the data being sent - FIXED FORMAT
-	to_chat(user, span_warning("DEBUG UI_DATA:"))
-	to_chat(user, span_warning("  target_name: [data["target_name"]]"))
-	to_chat(user, span_warning("  ink_uses: [data["ink_uses"]]"))
-	to_chat(user, span_warning("  artist_names contents:"))
-	for(var/zone in artist_names)
-		to_chat(user, span_warning("    [zone] = '[artist_names[zone]]'"))
-	to_chat(user, span_warning("  tattoo_designs contents:"))
-	for(var/zone in tattoo_designs)
-		to_chat(user, span_warning("    [zone] = '[tattoo_designs[zone]]'"))
-	to_chat(user, span_warning("  body_parts count: [data["body_parts"] ? data["body_parts"].len : "NULL"]"))
 
 	return data
 
@@ -139,21 +121,16 @@
 
 	var/zone = params["zone"]
 	if(!zone || !istext(zone))
-		to_chat(user, span_warning("DEBUG: No zone parameter or invalid zone: [zone]"))
 		return FALSE
 
 	var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
 	if(!(zone in available_parts))
-		to_chat(user, span_warning("DEBUG: Zone [zone] not in available_parts: [jointext(available_parts, ", ")]"))
 		return FALSE
-
-	to_chat(user, span_warning("DEBUG UI_ACT: action=[action], zone=[zone]"))
 
 	switch(action)
 		if("toggle_expand")
 			if(zone in expanded_parts)
 				expanded_parts -= zone
-				to_chat(user, span_warning("DEBUG: Collapsed zone [zone]"))
 			else
 				expanded_parts |= zone
 				if(!(zone in selected_layers))
@@ -164,74 +141,48 @@
 					artist_names[zone] = ""
 				if(!(zone in tattoo_designs))
 					tattoo_designs[zone] = ""
-				to_chat(user, span_warning("DEBUG: Expanded zone [zone], initialized defaults"))
 			return TRUE
 
 		if("set_artist")
 			var/value = params["value"]
-			to_chat(user, span_warning("DEBUG: set_artist received value: '[value]' (isnull: [isnull(value)], istext: [istext(value)])"))
-			// FIX: Handle null values properly and ensure string type
+			// PROPER null handling like the examples
 			if(isnull(value))
 				value = ""
-			else if(!istext(value))
-				value = "[value]" // Convert to string if it's not text
-
 			artist_names[zone] = value
-			to_chat(user, span_warning("DEBUG: set_artist [zone] = '[value]' (istext: [istext(value)], length: [length(value)])"))
-			to_chat(user, span_warning("DEBUG: artist_names[zone] is now: '[artist_names[zone]]'"))
-			// Force immediate UI update
-			SStgui.update_uis(src)
 			return TRUE
 
 		if("set_design")
 			var/value = params["value"]
-			to_chat(user, span_warning("DEBUG: set_design received value: '[value]' (isnull: [isnull(value)], istext: [istext(value)])"))
-			// FIX: Handle null values properly and ensure string type
+			// PROPER null handling like the examples
 			if(isnull(value))
 				value = ""
-			else if(!istext(value))
-				value = "[value]" // Convert to string if it's not text
-
 			tattoo_designs[zone] = value
-			to_chat(user, span_warning("DEBUG: set_design [zone] = '[value]' (istext: [istext(value)], length: [length(value)])"))
-			to_chat(user, span_warning("DEBUG: tattoo_designs[zone] is now: '[tattoo_designs[zone]]'"))
-			// Force immediate UI update
-			SStgui.update_uis(src)
 			return TRUE
 
 		if("set_layer")
 			var/layer = params["layer"]
 			if(!isnull(layer))
 				selected_layers[zone] = text2num(layer)
-				to_chat(user, span_warning("DEBUG: set_layer [zone] = [layer]"))
 				return TRUE
 
 		if("set_font")
 			var/font = params["font"]
 			if(!isnull(font))
 				selected_fonts[zone] = font
-				to_chat(user, span_warning("DEBUG: set_font [zone] = [font]"))
 				return TRUE
 
 		if("change_color")
 			var/new_color = input(user, "Choose ink color:", "Tattoo Kit", ink_color) as color|null
 			if(new_color)
 				ink_color = new_color
-				to_chat(user, span_warning("DEBUG: change_color to [new_color]"))
 				return TRUE
 
 		if("apply_tattoo")
-			return handle_apply_tattoo(user, zone, params)
+			return handle_apply_tattoo(user, zone)
 
 		if("refill_ink")
 			refill_ink(user)
 			return TRUE
-
-		if("debug_log")
-			var/message = params["message"]
-			if(message)
-				to_chat(user, span_warning("DEBUG FROM UI: [message]"))
-				return TRUE
 
 	return FALSE
 
@@ -263,43 +214,14 @@
 
 	return preview_text || "No tattoos yet."
 
-/obj/item/custom_tattoo_kit/proc/handle_apply_tattoo(mob/user, zone, list/params)
-	to_chat(user, span_warning("=== START handle_apply_tattoo ==="))
-	to_chat(user, span_warning("DEBUG: Zone: [zone]"))
-	to_chat(user, span_warning("DEBUG: Params received: artist='[params["artist"]]', design='[params["design"]]'"))
+/obj/item/custom_tattoo_kit/proc/handle_apply_tattoo(mob/user, zone)
+	if(!current_target || QDELETED(current_target))
+		return FALSE
 
-	// Get values from stored data (more reliable than params)
-	var/artist_name = artist_names[zone]
-	var/tattoo_design = tattoo_designs[zone]
-
-	// Also check params as backup
-	if((!artist_name || artist_name == "") && params["artist"])
-		artist_name = params["artist"]
-	if((!tattoo_design || tattoo_design == "") && params["design"])
-		tattoo_design = params["design"]
-
-	// Final validation and conversion - FIXED NULL HANDLING
-	if(isnull(artist_name))
-		artist_name = ""
-	else if(!istext(artist_name))
-		artist_name = "[artist_name]"
-
-	if(isnull(tattoo_design))
-		tattoo_design = ""
-	else if(!istext(tattoo_design))
-		tattoo_design = "[tattoo_design]"
-
-	to_chat(user, span_warning("DEBUG: Final values - Artist: '[artist_name]', Design: '[tattoo_design]'"))
-
-	// Check body part availability
 	var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
 	var/list/part_info = available_parts[zone]
 	if(!part_info)
-		to_chat(user, span_warning("The selected body part is no longer available!"))
-		to_chat(user, span_warning("DEBUG: Part info not found for zone [zone]"))
 		return FALSE
-
-	to_chat(user, span_warning("DEBUG: Part info - [part_info["name"]], covered: [part_info["covered"]], tattoos: [part_info["current_tattoos"]]/[part_info["max_tattoos"]]"))
 
 	if(part_info["covered"])
 		to_chat(user, span_warning("[current_target]'s [part_info["name"]] is covered! Expose it first."))
@@ -317,32 +239,26 @@
 		to_chat(user, span_warning("The tattoo kit is out of ink!"))
 		return FALSE
 
-	// FINAL VALIDATION
+	var/artist_name = artist_names[zone]
+	var/tattoo_design = tattoo_designs[zone]
+
 	if(!artist_name || artist_name == "")
 		to_chat(user, span_warning("Please enter a valid artist name!"))
-		to_chat(user, span_warning("DEBUG: VALIDATION FAILED - No artist name"))
 		return FALSE
 
 	if(!tattoo_design || tattoo_design == "")
 		to_chat(user, span_warning("Please enter a valid tattoo design description!"))
-		to_chat(user, span_warning("DEBUG: VALIDATION FAILED - No tattoo design"))
 		return FALSE
 
-	to_chat(user, span_warning("DEBUG: All validations passed, starting application..."))
-
-	// Start application
 	to_chat(user, span_notice("You begin carefully applying the tattoo to [current_target]'s [part_info["name"]]..."))
 
 	if(!do_after(user, CUSTOM_TATTOO_APPLICATION_TIME, target = current_target))
 		to_chat(user, span_warning("Tattoo application interrupted!"))
 		return FALSE
 
-	// Create and apply tattoo
 	var/tattoo_zone_define = string_to_zone(zone)
 	var/layer = selected_layers[zone] || CUSTOM_TATTOO_LAYER_NORMAL
 	var/font = selected_fonts[zone] || PEN_FONT
-
-	to_chat(user, span_warning("DEBUG: Creating tattoo - Zone: [tattoo_zone_define], Layer: [layer], Font: [font]"))
 
 	var/datum/custom_tattoo/new_tattoo = new(artist_name, tattoo_design, tattoo_zone_define, ink_color, layer, FALSE, font)
 
@@ -363,10 +279,8 @@
 		selected_fonts[zone] = PEN_FONT
 
 		to_chat(user, span_green("Tattoo applied successfully to [current_target]'s [part_info["name"]]!"))
-		to_chat(user, span_warning("DEBUG: Tattoo applied successfully!"))
 		user.log_message("applied custom tattoo '[tattoo_design]' by [artist_name] to [current_target]'s [zone]", LOG_GAME)
 		return TRUE
 	else
 		to_chat(user, span_warning("Failed to apply tattoo!"))
-		to_chat(user, span_warning("DEBUG: add_custom_tattoo returned FALSE"))
 		return FALSE
