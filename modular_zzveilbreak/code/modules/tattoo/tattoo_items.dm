@@ -150,12 +150,14 @@
 			var/value = params["value"]
 			if(!isnull(value))
 				artist_names[zone] = value
+				to_chat(user, span_notice("DEBUG: set_artist [zone] = '[value]'")) // Debug message
 				return TRUE
 
 		if("set_design")
 			var/value = params["value"]
 			if(!isnull(value))
 				tattoo_designs[zone] = value
+				to_chat(user, span_notice("DEBUG: set_design [zone] = '[value]'")) // Debug message
 				return TRUE
 
 		if("set_layer")
@@ -214,21 +216,18 @@
 	return preview_text || "No tattoos yet."
 
 /obj/item/custom_tattoo_kit/proc/handle_apply_tattoo(mob/user, zone, list/params)
-	// Get the values directly from our stored data
-	var/artist_name = artist_names[zone]
-	var/tattoo_design = tattoo_designs[zone]
+	// Try to get values from multiple sources in order of priority
+	var/artist_name = params["artist"]
+	var/tattoo_design = params["design"]
 
-	// DEBUG: Check what we have
-	to_chat(user, "DEBUG: artist_names[zone] = '[artist_name]'")
-	to_chat(user, "DEBUG: tattoo_designs[zone] = '[tattoo_design]'")
-	to_chat(user, "DEBUG: artist_names type: [istext(artist_name)]")
-	to_chat(user, "DEBUG: tattoo_designs type: [istext(tattoo_design)]")
-
-	// Check if we have values from UI parameters as fallback
+	// If not passed in params, try stored data
 	if(!artist_name || artist_name == "")
-		artist_name = params["artist"]
+		artist_name = artist_names[zone]
 	if(!tattoo_design || tattoo_design == "")
-		tattoo_design = params["design"]
+		tattoo_design = tattoo_designs[zone]
+
+	// DEBUG: Show what we found
+	to_chat(user, span_notice("DEBUG: Final values - Artist: '[artist_name]', Design: '[tattoo_design]'"))
 
 	// FINAL VALIDATION
 	if(!artist_name || artist_name == "")

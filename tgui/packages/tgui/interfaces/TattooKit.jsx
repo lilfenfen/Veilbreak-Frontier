@@ -209,19 +209,11 @@ const BodyPartSection = (props) => {
                   value={artist_name || ''}
                   placeholder="Enter artist name..."
                   onChange={(e, value) => {
+                    // Save immediately on change
                     act('set_artist', {
                       zone: part_zone,
                       value: value,
                     });
-                  }}
-                  onBlur={(e, value) => {
-                    // Also save when input loses focus to ensure data is saved
-                    if (value !== undefined && value !== null) {
-                      act('set_artist', {
-                        zone: part_zone,
-                        value: value,
-                      });
-                    }
                   }}
                 />
               </LabeledList.Item>
@@ -232,19 +224,11 @@ const BodyPartSection = (props) => {
                   value={tattoo_design || ''}
                   placeholder="Describe the tattoo design..."
                   onChange={(e, value) => {
+                    // Save immediately on change
                     act('set_design', {
                       zone: part_zone,
                       value: value,
                     });
-                  }}
-                  onBlur={(e, value) => {
-                    // Also save when input loses focus to ensure data is saved
-                    if (value !== undefined && value !== null) {
-                      act('set_design', {
-                        zone: part_zone,
-                        value: value,
-                      });
-                    }
                   }}
                 />
               </LabeledList.Item>
@@ -307,7 +291,11 @@ const BodyPartSection = (props) => {
                         ? 'Please enter both artist name and tattoo design!'
                         : 'Apply tattoo'
               }
-              onClick={() => act('apply_tattoo', { zone: part_zone })}>
+              onClick={() => act('apply_tattoo', {
+                zone: part_zone,
+                artist: artist_name,
+                design: tattoo_design
+              })}>
               Apply Tattoo
             </Button>
           </Stack.Item>
