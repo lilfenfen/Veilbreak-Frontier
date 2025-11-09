@@ -170,28 +170,28 @@
 		if("set_artist")
 			var/value = params["value"]
 			to_chat(user, span_warning("DEBUG: set_artist received value: '[value]' (isnull: [isnull(value)], istext: [istext(value)])"))
-			if(!isnull(value))
-				artist_names[zone] = value
-				to_chat(user, span_warning("DEBUG: set_artist [zone] = '[value]' (istext: [istext(value)], length: [length(value)]"))
-				to_chat(user, span_warning("DEBUG: artist_names[zone] is now: '[artist_names[zone]]'"))
-				// Force immediate UI update
-				SStgui.update_uis(src)
-				return TRUE
-			else
-				to_chat(user, span_warning("DEBUG: set_artist called with NULL value for zone [zone]"))
+			// Handle null values by converting to empty string
+			if(isnull(value))
+				value = ""
+			artist_names[zone] = value
+			to_chat(user, span_warning("DEBUG: set_artist [zone] = '[value]' (istext: [istext(value)], length: [length(value)]"))
+			to_chat(user, span_warning("DEBUG: artist_names[zone] is now: '[artist_names[zone]]'"))
+			// Force immediate UI update
+			SStgui.update_uis(src)
+			return TRUE
 
 		if("set_design")
 			var/value = params["value"]
 			to_chat(user, span_warning("DEBUG: set_design received value: '[value]' (isnull: [isnull(value)], istext: [istext(value)])"))
-			if(!isnull(value))
-				tattoo_designs[zone] = value
-				to_chat(user, span_warning("DEBUG: set_design [zone] = '[value]' (istext: [istext(value)], length: [length(value)]"))
-				to_chat(user, span_warning("DEBUG: tattoo_designs[zone] is now: '[tattoo_designs[zone]]'"))
-				// Force immediate UI update
-				SStgui.update_uis(src)
-				return TRUE
-			else
-				to_chat(user, span_warning("DEBUG: set_design called with NULL value for zone [zone]"))
+			// Handle null values by converting to empty string
+			if(isnull(value))
+				value = ""
+			tattoo_designs[zone] = value
+			to_chat(user, span_warning("DEBUG: set_design [zone] = '[value]' (istext: [istext(value)], length: [length(value)]"))
+			to_chat(user, span_warning("DEBUG: tattoo_designs[zone] is now: '[tattoo_designs[zone]]'"))
+			// Force immediate UI update
+			SStgui.update_uis(src)
+			return TRUE
 
 		if("set_layer")
 			var/layer = params["layer"]
