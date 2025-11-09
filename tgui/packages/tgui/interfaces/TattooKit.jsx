@@ -306,15 +306,14 @@ const BodyPartSection = (props) => {
                   fluid
                   value={artist_name || ''}
                   placeholder="Enter artist name..."
-                  onChange={(e, value) => {
-                    // Send the raw value but ensure it's not undefined
-                    const rawValue = value === undefined ? '' : value;
+                  onInput={(e, value) => {
+                    // Use onInput instead of onChange for real-time updates
                     act('debug_log', {
-                      message: `UI: set_artist for ${part_zone} with raw value: "${rawValue}"`
+                      message: `UI: set_artist for ${part_zone} with value: "${value}"`
                     });
                     act('set_artist', {
                       zone: part_zone,
-                      value: rawValue,
+                      value: value,
                     });
                   }}
                 />
@@ -325,15 +324,14 @@ const BodyPartSection = (props) => {
                   fluid
                   value={tattoo_design || ''}
                   placeholder="Describe the tattoo design..."
-                  onChange={(e, value) => {
-                    // Send the raw value but ensure it's not undefined
-                    const rawValue = value === undefined ? '' : value;
+                  onInput={(e, value) => {
+                    // Use onInput instead of onChange for real-time updates
                     act('debug_log', {
-                      message: `UI: set_design for ${part_zone} with raw value: "${rawValue}"`
+                      message: `UI: set_design for ${part_zone} with value: "${value}"`
                     });
                     act('set_design', {
                       zone: part_zone,
-                      value: rawValue,
+                      value: value,
                     });
                   }}
                 />
