@@ -89,13 +89,12 @@ const BodyPartSection = (props) => {
     expanded,
     artist_name,
     tattoo_design,
-    selected_layer = 2, // Default to normal layer
-    selected_font = "Pen", // Default to pen font
+    selected_layer = 2,
+    selected_font = "Pen",
     ink_uses = 0,
     act,
   } = props;
 
-  // Safe defaults for part properties
   const part_name = part?.name || "Unknown";
   const part_zone = part?.zone || "unknown";
   const part_covered = part?.covered || false;
@@ -103,7 +102,6 @@ const BodyPartSection = (props) => {
   const part_max_tattoos = part?.max_tattoos || 5;
   const part_preview_text = part?.preview_text || "No tattoos yet.";
 
-  // Font options that match DM defines
   const fontOptions = [
     { key: "Pen", label: "Pen" },
     { key: "Fountain Pen", label: "Fountain Pen" },

@@ -170,42 +170,34 @@
 			var/zone = params["zone"]
 			var/value = params["value"]
 			if(validate_zone(zone) && !isnull(value))
-				// Properly sanitize: trim and limit length
-				var/trimmed_value = trimtext(value)
-				if(length(trimmed_value) > 50)
-					trimmed_value = copytext(trimmed_value, 1, 51)
-				artist_names[zone] = trimmed_value
+				artist_names[zone] = value
 				return TRUE
 
 		if("set_design")
 			var/zone = params["zone"]
 			var/value = params["value"]
 			if(validate_zone(zone) && !isnull(value))
-				// Properly sanitize: trim and limit length
-				var/trimmed_value = trimtext(value)
-				if(length(trimmed_value) > 500)
-					trimmed_value = copytext(trimmed_value, 1, 501)
-				tattoo_designs[zone] = trimmed_value
+				tattoo_designs[zone] = value
 				return TRUE
 
 		if("set_layer")
 			var/zone = params["zone"]
 			var/layer = text2num(params["layer"])
 			if(validate_zone(zone) && !isnull(layer))
-				selected_layers[zone] = sanitize_integer(layer, CUSTOM_TATTOO_LAYER_UNDER, CUSTOM_TATTOO_LAYER_OVER, CUSTOM_TATTOO_LAYER_NORMAL)
+				selected_layers[zone] = layer
 				return TRUE
 
 		if("set_font")
 			var/zone = params["zone"]
 			var/font = params["font"]
-			if(validate_zone(zone) && !isnull(font) && (font in GLOB.custom_tattoo_fonts))
+			if(validate_zone(zone) && !isnull(font))
 				selected_fonts[zone] = font
 				return TRUE
 
 		if("change_color")
 			var/new_color = input(user, "Choose ink color:", "Tattoo Kit", ink_color) as color|null
 			if(new_color)
-				ink_color = sanitize_hexcolor(new_color, default = "#000000")
+				ink_color = new_color
 				return TRUE
 
 		if("apply_tattoo")
@@ -258,12 +250,11 @@
 		var/layer = selected_layers[zone] || CUSTOM_TATTOO_LAYER_NORMAL
 		var/font = selected_fonts[zone] || PEN_FONT
 
-		if(trimtext(design) && trimtext(artist))
-			var/datum/custom_tattoo/preview_tattoo = new(artist, design, actual_zone, ink_color, layer, FALSE, font)
-			var/preview_tattoo_text = preview_tattoo.get_examine_text(user, current_target)
-			if(preview_tattoo_text)
-				preview_text += "<span style='color: [ink_color];'><b>Preview:</b> [preview_tattoo_text]</span><br>"
-			qdel(preview_tattoo)
+		var/datum/custom_tattoo/preview_tattoo = new(artist, design, actual_zone, ink_color, layer, FALSE, font)
+		var/preview_tattoo_text = preview_tattoo.get_examine_text(user, current_target)
+		if(preview_tattoo_text)
+			preview_text += "<span style='color: [ink_color];'><b>Preview:</b> [preview_tattoo_text]</span><br>"
+		qdel(preview_tattoo)
 
 	return preview_text || "No tattoos yet."
 
@@ -307,13 +298,10 @@
 	var/final_artist = processed_data["text"]
 	var/is_signature = processed_data["is_signature"]
 
-	var/sanitized_artist = sanitize_text(final_artist)
-	var/sanitized_design = sanitize_text(tattoo_design)
-
-	var/datum/custom_tattoo/new_tattoo = new(sanitized_artist, sanitized_design, tattoo_zone_define, ink_color, layer, is_signature, font)
+	var/datum/custom_tattoo/new_tattoo = new(final_artist, tattoo_design, tattoo_zone_define, ink_color, layer, is_signature, font)
 
 	if(current_target.add_custom_tattoo(new_tattoo))
-		on_tattoo_applied_success(user, zone, sanitized_artist, sanitized_design, part_info)
+		on_tattoo_applied_success(user, zone, final_artist, tattoo_design, part_info)
 		return TRUE
 	else
 		to_chat(user, span_warning("Failed to apply tattoo! The body part may have reached its tattoo limit."))
@@ -328,25 +316,13 @@
 	var/layer = selected_layers[zone] || CUSTOM_TATTOO_LAYER_NORMAL
 	var/font = selected_fonts[zone] || PEN_FONT
 
-	// Validate required fields - check for empty strings after trim
-	if(!istext(artist_name) || trimtext(artist_name) == "")
+	// Validate required fields - NO TRIM, NO SANITIZATION
+	if(!artist_name || artist_name == "")
 		result["message"] = "Please enter a valid artist name!"
 		return result
 
-	if(!istext(tattoo_design) || trimtext(tattoo_design) == "")
+	if(!tattoo_design || tattoo_design == "")
 		result["message"] = "Please enter a valid tattoo design description!"
-		return result
-
-	var/trimmed_artist = trimtext(artist_name)
-	var/trimmed_design = trimtext(tattoo_design)
-
-	// Validate lengths
-	if(length(trimmed_artist) > 50)
-		result["message"] = "Artist name is too long! Maximum 50 characters."
-		return result
-
-	if(length(trimmed_design) > 500)
-		result["message"] = "Tattoo design is too long! Maximum 500 characters."
 		return result
 
 	// Check body part availability
@@ -375,8 +351,8 @@
 
 	// All validation passed
 	result["success"] = TRUE
-	result["artist"] = trimmed_artist
-	result["design"] = trimmed_design
+	result["artist"] = artist_name
+	result["design"] = tattoo_design
 	result["layer"] = layer
 	result["font"] = font
 	result["part_info"] = part_info
