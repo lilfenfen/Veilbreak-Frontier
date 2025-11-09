@@ -49,8 +49,30 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 
 	return parts
 
-// CRITICAL FIX: Convert BYOND zone defines to string identifiers for TGUI
+// CRITICAL FIX: Enhanced zone conversion with better error handling
 /proc/zone_to_string(zone)
+	if(isnull(zone))
+		return "chest"
+
+	// Handle string zones (shouldn't happen but safety first)
+	if(istext(zone))
+		return zone
+
+	// Handle organ slots first
+	switch(zone)
+		if(ORGAN_SLOT_PENIS) return "penis"
+		if(ORGAN_SLOT_WOMB) return "womb"
+		if(ORGAN_SLOT_VAGINA) return "vagina"
+		if(ORGAN_SLOT_TESTICLES) return "testicles"
+		if(ORGAN_SLOT_BREASTS) return "breasts"
+		if(ORGAN_SLOT_ANUS) return "anus"
+		if(ORGAN_SLOT_NIPPLES) return "nipples"
+		if(ORGAN_SLOT_TAIL) return "tail"
+		if(ORGAN_SLOT_SLIT) return "slit"
+		if(ORGAN_SLOT_SHEATH) return "sheath"
+		if(ORGAN_SLOT_WINGS) return "wings"
+
+	// Handle standard body zones
 	switch(zone)
 		if(BODY_ZONE_HEAD) return "head"
 		if(BODY_ZONE_CHEST) return "chest"
@@ -63,28 +85,23 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 		if(BODY_ZONE_PRECISE_L_FOOT) return "l_foot"
 		if(BODY_ZONE_PRECISE_R_FOOT) return "r_foot"
 		if(BODY_ZONE_PRECISE_GROIN) return "groin"
-		if(ORGAN_SLOT_PENIS) return "penis"
-		if(ORGAN_SLOT_WOMB) return "womb"
-		if(ORGAN_SLOT_VAGINA) return "vagina"
-		if(ORGAN_SLOT_TESTICLES) return "testicles"
-		if(ORGAN_SLOT_BREASTS) return "breasts"
-		if(ORGAN_SLOT_ANUS) return "anus"
-		if(ORGAN_SLOT_NIPPLES) return "nipples"
-		if(ORGAN_SLOT_TAIL) return "tail"
-		if(ORGAN_SLOT_SLIT) return "slit"
-		if(ORGAN_SLOT_SHEATH) return "sheath"
-		if(ORGAN_SLOT_WINGS) return "wings"
 		else
-			// Fallback: convert define to string
+			// Fallback: convert define to string safely
 			var/string_zone = "[zone]"
 			string_zone = replacetext(string_zone, "BODY_ZONE_", "")
 			string_zone = replacetext(string_zone, "ORGAN_SLOT_", "")
 			string_zone = lowertext(string_zone)
 			return string_zone
 
-// CRITICAL FIX: Convert string identifiers back to BYOND zone defines
+// CRITICAL FIX: Enhanced string to zone conversion with validation
 /proc/string_to_zone(zone_string)
-	switch(zone_string)
+	if(!zone_string || !istext(zone_string))
+		return BODY_ZONE_CHEST
+
+	// Trim and lowercase for consistency
+	var/clean_zone = trim(lowertext(zone_string))
+
+	switch(clean_zone)
 		if("head") return BODY_ZONE_HEAD
 		if("chest") return BODY_ZONE_CHEST
 		if("l_arm") return BODY_ZONE_L_ARM
@@ -108,12 +125,13 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 		if("sheath") return ORGAN_SLOT_SHEATH
 		if("wings") return ORGAN_SLOT_WINGS
 		else
-			// Try to find matching define
+			// Try to find matching define with enhanced validation
 			for(var/zone in GLOB.custom_tattooable_body_parts)
-				if(zone_to_string(zone) == zone_string)
+				if(zone_to_string(zone) == clean_zone)
 					return zone
-			return BODY_ZONE_CHEST // Fallback
+			return BODY_ZONE_CHEST // Safe fallback
 
+// CRITICAL FIX: Enhanced body part retrieval with proper validation
 /proc/get_all_custom_tattoo_body_parts(mob/living/carbon/human/H)
 	var/list/available_parts = list()
 
@@ -143,8 +161,11 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 				covered = !get_custom_tattoo_location_accessible(H, zone)
 
 		if(exists)
-			// CRITICAL FIX: Convert BYOND define to string for TGUI
+			// Convert BYOND define to string for TGUI with validation
 			var/string_zone = zone_to_string(zone)
+			if(!string_zone || !istext(string_zone))
+				continue
+
 			available_parts[string_zone] = list(
 				"name" = display_name || "Unknown",
 				"zone" = string_zone,
@@ -159,8 +180,11 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 	if(!istype(H) || !body_zone)
 		return FALSE
 
-	// CRITICAL FIX: Handle both string and define zones properly
+	// Handle both string and define zones properly with validation
 	var/actual_zone = istext(body_zone) ? string_to_zone(body_zone) : body_zone
+
+	if(!actual_zone)
+		return FALSE
 
 	// Skip blacklisted zones
 	if(actual_zone in GLOB.custom_tattoo_blacklist)
@@ -180,8 +204,11 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 	if(!istype(H) || !body_zone)
 		return FALSE
 
-	// CRITICAL FIX: Handle both string and define zones properly
+	// Handle both string and define zones properly with validation
 	var/actual_zone = istext(body_zone) ? string_to_zone(body_zone) : body_zone
+
+	if(!actual_zone)
+		return FALSE
 
 	// For organ slots, we need special handling since they're not standard body parts
 	if(actual_zone in CUSTOM_TATTOOABLE_ORGAN_SLOTS)

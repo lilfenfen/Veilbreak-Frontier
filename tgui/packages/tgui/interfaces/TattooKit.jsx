@@ -8,7 +8,6 @@ import {
   LabeledList,
   Section,
   Stack,
-  Table,
 } from 'tgui-core/components';
 
 import { useBackend } from '../backend';
@@ -83,9 +82,9 @@ const TattooKitContent = (props) => {
 
   // Safe layer options
   const layerOptions = [
-    { value: '1', displayText: 'Under' },
-    { value: '2', displayText: 'Normal' },
-    { value: '3', displayText: 'Over' },
+    { value: 1, displayText: 'Under' },
+    { value: 2, displayText: 'Normal' },
+    { value: 3, displayText: 'Over' },
   ];
 
   // Safe font options
@@ -110,11 +109,18 @@ const TattooKitContent = (props) => {
     });
   })();
 
-  // CRITICAL FIX: Safe body part selection handler
+  // CRITICAL FIX: Safe body part selection handler with validation
   const handleSelectBodypart = (zone: string) => {
     if (!zone || typeof zone !== 'string' || zone.trim() === '') {
       return;
     }
+
+    // Validate the zone exists in our safe body parts
+    const isValidZone = safeBodyParts.some(part => part.zone === zone);
+    if (!isValidZone) {
+      return;
+    }
+
     act('select_bodypart', { zone: zone });
   };
 
@@ -174,8 +180,8 @@ const TattooKitContent = (props) => {
             <Stack vertical>
               {safeBodyParts.length > 0 ? (
                 safeBodyParts.map((part) => {
-                  // Use actual zone from data
-                  const partZone = part.zone;
+                  // Use actual zone from data with validation
+                  const partZone = part.zone || "chest";
                   const partName = part.name || "Unknown";
                   const partCovered = !!part.covered;
                   const partCurrentTattoos = Number(part.current_tattoos) || 0;
@@ -264,7 +270,7 @@ const TattooKitContent = (props) => {
               <LabeledList.Item label="Layer">
                 <Dropdown
                   width="120px"
-                  selected={String(selected_layer || 2)}
+                  selected={selected_layer || 2}
                   options={layerOptions}
                   onSelected={(value) => {
                     const layerNum = parseInt(value, 10);
