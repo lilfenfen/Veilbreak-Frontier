@@ -48,17 +48,12 @@
 	if(!body_zone)
 		return .
 	for(var/datum/custom_tattoo/T as anything in custom_body_tattoos)
-		if(T.body_part == body_zone)
-			. += T
-	. = sortTim(., GLOBAL_PROC_REF(cmp_custom_tattoo_layer_asc))
+		// CRITICAL FIX: Convert both sides to comparable values
+		var/tattoo_zone_string = zone_to_string(T.body_part)
+		var/search_zone_string = istext(body_zone) ? body_zone : zone_to_string(body_zone)
 
-/mob/living/carbon/human/proc/get_visible_custom_tattoos(mob/viewer)
-	. = list()
-	for(var/datum/custom_tattoo/T as anything in custom_body_tattoos)
-		var/visible = T.is_custom_tattoo_visible(viewer, src)
-		if(visible)
+		if(tattoo_zone_string == search_zone_string)
 			. += T
-
 	. = sortTim(., GLOBAL_PROC_REF(cmp_custom_tattoo_layer_asc))
 
 /mob/living/carbon/human/examine(mob/user)
@@ -105,3 +100,12 @@
 		client.prefs.apply_custom_tattoos_to_mob(src)
 		// Force icon update
 		addtimer(CALLBACK(src, .proc/regenerate_icons), 1 SECONDS)
+
+/mob/living/carbon/human/proc/get_visible_custom_tattoos(mob/viewer)
+	. = list()
+	for(var/datum/custom_tattoo/T as anything in custom_body_tattoos)
+		var/visible = T.is_custom_tattoo_visible(viewer, src)
+		if(visible)
+			. += T
+
+	. = sortTim(., GLOBAL_PROC_REF(cmp_custom_tattoo_layer_asc))
