@@ -80,7 +80,7 @@ const TattooKitContent = (props) => {
     setLocalDesign(tattoo_design || "");
   }, [tattoo_design]);
 
-  // Safe layer options
+  // CRITICAL FIX: Layer dropdown - use numbers directly
   const layerOptions = [
     { value: 1, displayText: 'Under' },
     { value: 2, displayText: 'Normal' },
@@ -273,10 +273,8 @@ const TattooKitContent = (props) => {
                   selected={selected_layer || 2}
                   options={layerOptions}
                   onSelected={(value) => {
-                    const layerNum = parseInt(value, 10);
-                    if (!isNaN(layerNum)) {
-                      act('set_layer', { layer: layerNum });
-                    }
+                    // CRITICAL FIX: value is already a number from our options
+                    act('set_layer', { layer: value });
                   }}
                 />
               </LabeledList.Item>

@@ -49,12 +49,12 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 
 	return parts
 
-// CRITICAL FIX: Enhanced zone conversion with better error handling
+// CRITICAL FIX: Enhanced zone conversion with null protection
 /proc/zone_to_string(zone)
 	if(isnull(zone))
 		return "chest"
 
-	// Handle string zones (shouldn't happen but safety first)
+	// If it's already a string, return it directly
 	if(istext(zone))
 		return zone
 
@@ -86,21 +86,17 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 		if(BODY_ZONE_PRECISE_R_FOOT) return "r_foot"
 		if(BODY_ZONE_PRECISE_GROIN) return "groin"
 		else
-			// Fallback: convert define to string safely
-			var/string_zone = "[zone]"
-			string_zone = replacetext(string_zone, "BODY_ZONE_", "")
-			string_zone = replacetext(string_zone, "ORGAN_SLOT_", "")
-			string_zone = lowertext(string_zone)
-			return string_zone
+			return "chest" // SAFE FALLBACK
 
 // CRITICAL FIX: Enhanced string to zone conversion with validation
 /proc/string_to_zone(zone_string)
 	if(!zone_string || !istext(zone_string))
 		return BODY_ZONE_CHEST
 
-	// Trim and lowercase for consistency
+	// Clean the input
 	var/clean_zone = trim(lowertext(zone_string))
 
+	// Direct mapping - no complex logic
 	switch(clean_zone)
 		if("head") return BODY_ZONE_HEAD
 		if("chest") return BODY_ZONE_CHEST
@@ -125,13 +121,8 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 		if("sheath") return ORGAN_SLOT_SHEATH
 		if("wings") return ORGAN_SLOT_WINGS
 		else
-			// Try to find matching define with enhanced validation
-			for(var/zone in GLOB.custom_tattooable_body_parts)
-				if(zone_to_string(zone) == clean_zone)
-					return zone
-			return BODY_ZONE_CHEST // Safe fallback
+			return BODY_ZONE_CHEST // SAFE FALLBACK
 
-// CRITICAL FIX: Enhanced body part retrieval with proper validation
 /proc/get_all_custom_tattoo_body_parts(mob/living/carbon/human/H)
 	var/list/available_parts = list()
 

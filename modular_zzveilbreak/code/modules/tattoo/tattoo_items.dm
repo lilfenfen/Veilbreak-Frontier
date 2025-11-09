@@ -142,43 +142,53 @@
 
 	var/mob/user = usr
 
-	// Safety check - ensure we still have a valid target
-	if(!current_target || QDELETED(current_target))
+	// CRITICAL FIX: Enhanced safety check
+	if(!current_target || QDELETED(current_target) || !istype(current_target, /mob/living/carbon/human))
 		to_chat(user, span_warning("The target is no longer valid!"))
+		current_target = null
 		return FALSE
 
 	switch(action)
 		if("select_bodypart")
 			var/zone = params["zone"]
 
-			// CRITICAL FIX: Zone is now a string from TGUI - validate it
+			// CRITICAL FIX: Enhanced validation
 			if(!zone || !istext(zone) || zone == "")
+				to_chat(user, span_warning("Invalid body part selection!"))
 				return FALSE
 
-			// CRITICAL FIX: Use string zone directly for checks
-			if(!is_custom_tattoo_bodypart_existing(current_target, zone))
-				to_chat(user, span_warning("That body part doesn't exist!"))
+			// CRITICAL FIX: Direct validation without complex conversion
+			var/zone_exists = FALSE
+			var/zone_accessible = FALSE
+			var/zone_name = "unknown"
+
+			// Check if this zone exists in our available parts
+			var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
+			if(zone in available_parts)
+				var/list/part_info = available_parts[zone]
+				zone_exists = TRUE
+				zone_accessible = !part_info["covered"]
+				zone_name = part_info["name"]
+
+				// Check tattoo limit
+				var/current_tattoos = part_info["current_tattoos"]
+				if(current_tattoos >= CUSTOM_MAX_TATTOOS_PER_PART)
+					to_chat(user, span_warning("This body part already has the maximum number of tattoos! (Max: [CUSTOM_MAX_TATTOOS_PER_PART])"))
+					return FALSE
+			else
+				to_chat(user, span_warning("That body part doesn't exist or isn't available!"))
 				return FALSE
 
-			if(!get_custom_tattoo_location_accessible(current_target, zone))
-				var/body_part_name = get_custom_tattoo_body_part_description(string_to_zone(zone))
-				to_chat(user, span_warning("[current_target]'s [body_part_name] is covered! Expose it first."))
+			if(!zone_accessible)
+				to_chat(user, span_warning("[current_target]'s [zone_name] is covered! Expose it first."))
 				return FALSE
 
-			// CRITICAL FIX: Check tattoo limit using converted zone
-			var/actual_zone = string_to_zone(zone)
-			var/current_tattoos = length(current_target.get_custom_tattoos(actual_zone))
-			if(current_tattoos >= CUSTOM_MAX_TATTOOS_PER_PART)
-				to_chat(user, span_warning("This body part already has the maximum number of tattoos! (Max: [CUSTOM_MAX_TATTOOS_PER_PART])"))
-				return FALSE
-
-			// Store string zone directly
+			// CRITICAL FIX: Store the string zone directly - no conversion needed
 			selected_zone = zone
 			current_step = "design_tattoo"
 
 			// Force UI to update with new state
 			SStgui.update_uis(src)
-
 			return TRUE
 
 		if("set_layer")
@@ -217,24 +227,17 @@
 				return TRUE
 
 		if("apply_tattoo")
-			if(!artist_name || !istext(artist_name) || artist_name == "")
+			// CRITICAL FIX: Enhanced validation with direct string usage
+			if(!artist_name || !istext(artist_name) || trimtext(artist_name) == "")
 				to_chat(user, span_warning("Please enter a valid artist name!"))
 				return FALSE
 
-			if(!tattoo_design || !istext(tattoo_design) || tattoo_design == "")
+			if(!tattoo_design || !istext(tattoo_design) || trimtext(tattoo_design) == "")
 				to_chat(user, span_warning("Please enter a valid tattoo design description!"))
 				return FALSE
 
 			var/trimmed_artist = trimtext(artist_name)
 			var/trimmed_design = trimtext(tattoo_design)
-
-			if(!length(trimmed_artist))
-				to_chat(user, span_warning("Artist name cannot be empty or just spaces!"))
-				return FALSE
-
-			if(!length(trimmed_design))
-				to_chat(user, span_warning("Tattoo design cannot be empty or just spaces!"))
-				return FALSE
 
 			if(length(trimmed_artist) > 50)
 				to_chat(user, span_warning("Artist name is too long! Maximum 50 characters."))
@@ -244,8 +247,15 @@
 				to_chat(user, span_warning("Tattoo design is too long! Maximum 500 characters."))
 				return FALSE
 
-			if(!get_custom_tattoo_location_accessible(current_target, selected_zone))
-				to_chat(user, span_warning("[current_target]'s [get_custom_tattoo_body_part_description(selected_zone)] is covered! Expose it first."))
+			// CRITICAL FIX: Check accessibility using the string zone directly
+			var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
+			if(!(selected_zone in available_parts))
+				to_chat(user, span_warning("The selected body part is no longer available!"))
+				return FALSE
+
+			var/list/part_info = available_parts[selected_zone]
+			if(part_info["covered"])
+				to_chat(user, span_warning("[current_target]'s [part_info["name"]] is covered! Expose it first."))
 				return FALSE
 
 			if(!current_target.client?.prefs?.read_preference(/datum/preference/toggle/allow_bodywriting))
@@ -259,43 +269,40 @@
 			if(ui && !QDELETED(ui))
 				ui.close()
 
-			to_chat(user, span_notice("You begin carefully applying the tattoo to [current_target]'s [get_custom_tattoo_body_part_description(selected_zone)]..."))
+			to_chat(user, span_notice("You begin carefully applying the tattoo to [current_target]'s [part_info["name"]]..."))
 
 			if(do_after(user, CUSTOM_TATTOO_APPLICATION_TIME, target = current_target))
-				if(!current_target || QDELETED(current_target))
-					to_chat(user, span_warning("The target is no longer valid!"))
+				// CRITICAL FIX: Re-validate everything after the delay
+				if(!current_target || QDELETED(current_target) || !user.is_holding(src))
+					to_chat(user, span_warning("The application was interrupted!"))
 					return FALSE
 
-				if(!get_custom_tattoo_location_accessible(current_target, selected_zone))
-					to_chat(user, span_warning("The body part became covered during application!"))
+				// Re-check all conditions
+				var/list/current_parts = get_all_custom_tattoo_body_parts(current_target)
+				if(!(selected_zone in current_parts) || current_parts[selected_zone]["covered"])
+					to_chat(user, span_warning("The body part became unavailable during application!"))
 					return FALSE
 
 				if(custom_tattoo_uses <= 0)
 					to_chat(user, span_warning("The body art kit ran out of ink during application!"))
 					return FALSE
 
-				if(!user.is_holding(src))
-					to_chat(user, span_warning("You must be holding the body art kit to apply a tattoo!"))
-					return FALSE
-
-				// Handle signature placeholders
+				// Process signature placeholders
 				var/list/processed_data = process_custom_tattoo_signature_placeholders(trimmed_artist, user)
 				var/final_artist = processed_data["text"]
 				var/is_signature = processed_data["is_signature"]
 
 				var/sanitized_artist = sanitize_text(final_artist)
 				var/sanitized_design = sanitize_text(trimmed_design)
-				var/sanitized_layer = selected_layer
-				var/sanitized_font = selected_font
 
-				// CRITICAL FIX: Convert selected_zone string back to BYOND define for tattoo creation
+				// CRITICAL FIX: Convert string zone to BYOND define ONLY at the last moment
 				var/tattoo_zone_define = string_to_zone(selected_zone)
-				var/datum/custom_tattoo/new_tattoo = new(sanitized_artist, sanitized_design, tattoo_zone_define, ink_color, sanitized_layer, is_signature, sanitized_font)
+				var/datum/custom_tattoo/new_tattoo = new(sanitized_artist, sanitized_design, tattoo_zone_define, ink_color, selected_layer, is_signature, selected_font)
 
 				if(current_target.add_custom_tattoo(new_tattoo))
 					if(current_target.client?.prefs)
 						current_target.client.prefs.save_custom_tattoo_data()
-					to_chat(user, span_green("Tattoo applied successfully to [current_target]'s [get_custom_tattoo_body_part_description(selected_zone)]!"))
+					to_chat(user, span_green("Tattoo applied successfully to [current_target]'s [part_info["name"]]!"))
 					custom_tattoo_uses = max(0, custom_tattoo_uses - 1)
 					current_target.regenerate_icons()
 
