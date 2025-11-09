@@ -236,22 +236,6 @@ const BodyPartSection = (props) => {
     { key: "Charcoal", label: "Charcoal" },
   ];
 
-  // Safe value handler to prevent undefined errors
-  const getSafeValue = (value) => {
-    if (value === undefined || value === null) {
-      return '';
-    }
-    return value;
-  };
-
-  // Safe length handler
-  const getSafeLength = (value) => {
-    if (value === undefined || value === null) {
-      return 0;
-    }
-    return String(value).length;
-  };
-
   return (
     <Section
       title={
@@ -296,13 +280,13 @@ const BodyPartSection = (props) => {
                 <LabeledList.Item label="Artist Name Value">
                   <Box color={artist_name ? "good" : "bad"} backgroundColor="black" p={1}>
                     {artist_name ? `"${artist_name}"` : "NULL OR EMPTY"}
-                    {artist_name && ` (length: ${getSafeLength(artist_name)})`}
+                    {artist_name && ` (length: ${String(artist_name).length})`}
                   </Box>
                 </LabeledList.Item>
                 <LabeledList.Item label="Tattoo Design Value">
                   <Box color={tattoo_design ? "good" : "bad"} backgroundColor="black" p={1}>
                     {tattoo_design ? `"${tattoo_design}"` : "NULL OR EMPTY"}
-                    {tattoo_design && ` (length: ${getSafeLength(tattoo_design)})`}
+                    {tattoo_design && ` (length: ${String(tattoo_design).length})`}
                   </Box>
                 </LabeledList.Item>
                 <LabeledList.Item label="Selected Layer">
@@ -320,16 +304,16 @@ const BodyPartSection = (props) => {
               <LabeledList.Item label="Artist Name">
                 <Input
                   fluid
-                  value={getSafeValue(artist_name)}
+                  value={artist_name || ''}
                   placeholder="Enter artist name..."
                   onChange={(e, value) => {
-                    const safeValue = getSafeValue(value);
+                    // Send the actual value, not a "safe" empty string
                     act('debug_log', {
-                      message: `UI: set_artist for ${part_zone} with value: "${safeValue}" (length: ${getSafeLength(safeValue)})`
+                      message: `UI: set_artist for ${part_zone} with raw value: "${value}" (type: ${typeof value})`
                     });
                     act('set_artist', {
                       zone: part_zone,
-                      value: safeValue,
+                      value: value, // Send the actual value, not a processed one
                     });
                   }}
                 />
@@ -338,16 +322,16 @@ const BodyPartSection = (props) => {
               <LabeledList.Item label="Tattoo Design">
                 <Input
                   fluid
-                  value={getSafeValue(tattoo_design)}
+                  value={tattoo_design || ''}
                   placeholder="Describe the tattoo design..."
                   onChange={(e, value) => {
-                    const safeValue = getSafeValue(value);
+                    // Send the actual value, not a "safe" empty string
                     act('debug_log', {
-                      message: `UI: set_design for ${part_zone} with value: "${safeValue}" (length: ${getSafeLength(safeValue)})`
+                      message: `UI: set_design for ${part_zone} with raw value: "${value}" (type: ${typeof value})`
                     });
                     act('set_design', {
                       zone: part_zone,
-                      value: safeValue,
+                      value: value, // Send the actual value, not a processed one
                     });
                   }}
                 />
@@ -426,7 +410,7 @@ const BodyPartSection = (props) => {
                 </LabeledList.Item>
                 <LabeledList.Item label="Values Being Sent">
                   <Box backgroundColor="black" p={1}>
-                    {`Artist: "${getSafeValue(artist_name) || "EMPTY"}" | Design: "${getSafeValue(tattoo_design) || "EMPTY"}"`}
+                    {`Artist: "${artist_name || "EMPTY"}" | Design: "${tattoo_design || "EMPTY"}"`}
                   </Box>
                 </LabeledList.Item>
               </LabeledList>
@@ -439,12 +423,12 @@ const BodyPartSection = (props) => {
               disabled={part_covered || part_current_tattoos >= part_max_tattoos || ink_uses <= 0 || !artist_name || !tattoo_design}
               onClick={() => {
                 act('debug_log', {
-                  message: `UI: APPLY_TATTOO for ${part_zone} - Artist: "${getSafeValue(artist_name)}", Design: "${getSafeValue(tattoo_design)}"`
+                  message: `UI: APPLY_TATTOO for ${part_zone} - Artist: "${artist_name}", Design: "${tattoo_design}"`
                 });
                 act('apply_tattoo', {
                   zone: part_zone,
-                  artist: getSafeValue(artist_name),
-                  design: getSafeValue(tattoo_design)
+                  artist: artist_name,
+                  design: tattoo_design
                 });
               }}>
               Apply Tattoo to {part_name}
