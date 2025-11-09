@@ -170,9 +170,12 @@
 		if("set_artist")
 			var/value = params["value"]
 			to_chat(user, span_warning("DEBUG: set_artist received value: '[value]' (isnull: [isnull(value)], istext: [istext(value)])"))
-			// Handle null values by converting to empty string
+			// FIX: Handle null values properly and ensure string type
 			if(isnull(value))
 				value = ""
+			else if(!istext(value))
+				value = "[value]" // Convert to string if it's not text
+
 			artist_names[zone] = value
 			to_chat(user, span_warning("DEBUG: set_artist [zone] = '[value]' (istext: [istext(value)], length: [length(value)])"))
 			to_chat(user, span_warning("DEBUG: artist_names[zone] is now: '[artist_names[zone]]'"))
@@ -183,9 +186,12 @@
 		if("set_design")
 			var/value = params["value"]
 			to_chat(user, span_warning("DEBUG: set_design received value: '[value]' (isnull: [isnull(value)], istext: [istext(value)])"))
-			// Handle null values by converting to empty string
+			// FIX: Handle null values properly and ensure string type
 			if(isnull(value))
 				value = ""
+			else if(!istext(value))
+				value = "[value]" // Convert to string if it's not text
+
 			tattoo_designs[zone] = value
 			to_chat(user, span_warning("DEBUG: set_design [zone] = '[value]' (istext: [istext(value)], length: [length(value)])"))
 			to_chat(user, span_warning("DEBUG: tattoo_designs[zone] is now: '[tattoo_designs[zone]]'"))
@@ -262,21 +268,27 @@
 	to_chat(user, span_warning("DEBUG: Zone: [zone]"))
 	to_chat(user, span_warning("DEBUG: Params received: artist='[params["artist"]]', design='[params["design"]]'"))
 
-	// Try to get values from multiple sources in order of priority
-	var/artist_name = params["artist"]
-	var/tattoo_design = params["design"]
+	// Get values from stored data (more reliable than params)
+	var/artist_name = artist_names[zone]
+	var/tattoo_design = tattoo_designs[zone]
 
-	to_chat(user, span_warning("DEBUG: From params - Artist: '[artist_name]', Design: '[tattoo_design]'"))
+	// Also check params as backup
+	if((!artist_name || artist_name == "") && params["artist"])
+		artist_name = params["artist"]
+	if((!tattoo_design || tattoo_design == "") && params["design"])
+		tattoo_design = params["design"]
 
-	// If not passed in params, try stored data
-	if(!artist_name || artist_name == "")
-		artist_name = artist_names[zone]
-		to_chat(user, span_warning("DEBUG: From stored - Artist: '[artist_name]'"))
-	if(!tattoo_design || tattoo_design == "")
-		tattoo_design = tattoo_designs[zone]
-		to_chat(user, span_warning("DEBUG: From stored - Design: '[tattoo_design]'"))
+	// Final validation and conversion - FIXED NULL HANDLING
+	if(isnull(artist_name))
+		artist_name = ""
+	else if(!istext(artist_name))
+		artist_name = "[artist_name]"
 
-	// FINAL DEBUG: Show what we found
+	if(isnull(tattoo_design))
+		tattoo_design = ""
+	else if(!istext(tattoo_design))
+		tattoo_design = "[tattoo_design]"
+
 	to_chat(user, span_warning("DEBUG: Final values - Artist: '[artist_name]', Design: '[tattoo_design]'"))
 
 	// Check body part availability
