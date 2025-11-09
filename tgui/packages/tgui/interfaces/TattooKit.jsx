@@ -59,6 +59,38 @@ export const TattooKit = (props) => {
           </LabeledList>
         </Section>
 
+        {/* Debug Information Section */}
+        <Section title="Debug Information" color="average">
+          <LabeledList>
+            <LabeledList.Item label="Stored Artist Names">
+              {Object.keys(artist_names).length > 0 ? (
+                <Box>
+                  {Object.entries(artist_names).map(([zone, name]) => (
+                    <Box key={zone}>
+                      <strong>{zone}:</strong> "{name || 'empty'}"
+                    </Box>
+                  ))}
+                </Box>
+              ) : (
+                <Box color="bad">No artist names stored</Box>
+              )}
+            </LabeledList.Item>
+            <LabeledList.Item label="Stored Tattoo Designs">
+              {Object.keys(tattoo_designs).length > 0 ? (
+                <Box>
+                  {Object.entries(tattoo_designs).map(([zone, design]) => (
+                    <Box key={zone}>
+                      <strong>{zone}:</strong> "{design || 'empty'}"
+                    </Box>
+                  ))}
+                </Box>
+              ) : (
+                <Box color="bad">No tattoo designs stored</Box>
+              )}
+            </LabeledList.Item>
+          </LabeledList>
+        </Section>
+
         <Section title="Body Parts">
           {!body_parts || body_parts.length === 0 ? (
             <Box color="bad">No accessible body parts found!</Box>
@@ -144,6 +176,31 @@ const BodyPartSection = (props) => {
             </Box>
           </Stack.Item>
 
+          {/* Current Input Values Display */}
+          <Stack.Item>
+            <Section title="Current Input Values" color="average">
+              <LabeledList>
+                <LabeledList.Item label="Artist Name">
+                  <Box color={artist_name ? "good" : "bad"}>
+                    {artist_name ? `"${artist_name}"` : "Not set"}
+                  </Box>
+                </LabeledList.Item>
+                <LabeledList.Item label="Tattoo Design">
+                  <Box color={tattoo_design ? "good" : "bad"}>
+                    {tattoo_design ? `"${tattoo_design}"` : "Not set"}
+                  </Box>
+                </LabeledList.Item>
+                <LabeledList.Item label="Input Status">
+                  <Box color={(artist_name && tattoo_design) ? "good" : "bad"}>
+                    {(artist_name && tattoo_design)
+                      ? "Ready to apply!"
+                      : "Missing required fields"}
+                  </Box>
+                </LabeledList.Item>
+              </LabeledList>
+            </Section>
+          </Stack.Item>
+
           <Stack.Item>
             <LabeledList>
               <LabeledList.Item label="Artist Name">
@@ -152,11 +209,19 @@ const BodyPartSection = (props) => {
                   value={artist_name || ''}
                   placeholder="Enter artist name..."
                   onChange={(e, value) => {
-                    console.log('set_artist called with:', value);
                     act('set_artist', {
                       zone: part_zone,
                       value: value,
                     });
+                  }}
+                  onBlur={(e, value) => {
+                    // Also save when input loses focus to ensure data is saved
+                    if (value !== undefined && value !== null) {
+                      act('set_artist', {
+                        zone: part_zone,
+                        value: value,
+                      });
+                    }
                   }}
                 />
               </LabeledList.Item>
@@ -167,11 +232,19 @@ const BodyPartSection = (props) => {
                   value={tattoo_design || ''}
                   placeholder="Describe the tattoo design..."
                   onChange={(e, value) => {
-                    console.log('set_design called with:', value);
                     act('set_design', {
                       zone: part_zone,
                       value: value,
                     });
+                  }}
+                  onBlur={(e, value) => {
+                    // Also save when input loses focus to ensure data is saved
+                    if (value !== undefined && value !== null) {
+                      act('set_design', {
+                        zone: part_zone,
+                        value: value,
+                      });
+                    }
                   }}
                 />
               </LabeledList.Item>
@@ -222,7 +295,7 @@ const BodyPartSection = (props) => {
               fluid
               icon="paint-brush"
               color="good"
-              disabled={part_covered || part_current_tattoos >= part_max_tattoos || ink_uses <= 0}
+              disabled={part_covered || part_current_tattoos >= part_max_tattoos || ink_uses <= 0 || !artist_name || !tattoo_design}
               tooltip={
                 part_covered
                   ? 'Body part is covered!'
@@ -230,7 +303,9 @@ const BodyPartSection = (props) => {
                     ? 'Maximum tattoos reached!'
                     : ink_uses <= 0
                       ? 'Out of ink!'
-                      : 'Apply tattoo'
+                      : !artist_name || !tattoo_design
+                        ? 'Please enter both artist name and tattoo design!'
+                        : 'Apply tattoo'
               }
               onClick={() => act('apply_tattoo', { zone: part_zone })}>
               Apply Tattoo

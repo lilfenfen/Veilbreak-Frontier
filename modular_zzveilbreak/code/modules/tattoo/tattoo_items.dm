@@ -177,7 +177,7 @@
 				return TRUE
 
 		if("apply_tattoo")
-			return handle_apply_tattoo(user, zone)
+			return handle_apply_tattoo(user, zone, params)
 
 		if("refill_ink")
 			refill_ink(user)
@@ -213,17 +213,24 @@
 
 	return preview_text || "No tattoos yet."
 
-/obj/item/custom_tattoo_kit/proc/handle_apply_tattoo(mob/user, zone)
-	// DEBUG: Check what we have
-	to_chat(user, "DEBUG: artist_names[zone] = '[artist_names[zone]]'")
-	to_chat(user, "DEBUG: tattoo_designs[zone] = '[tattoo_designs[zone]]'")
-	to_chat(user, "DEBUG: artist_names type: [istext(artist_names[zone])]")
-	to_chat(user, "DEBUG: tattoo_designs type: [istext(tattoo_designs[zone])]")
-
-	// SIMPLE VALIDATION - ONLY CHECK IF NOT EMPTY
+/obj/item/custom_tattoo_kit/proc/handle_apply_tattoo(mob/user, zone, list/params)
+	// Get the values directly from our stored data
 	var/artist_name = artist_names[zone]
 	var/tattoo_design = tattoo_designs[zone]
 
+	// DEBUG: Check what we have
+	to_chat(user, "DEBUG: artist_names[zone] = '[artist_name]'")
+	to_chat(user, "DEBUG: tattoo_designs[zone] = '[tattoo_design]'")
+	to_chat(user, "DEBUG: artist_names type: [istext(artist_name)]")
+	to_chat(user, "DEBUG: tattoo_designs type: [istext(tattoo_design)]")
+
+	// Check if we have values from UI parameters as fallback
+	if(!artist_name || artist_name == "")
+		artist_name = params["artist"]
+	if(!tattoo_design || tattoo_design == "")
+		tattoo_design = params["design"]
+
+	// FINAL VALIDATION
 	if(!artist_name || artist_name == "")
 		to_chat(user, span_warning("Please enter a valid artist name!"))
 		return FALSE
@@ -279,7 +286,7 @@
 		current_target.regenerate_icons()
 		update_appearance()
 
-		// Clear form data
+		// Clear form data for this zone
 		artist_names -= zone
 		tattoo_designs -= zone
 		selected_layers[zone] = CUSTOM_TATTOO_LAYER_NORMAL
