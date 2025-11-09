@@ -210,7 +210,7 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 			var/current_tattoos = length(H.get_custom_tattoos(string_zone))
 
 			available_parts[string_zone] = list(
-				"name" = display_name || "Unknown",
+				"name" = display_name || "Unknown Body Part",
 				"zone" = string_zone,
 				"covered" = covered,
 				"current_tattoos" = current_tattoos,

@@ -20,6 +20,7 @@ export const TattooKit = (props) => {
     max_ink_uses,
     ink_color,
     body_parts = [],
+    expanded_zone,
   } = data;
 
   return (
@@ -73,6 +74,7 @@ export const TattooKit = (props) => {
                 key={part.zone}
                 part={part}
                 act={act}
+                expanded_zone={expanded_zone}
               />
             ))
           )}
@@ -83,7 +85,7 @@ export const TattooKit = (props) => {
 };
 
 const BodyPartSection = (props) => {
-  const { part, act } = props;
+  const { part, act, expanded_zone } = props;
 
   const {
     zone,
@@ -92,13 +94,14 @@ const BodyPartSection = (props) => {
     current_tattoos,
     max_tattoos,
     preview_text,
-    expanded,
     artist_name,
     tattoo_design,
     selected_layer,
     selected_font,
     can_apply,
   } = part;
+
+  const is_expanded = expanded_zone === zone;
 
   const fontOptions = [
     { key: "Pen", label: "Pen" },
@@ -125,12 +128,12 @@ const BodyPartSection = (props) => {
       }
       buttons={
         <Button
-          icon={expanded ? 'chevron-up' : 'chevron-down'}
+          icon={is_expanded ? 'chevron-up' : 'chevron-down'}
           color="transparent"
           onClick={() => act('toggle_expand', { zone: zone })}
         />
       }>
-      {!expanded ? (
+      {!is_expanded ? (
         <Box color="label">
           <div dangerouslySetInnerHTML={{ __html: preview_text }} />
         </Box>
@@ -148,7 +151,7 @@ const BodyPartSection = (props) => {
                 <Input
                   fluid
                   value={artist_name || ''}
-                  placeholder="Enter artist name..."
+                  placeholder="Enter artist name... Use %s for signature"
                   onChange={(e, value) => act('set_artist', {
                     zone: zone,
                     value: value,
@@ -160,7 +163,7 @@ const BodyPartSection = (props) => {
                 <Input
                   fluid
                   value={tattoo_design || ''}
-                  placeholder="Describe the tattoo design... Use %s for signature, :heart: for emoji"
+                  placeholder="Describe the tattoo design... Use :heart: for emoji"
                   onChange={(e, value) => act('set_design', {
                     zone: zone,
                     value: value,
