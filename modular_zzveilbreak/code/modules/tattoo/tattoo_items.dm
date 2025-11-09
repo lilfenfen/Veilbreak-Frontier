@@ -107,7 +107,7 @@
 				"expanded" = (zone in expanded_parts) ? TRUE : FALSE
 			))
 
-	// DEBUG: Log the data being sent - FIXED FORMAT
+	// DEBUG: Log the data being sent
 	to_chat(user, span_warning("DEBUG UI_DATA:"))
 	to_chat(user, span_warning("  target_name: [data["target_name"]]"))
 	to_chat(user, span_warning("  ink_uses: [data["ink_uses"]]"))
@@ -118,9 +118,6 @@
 	for(var/zone in tattoo_designs)
 		to_chat(user, span_warning("    [zone] = '[tattoo_designs[zone]]'"))
 	to_chat(user, span_warning("  body_parts count: [data["body_parts"] ? data["body_parts"].len : "NULL"]"))
-	// ADDITIONAL DEBUG: Show what we're actually sending to UI
-	to_chat(user, span_warning("  SENDING TO UI - artist_names: [json_encode(artist_names)]"))
-	to_chat(user, span_warning("  SENDING TO UI - tattoo_designs: [json_encode(tattoo_designs)]"))
 
 	return data
 
@@ -172,6 +169,7 @@
 
 		if("set_artist")
 			var/value = params["value"]
+			to_chat(user, span_warning("DEBUG: set_artist received value: '[value]' (isnull: [isnull(value)], istext: [istext(value)])"))
 			if(!isnull(value))
 				artist_names[zone] = value
 				to_chat(user, span_warning("DEBUG: set_artist [zone] = '[value]' (istext: [istext(value)], length: [length(value)]"))
@@ -184,6 +182,7 @@
 
 		if("set_design")
 			var/value = params["value"]
+			to_chat(user, span_warning("DEBUG: set_design received value: '[value]' (isnull: [isnull(value)], istext: [istext(value)])"))
 			if(!isnull(value))
 				tattoo_designs[zone] = value
 				to_chat(user, span_warning("DEBUG: set_design [zone] = '[value]' (istext: [istext(value)], length: [length(value)]"))
