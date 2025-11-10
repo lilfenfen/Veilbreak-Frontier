@@ -9,7 +9,6 @@
 	var/selected_font = PEN_FONT
 	var/ink_color = "#000000"
 	var/preview_cache = ""
-	var/is_signature = FALSE
 	var/design_mode = FALSE
 	var/static/list/font_options = list(
 		"PEN_FONT" = "Pen",
@@ -102,7 +101,7 @@
 	proc/generate_design_interface(mob/living/carbon/human/victim, mob/viewer, ink_uses)
 		var/design_html = "<div style='background: #2a2a2a; padding: 15px; border-radius: 0 0 8px 8px;'>"
 
-		// Preview section
+		// Preview section - generate FIRST to ensure it's current
 		design_html += "<div style='margin-bottom: 20px;'>"
 		design_html += generate_preview(victim, viewer)
 		design_html += "</div>"
@@ -113,27 +112,31 @@
 		var/zone_name = zone ? get_custom_tattoo_body_part_description(zone) : "Unknown Location"
 		design_html += "<h3 style='color: #fff; margin-top: 0;'>Design for [zone_name]</h3>"
 
-		// Artist name with signature toggle
+		// Artist name - automatically handles %s for signature
 		design_html += "<div style='margin-bottom: 15px;'>"
-		design_html += "<div style='color: #4CAF50; font-weight: bold; margin-bottom: 5px;'>Artist Name/Signature</div>"
-		design_html += "<input type='text' name='tattoo_artist' value='[artist_name]' "
-		design_html += "style='width: 100%; padding: 8px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 4px;' "
-		design_html += "placeholder='Artist name (use %s for signature)'>"
-		design_html += "<div style='margin-top: 5px;'>"
-		design_html += "<a href='?src=[REF(victim)];tattoo_toggle_signature=1' "
-		design_html += "style='display: inline-block; background: [is_signature ? "#4CAF50" : "#666"]; color: white; padding: 4px 12px; border-radius: 4px; text-decoration: none; font-size: 0.9em;'>"
-		design_html += "[is_signature ? "✓ Signature Format" : "Normal Text"]"
-		design_html += "</a>"
-		design_html += "<span style='color: #888; margin-left: 10px; font-size: 0.9em;'>Format as stylized signature</span>"
+		design_html += "<div style='color: #4CAF50; font-weight: bold; margin-bottom: 5px;'>"
+		design_html += "Artist Name [findtext(artist_name, "%s") ? "<span style='color: #FFD700;'>(Signature Format)</span>" : ""]"
 		design_html += "</div>"
+		design_html += "<form action='byond://' method='GET' style='margin: 0;'>"
+		design_html += "<input type='hidden' name='src' value='[REF(victim)]'>"
+		design_html += "<input type='text' name='tattoo_artist' value='[html_encode(artist_name)]' "
+		design_html += "style='width: 100%; padding: 8px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 4px;' "
+		design_html += "placeholder='Artist name (use %s for signature format)'>"
+		design_html += "<div style='color: #888; font-size: 0.9em; margin-top: 5px;'>"
+		design_html += "Use %s in name for signature formatting"
+		design_html += "</div>"
+		design_html += "</form>"
 		design_html += "</div>"
 
 		// Tattoo design
 		design_html += "<div style='margin-bottom: 15px;'>"
 		design_html += "<div style='color: #4CAF50; font-weight: bold; margin-bottom: 5px;'>Tattoo Design</div>"
+		design_html += "<form action='byond://' method='GET' style='margin: 0;'>"
+		design_html += "<input type='hidden' name='src' value='[REF(victim)]'>"
 		design_html += "<textarea name='tattoo_design' "
 		design_html += "style='width: 100%; height: 80px; padding: 8px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 4px; resize: vertical;' "
-		design_html += "placeholder='Describe the tattoo design (supports :emoji: and basic HTML)'>[tattoo_design]</textarea>"
+		design_html += "placeholder='Describe the tattoo design (supports :emoji: and basic HTML)'>[html_encode(tattoo_design)]</textarea>"
+		design_html += "</form>"
 		design_html += "</div>"
 
 		// Font selection
@@ -193,12 +196,12 @@
 		design_html += "<a href='?src=[REF(victim)];tattoo_back_to_parts=1' "
 		design_html += "style='display: inline-block; background: #666; color: white; padding: 10px 20px; border-radius: 4px; text-decoration: none;'>← Back to Parts</a>"
 
-		// Apply button
+		// Apply button - now properly checks both fields
 		if(victim)
 			design_html += "<a href='?src=[REF(victim)];tattoo_apply=1' "
 			design_html += "style='display: inline-block; background: [can_apply ? "#4CAF50" : "#666"]; color: white; padding: 10px 20px; border-radius: 4px; text-decoration: none; flex-grow: 1; text-align: center;'"
 			if(!can_apply)
-				design_html += " onclick='alert(\"Cannot apply tattoo! Make sure both fields are filled and you have ink remaining.\"); return false;'"
+				design_html += " onclick='alert(\"Cannot apply tattoo! Make sure both artist name and design are filled out and you have ink remaining.\"); return false;'"
 			design_html += ">"
 			design_html += "Apply Tattoo ([ink_uses] use[ink_uses != 1 ? "s" : ""] left)"
 			design_html += "</a>"
@@ -237,23 +240,30 @@
 
 			preview_html += "</div></div>"
 
-		// Show new design preview
+		// Show new design preview in examine format
 		if(artist_name && tattoo_design)
 			preview_html += "<div style='border: 2px dashed [ink_color]; padding: 12px; border-radius: 6px; background: rgba([hex_to_rgb(ink_color)], 0.1);'>"
 			preview_html += "<h4 style='color: [ink_color]; margin-top: 0;'>New Design Preview:</h4>"
 
-			// Apply font styling
+			// Generate examine-style preview matching tattoo_datums.dm format
 			var/display_design = tattoo_design
+			var/display_artist = artist_name
+
+			// Apply font styling to design
 			if(selected_font && selected_font != PEN_FONT)
 				display_design = "<font face='[selected_font]'>[display_design]</font>"
 
-			// Apply signature styling if enabled
-			var/display_artist = artist_name
-			if(is_signature)
+			// Automatically handle signature formatting based on %s
+			if(findtext(display_artist, "%s"))
+				display_artist = replacetext(display_artist, "%s", display_artist)
 				display_artist = "<font face='[FOUNTAIN_PEN_FONT]'>[display_artist]</font>"
 
-			preview_html += "<div style='color: [ink_color]; margin: 8px 0;'><strong>Artist:</strong> [display_artist]</div>"
-			preview_html += "<div style='color: [ink_color]; margin: 8px 0;'><strong>Design:</strong> [display_design]</div>"
+			// Use the same format as examine text
+			var/body_part_desc = get_custom_tattoo_body_part_description(zone)
+			preview_html += "<div style='color: [ink_color]; font-family: monospace;'>"
+			preview_html += "- [body_part_desc]: \"[display_design]\" (by [display_artist])"
+			preview_html += "</div>"
+
 			preview_html += "<div style='color: #888; font-size: 0.9em; margin-top: 10px;'>"
 			preview_html += "Layer: [selected_layer == 1 ? "Under" : selected_layer == 2 ? "Normal" : "Over"] | "
 			preview_html += "Font: [font_options[selected_font] || selected_font] | "
@@ -262,37 +272,52 @@
 			preview_html += "</div>"
 		else
 			preview_html += "<div style='color: #666; text-align: center; padding: 20px; border: 1px dashed #333; border-radius: 4px;'>"
-			preview_html += "Enter artist name and design description to see preview"
+			if(!artist_name && !tattoo_design)
+				preview_html += "Enter artist name and design description to see preview"
+			else if(!artist_name)
+				preview_html += "Enter artist name to see preview"
+			else
+				preview_html += "Enter design description to see preview"
 			preview_html += "</div>"
 
 		preview_html += "</div>"
 		return preview_html
 
-	// Handle UI interactions
+	// Handle UI interactions - FIXED to preserve text on font changes
 	proc/handle_topic(href, href_list, mob/user, obj/item/custom_tattoo_kit/kit)
 		if(!kit || !user)
 			return
+
+		// Handle form submissions FIRST to preserve text
+		if(href_list["tattoo_artist"])
+			var/new_artist = href_list["tattoo_artist"]
+			artist_name = new_artist
+			if(kit.current_target)
+				kit.current_target.set_tattoo_ui_data("global", src)
+			kit.ui_interact(user)
+			return TRUE
+
+		if(href_list["tattoo_design"])
+			var/new_design = href_list["tattoo_design"]
+			tattoo_design = new_design
+			if(kit.current_target)
+				kit.current_target.set_tattoo_ui_data("global", src)
+			kit.ui_interact(user)
+			return TRUE
 
 		if(href_list["tattoo_select_zone"])
 			var/new_zone = href_list["tattoo_select_zone"]
 			if(kit.current_target && is_custom_tattoo_bodypart_existing(kit.current_target, new_zone))
 				zone = new_zone
 				design_mode = TRUE
-				kit.current_target.set_tattoo_ui_data(zone, src)
+				kit.current_target.set_tattoo_ui_data("global", src)
 				kit.ui_interact(user)
 			return TRUE
 
 		if(href_list["tattoo_back_to_parts"])
 			design_mode = FALSE
 			if(kit.current_target)
-				kit.current_target.set_tattoo_ui_data(zone, src)
-			kit.ui_interact(user)
-			return TRUE
-
-		if(href_list["tattoo_toggle_signature"])
-			is_signature = !is_signature
-			if(kit.current_target)
-				kit.current_target.set_tattoo_ui_data(zone, src)
+				kit.current_target.set_tattoo_ui_data("global", src)
 			kit.ui_interact(user)
 			return TRUE
 
@@ -301,7 +326,7 @@
 			if(new_font in font_options)
 				selected_font = new_font
 				if(kit.current_target)
-					kit.current_target.set_tattoo_ui_data(zone, src)
+					kit.current_target.set_tattoo_ui_data("global", src)
 				kit.ui_interact(user)
 			return TRUE
 
@@ -310,7 +335,7 @@
 			if(new_layer in list(1, 2, 3))
 				selected_layer = new_layer
 				if(kit.current_target)
-					kit.current_target.set_tattoo_ui_data(zone, src)
+					kit.current_target.set_tattoo_ui_data("global", src)
 				kit.ui_interact(user)
 			return TRUE
 
@@ -319,7 +344,7 @@
 			if(new_color)
 				ink_color = new_color
 				if(kit.current_target)
-					kit.current_target.set_tattoo_ui_data(zone, src)
+					kit.current_target.set_tattoo_ui_data("global", src)
 				kit.ui_interact(user)
 			return TRUE
 
@@ -328,21 +353,6 @@
 				kit.apply_tattoo(user)
 			else
 				to_chat(user, span_warning("Cannot apply tattoo - check requirements."))
-			return TRUE
-
-		// Handle form submissions
-		if(href_list["tattoo_artist"])
-			var/new_artist = href_list["tattoo_artist"]
-			artist_name = new_artist
-			if(kit.current_target)
-				kit.current_target.set_tattoo_ui_data(zone, src)
-			return TRUE
-
-		if(href_list["tattoo_design"])
-			var/new_design = href_list["tattoo_design"]
-			tattoo_design = new_design
-			if(kit.current_target)
-				kit.current_target.set_tattoo_ui_data(zone, src)
 			return TRUE
 
 		return FALSE
@@ -355,7 +365,6 @@
 		selected_font = PEN_FONT
 		ink_color = "#000000"
 		preview_cache = ""
-		is_signature = FALSE
 		design_mode = FALSE
 
 // Helper proc to convert hex color to RGB values for rgba()

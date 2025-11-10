@@ -90,6 +90,8 @@
 		if(ORGAN_SLOT_SLIT) return "slit"
 		if(ORGAN_SLOT_SHEATH) return "sheath"
 		if(ORGAN_SLOT_WINGS) return "wings"
+		if(ORGAN_SLOT_BUTT) return "butt"
+		if(ORGAN_SLOT_BELLY) return "belly"
 	// normal zones
 	switch(body_zone)
 		if(BODY_ZONE_HEAD) return "head"
@@ -124,6 +126,8 @@
 		if("slit") return ORGAN_SLOT_SLIT
 		if("sheath") return ORGAN_SLOT_SHEATH
 		if("wings") return ORGAN_SLOT_WINGS
+		if("butt") return ORGAN_SLOT_BUTT
+		if("belly") return ORGAN_SLOT_BELLY
 		else return string_to_zone(body_part_string)
 
 /proc/process_tattoo_design(design, artist, is_signature)

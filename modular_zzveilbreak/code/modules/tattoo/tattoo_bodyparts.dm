@@ -58,6 +58,8 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 		if(ORGAN_SLOT_SLIT) return "slit"
 		if(ORGAN_SLOT_SHEATH) return "sheath"
 		if(ORGAN_SLOT_WINGS) return "wings"
+		if(ORGAN_SLOT_BUTT) return "butt"
+		if(ORGAN_SLOT_BELLY) return "belly"
 	switch(zone)
 		if(BODY_ZONE_HEAD) return "head"
 		if(BODY_ZONE_CHEST) return "chest"
@@ -100,6 +102,8 @@ GLOBAL_LIST_INIT(custom_tattoo_blacklist, list(
 		if("slit") return ORGAN_SLOT_SLIT
 		if("sheath") return ORGAN_SLOT_SHEATH
 		if("wings") return ORGAN_SLOT_WINGS
+		if("butt") return ORGAN_SLOT_BUTT
+		if("belly") return ORGAN_SLOT_BELLY
 		else
 			return BODY_ZONE_CHEST
 

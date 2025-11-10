@@ -27,7 +27,9 @@
 	ORGAN_SLOT_TAIL,\
 	ORGAN_SLOT_SLIT,\
 	ORGAN_SLOT_SHEATH,\
-	ORGAN_SLOT_WINGS\
+	ORGAN_SLOT_WINGS,\
+	ORGAN_SLOT_BUTT,\
+	ORGAN_SLOT_BELLY\
 )
 
 // Custom tattoo fonts (must match client font options if you add any)

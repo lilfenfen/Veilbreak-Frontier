@@ -87,7 +87,10 @@
 	if(!ui_data || !ui_data.zone || !ui_data.design_mode)
 		return FALSE
 
-	if(!ui_data.artist_name || !ui_data.tattoo_design)
+	// FIXED: Properly check both fields have content
+	if(!ui_data.artist_name || length(ui_data.artist_name) == 0)
+		return FALSE
+	if(!ui_data.tattoo_design || length(ui_data.tattoo_design) == 0)
 		return FALSE
 
 	if(ink_uses <= 0)
@@ -120,14 +123,20 @@
 	if(!ui_data)
 		return FALSE
 
+	// Auto-detect signature format based on %s
+	var/is_signature_format = findtext(ui_data.artist_name, "%s")
+	var/final_artist = ui_data.artist_name
+	if(is_signature_format)
+		final_artist = replacetext(final_artist, "%s", user.name)
+
 	// Create tattoo with current UI data
 	var/datum/custom_tattoo/new_tattoo = new(
-		ui_data.artist_name,
+		final_artist,
 		ui_data.tattoo_design,
 		ui_data.zone,
 		ui_data.ink_color,
 		ui_data.selected_layer,
-		ui_data.is_signature,
+		is_signature_format,
 		ui_data.selected_font
 	)
 
@@ -140,7 +149,6 @@
 		// Clear design but keep zone selected
 		ui_data.artist_name = ""
 		ui_data.tattoo_design = ""
-		ui_data.is_signature = FALSE
 
 		// Refresh UI
 		ui_interact(user)
