@@ -39,7 +39,6 @@
 		return ..()
 	var/mob/living/carbon/human/human_target = target
 	current_target = human_target
-	to_chat(user, span_warning("DEBUG: Tattoo kit opened on [current_target]"))
 	ui_interact(user)
 	return TRUE
 
@@ -54,27 +53,26 @@
 
 /obj/item/custom_tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
 	if(!current_target || QDELETED(current_target))
-		to_chat(user, span_warning("DEBUG: No current target in ui_interact"))
+		to_chat(user, span_warning("No target selected."))
 		return
 	ui = SStgui.try_update_ui(user, src, ui)
 	if(!ui)
 		ui = new(user, src, "TattooKit")
 		ui.open()
-		to_chat(user, span_warning("DEBUG: New TGUI opened"))
 
 /obj/item/custom_tattoo_kit/ui_data(mob/user)
 	var/list/data = list()
 
-	// ALWAYS provide current state
+	// Ensure no null values are sent to TGUI
 	data["target_name"] = current_target?.name || "No Target"
-	data["ink_uses"] = ink_uses
-	data["max_ink_uses"] = max_ink_uses
-	data["ink_color"] = ink_color
-	data["selected_zone"] = selected_zone
-	data["artist_name"] = artist_name
-	data["tattoo_design"] = tattoo_design
-	data["selected_layer"] = selected_layer
-	data["selected_font"] = selected_font
+	data["ink_uses"] = ink_uses || 0
+	data["max_ink_uses"] = max_ink_uses || 30
+	data["ink_color"] = ink_color || "#000000"
+	data["selected_zone"] = selected_zone || null
+	data["artist_name"] = artist_name || ""
+	data["tattoo_design"] = tattoo_design || ""
+	data["selected_layer"] = selected_layer || 2
+	data["selected_font"] = selected_font || "PEN_FONT"
 
 	// Generate preview
 	if(selected_zone && current_target)
@@ -96,41 +94,42 @@
 				"max_tattoos" = part_info["max_tattoos"]
 			))
 
-	// DEBUG: Show what data is being sent
-	to_chat(user, span_warning("DEBUG: ui_data sending - artist: '[artist_name]', design: '[tattoo_design]', zone: [selected_zone]"))
-
 	return data
 
 /obj/item/custom_tattoo_kit/proc/generate_preview()
 	var/preview_text = ""
 
-	// Just show raw data for debugging
 	if(artist_name && tattoo_design)
-		preview_text += "<b>RAW DEBUG PREVIEW:</b><br>"
-		preview_text += "Artist: [artist_name]<br>"
-		preview_text += "Design: [tattoo_design]<br>"
-		preview_text += "Zone: [selected_zone]<br>"
-		preview_text += "Layer: [selected_layer]<br>"
-		preview_text += "Font: [selected_font]<br>"
-		preview_text += "Color: [ink_color]<br>"
+		preview_text += "<div style='text-align: center;'>"
+		preview_text += "<h3 style='color: [ink_color]; margin-bottom: 8px;'>Tattoo Preview</h3>"
+		preview_text += "<div style='border: 1px dashed [ink_color]; padding: 10px; border-radius: 4px;'>"
+		preview_text += "<strong>Artist:</strong> [artist_name]<br>"
+		preview_text += "<strong>Design:</strong> [tattoo_design]<br>"
+		preview_text += "<strong>Location:</strong> [selected_zone]<br>"
+		preview_text += "<strong>Layer:</strong> [selected_layer == 1 ? "Under" : selected_layer == 2 ? "Normal" : "Over"]<br>"
+		preview_text += "<strong>Style:</strong> [selected_font]<br>"
+		preview_text += "</div>"
+		preview_text += "<div style='margin-top: 8px; font-size: 0.8em; color: #666;'>"
+		preview_text += "Color: <span style='color: [ink_color];'>[ink_color]</span>"
+		preview_text += "</div>"
+		preview_text += "</div>"
+	else
+		preview_text += "<div style='text-align: center; padding: 20px; color: #666;'>"
+		preview_text += "<i>Enter artist name and design description to see preview</i>"
+		preview_text += "</div>"
 
-	return preview_text || "No preview data."
+	return preview_text
 
 /obj/item/custom_tattoo_kit/proc/can_apply_tattoo()
 	if(!selected_zone || !current_target || ink_uses <= 0)
-		to_chat(usr, span_warning("DEBUG: can_apply_tattoo failed - zone: [selected_zone], target: [current_target], ink: [ink_uses]"))
 		return FALSE
 	if(!artist_name || !tattoo_design)
-		to_chat(usr, span_warning("DEBUG: can_apply_tattoo failed - artist: '[artist_name]', design: '[tattoo_design]'"))
 		return FALSE
-	to_chat(usr, span_warning("DEBUG: can_apply_tattoo SUCCESS"))
 	return TRUE
 
 /obj/item/custom_tattoo_kit/proc/apply_tattoo(mob/user)
-	to_chat(user, span_warning("DEBUG: apply_tattoo called - artist: '[artist_name]', design: '[tattoo_design]'"))
-
 	if(!can_apply_tattoo())
-		to_chat(user, span_warning("DEBUG: apply_tattoo blocked by can_apply_tattoo"))
+		to_chat(user, span_warning("Cannot apply tattoo - check requirements."))
 		return FALSE
 
 	to_chat(user, span_notice("You begin carefully applying the tattoo..."))
@@ -139,18 +138,16 @@
 		to_chat(user, span_warning("Tattoo application interrupted!"))
 		return FALSE
 
-	// Create tattoo with raw data - no sanitization
+	// Create tattoo with current data
 	var/datum/custom_tattoo/new_tattoo = new(
 		artist_name,
 		tattoo_design,
-		selected_zone,  // Use raw zone, no conversion
+		selected_zone,
 		ink_color,
 		selected_layer,
 		FALSE,
 		selected_font
 	)
-
-	to_chat(user, span_warning("DEBUG: Tattoo datum created - artist: '[new_tattoo.artist]', design: '[new_tattoo.design]'"))
 
 	if(current_target.add_custom_tattoo(new_tattoo))
 		ink_uses--
@@ -159,11 +156,9 @@
 		update_appearance()
 		SStgui.update_uis(src)
 		to_chat(user, span_green("Tattoo applied successfully!"))
-		to_chat(user, span_warning("DEBUG: Tattoo applied successfully, fields cleared"))
 		return TRUE
 	else
 		to_chat(user, span_warning("Failed to apply tattoo!"))
-		to_chat(user, span_warning("DEBUG: Tattoo application failed in add_custom_tattoo"))
 		return FALSE
 
 /obj/item/custom_tattoo_kit/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
@@ -172,65 +167,33 @@
 		return
 
 	if(!current_target || QDELETED(current_target))
-		to_chat(usr, span_warning("DEBUG: ui_act - no current target"))
 		return FALSE
-
-	// DEBUG: Show ALL parameters received for EVERY action
-	to_chat(usr, span_warning("DEBUG: ui_act received - action: [action], ALL params: [json_encode(params)]"))
 
 	switch(action)
 		if("select_zone")
 			selected_zone = params["zone"]
-			to_chat(usr, span_warning("DEBUG: Zone selected: [selected_zone]"))
 			. = TRUE
 
 		if("set_artist")
-			// Try multiple parameter names to see what's actually being sent
-			var/new_artist = params["value"]
-			if(isnull(new_artist) || new_artist == "")
-				new_artist = params["artist"]
-			if(isnull(new_artist) || new_artist == "")
-				new_artist = params["text"]
-			if(isnull(new_artist) || new_artist == "")
-				new_artist = params["input"]
-			if(isnull(new_artist) || new_artist == "")
-				new_artist = params["data"]
-
-			artist_name = new_artist
-			to_chat(usr, span_warning("DEBUG: Artist set to: '[artist_name]' (raw params: [json_encode(params)])"))
+			artist_name = params["value"] || ""
 			. = TRUE
 
 		if("set_design")
-			// Try multiple parameter names to see what's actually being sent
-			var/new_design = params["value"]
-			if(isnull(new_design) || new_design == "")
-				new_design = params["design"]
-			if(isnull(new_design) || new_design == "")
-				new_design = params["text"]
-			if(isnull(new_design) || new_design == "")
-				new_design = params["input"]
-			if(isnull(new_design) || new_design == "")
-				new_design = params["data"]
-
-			tattoo_design = new_design
-			to_chat(usr, span_warning("DEBUG: Design set to: '[tattoo_design]' (raw params: [json_encode(params)])"))
+			tattoo_design = params["value"] || ""
 			. = TRUE
 
 		if("set_layer")
 			selected_layer = text2num(params["layer"])
-			to_chat(usr, span_warning("DEBUG: Layer set to: [selected_layer]"))
 			. = TRUE
 
 		if("set_font")
 			selected_font = params["font"]
-			to_chat(usr, span_warning("DEBUG: Font set to: [selected_font]"))
 			. = TRUE
 
 		if("change_color")
 			var/new_color = input(usr, "Choose ink color:", "Tattoo Kit", ink_color) as color|null
 			if(new_color)
 				ink_color = new_color
-				to_chat(usr, span_warning("DEBUG: Color changed to: [ink_color]"))
 				. = TRUE
 
 		if("apply_tattoo")
@@ -240,13 +203,5 @@
 			refill_ink(usr)
 			. = TRUE
 
-		if("debug_message")
-			var/message = params["message"] || "No message"
-			var/debug_action = params["action"] || "unknown"
-			var/debug_value = params["value"] || "no value"
-			to_chat(usr, span_warning("DEBUG MESSAGE: [message] (action: [debug_action], value: '[debug_value]')"))
-			. = TRUE
-
 	if(.)
 		SStgui.update_uis(src)
-		to_chat(usr, span_warning("DEBUG: UI update triggered after [action]"))

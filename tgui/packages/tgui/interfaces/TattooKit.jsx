@@ -6,7 +6,7 @@ import {
   Tabs,
   Box,
   Button,
-  Flex,
+  Stack,
   ProgressBar,
   ColorBox,
   Input,
@@ -51,44 +51,11 @@ export const TattooKit = (props, context) => {
     </Box>
   );
 
-  // FIXED: Use direct data binding without React state for inputs
-  // The issue was that React state was getting undefined values from the input events
-
-  // Direct handlers that use the event target value
-  const handleArtistChange = (e) => {
-    const value = e.target.value;
-    act('debug_message', {
-      message: `TGUI: Artist input changed to: "${value}"`,
-      action: 'set_artist'
-    });
+  const handleArtistChange = (value) => {
     act('set_artist', { value: value });
   };
 
-  const handleDesignChange = (e) => {
-    const value = e.target.value;
-    act('debug_message', {
-      message: `TGUI: Design input changed to: "${value}"`,
-      action: 'set_design'
-    });
-    act('set_design', { value: value });
-  };
-
-  // Blur handlers as backup
-  const handleArtistBlur = (e) => {
-    const value = e.target.value;
-    act('debug_message', {
-      message: `TGUI: Artist blur with value: "${value}"`,
-      action: 'set_artist_blur'
-    });
-    act('set_artist', { value: value });
-  };
-
-  const handleDesignBlur = (e) => {
-    const value = e.target.value;
-    act('debug_message', {
-      message: `TGUI: Design blur with value: "${value}"`,
-      action: 'set_design_blur'
-    });
+  const handleDesignChange = (value) => {
     act('set_design', { value: value });
   };
 
@@ -96,44 +63,64 @@ export const TattooKit = (props, context) => {
     <Window width={760} height={620} theme="ntos">
       <Window.Content scrollable>
         <Section title={`Tattoo Kit — Target: ${target_name}`}>
-          <Flex justify="space-between" align="center" wrap>
-            <Box width="55%">
+          <Stack fill align="center">
+            <Stack.Item grow>
               <ProgressBar value={inkFraction} />
               <Box mt={1}>Ink: {ink_uses}/{max_ink_uses}</Box>
-            </Box>
-            <Box width="40%" align="right">
-              <Box>Ink Color</Box>
-              <Flex align="center" justify="flex-end">
-                <ColorBox color={ink_color} />
-                <Button ml={1} onClick={() => act('change_color')}>Choose</Button>
-                <Button ml={1} onClick={() => act('refill_ink')}>Refill</Button>
-                <Button ml={1} color="average" onClick={() => act('debug_message', { message: "Manual debug button clicked" })}>
-                  Debug
-                </Button>
-              </Flex>
-            </Box>
-          </Flex>
+            </Stack.Item>
+            <Stack.Item>
+              <Stack align="center">
+                <Stack.Item>
+                  <Box>Ink Color</Box>
+                </Stack.Item>
+                <Stack.Item>
+                  <ColorBox color={ink_color} />
+                </Stack.Item>
+                <Stack.Item>
+                  <Button ml={1} onClick={() => act('change_color')}>
+                    Choose
+                  </Button>
+                </Stack.Item>
+                <Stack.Item>
+                  <Button ml={1} onClick={() => act('refill_ink')}>
+                    Refill
+                  </Button>
+                </Stack.Item>
+              </Stack>
+            </Stack.Item>
+          </Stack>
         </Section>
 
-        <Tabs>
-          <Tabs.Tab selected={!selected_zone}>Body Parts</Tabs.Tab>
-          <Tabs.Tab selected={!!selected_zone}>Design</Tabs.Tab>
-        </Tabs>
+        <Section fill fitted scrollable>
+          <Tabs>
+            <Tabs.Tab
+              selected={!selected_zone}
+              onClick={() => act('select_zone', { zone: null })}>
+              Body Parts
+            </Tabs.Tab>
+            <Tabs.Tab
+              selected={!!selected_zone}
+              onClick={() => {}}>
+              Design
+            </Tabs.Tab>
+          </Tabs>
+        </Section>
 
         {!selected_zone && (
           <Section title="Select a Body Part">
-            <Flex wrap>
+            <Stack wrap>
               {body_parts.map((part) => (
-                <Button
-                  key={part.zone}
-                  m={0.5}
-                  selected={selected_zone === part.zone}
-                  onClick={() => act('select_zone', { zone: part.zone })}
-                >
-                  {part.name}
-                </Button>
+                <Stack.Item key={part.zone}>
+                  <Button
+                    m={0.5}
+                    selected={selected_zone === part.zone}
+                    onClick={() => act('select_zone', { zone: part.zone })}
+                  >
+                    {part.name}
+                  </Button>
+                </Stack.Item>
               ))}
-            </Flex>
+            </Stack>
           </Section>
         )}
 
@@ -141,121 +128,170 @@ export const TattooKit = (props, context) => {
           <Section title={`Design — ${selected_zone}`}>
             <LabeledList>
               <LabeledList.Item label="Artist">
-                <Box>
-                  <Input
-                    fluid
-                    value={artist_name} // Use direct data from backend
-                    placeholder="Artist name"
-                    onChange={handleArtistChange}
-                    onBlur={handleArtistBlur}
-                  />
-                  <Button
-                    mt={0.5}
-                    color="average"
-                    onClick={() => act('debug_message', { message: `Current artist from data: "${artist_name}"` })}
-                  >
-                    Debug Artist Data
-                  </Button>
-                </Box>
+                <Input
+                  fluid
+                  value={artist_name}
+                  placeholder="Artist name"
+                  onChange={(e, value) => handleArtistChange(value)}
+                />
               </LabeledList.Item>
 
               <LabeledList.Item label="Design (text)">
-                <Box>
-                  <TextArea
-                    fluid
-                    rows={4}
-                    value={tattoo_design} // Use direct data from backend
-                    placeholder="Describe the design"
-                    onChange={handleDesignChange}
-                    onBlur={handleDesignBlur}
-                  />
-                  <Button
-                    mt={0.5}
-                    color="average"
-                    onClick={() => act('debug_message', { message: `Current design from data: "${tattoo_design}"` })}
-                  >
-                    Debug Design Data
-                  </Button>
-                </Box>
+                <TextArea
+                  fluid
+                  rows={4}
+                  value={tattoo_design}
+                  placeholder="Describe the design"
+                  onChange={(e, value) => handleDesignChange(value)}
+                />
               </LabeledList.Item>
 
               <LabeledList.Item label="Layer">
-                <Flex>
-                  <Button selected={selected_layer === 1} onClick={() => act('set_layer', { layer: 1 })}>Under</Button>
-                  <Button selected={selected_layer === 2} onClick={() => act('set_layer', { layer: 2 })}>Normal</Button>
-                  <Button selected={selected_layer === 3} onClick={() => act('set_layer', { layer: 3 })}>Over</Button>
-                </Flex>
+                <Stack>
+                  <Stack.Item>
+                    <Button
+                      selected={selected_layer === 1}
+                      onClick={() => act('set_layer', { layer: 1 })}
+                      tooltip="Under layer - appears below clothing"
+                    >
+                      Under
+                    </Button>
+                  </Stack.Item>
+                  <Stack.Item>
+                    <Button
+                      selected={selected_layer === 2}
+                      onClick={() => act('set_layer', { layer: 2 })}
+                      tooltip="Normal layer - standard placement"
+                    >
+                      Normal
+                    </Button>
+                  </Stack.Item>
+                  <Stack.Item>
+                    <Button
+                      selected={selected_layer === 3}
+                      onClick={() => act('set_layer', { layer: 3 })}
+                      tooltip="Over layer - appears above clothing"
+                    >
+                      Over
+                    </Button>
+                  </Stack.Item>
+                </Stack>
               </LabeledList.Item>
 
               <LabeledList.Item label="Font">
-                <Flex>
-                  <Button selected={selected_font === 'PEN_FONT'} onClick={() => act('set_font', { font: 'PEN_FONT' })}>Pen</Button>
-                  <Button selected={selected_font === 'FOUNTAIN_PEN_FONT'} onClick={() => act('set_font', { font: 'FOUNTAIN_PEN_FONT' })}>Fountain</Button>
-                  <Button selected={selected_font === 'PRINTER_FONT'} onClick={() => act('set_font', { font: 'PRINTER_FONT' })}>Printer</Button>
-                </Flex>
+                <Stack>
+                  <Stack.Item>
+                    <Button
+                      selected={selected_font === 'PEN_FONT'}
+                      onClick={() => act('set_font', { font: 'PEN_FONT' })}
+                    >
+                      Pen
+                    </Button>
+                  </Stack.Item>
+                  <Stack.Item>
+                    <Button
+                      selected={selected_font === 'FOUNTAIN_PEN_FONT'}
+                      onClick={() => act('set_font', { font: 'FOUNTAIN_PEN_FONT' })}
+                    >
+                      Fountain
+                    </Button>
+                  </Stack.Item>
+                  <Stack.Item>
+                    <Button
+                      selected={selected_font === 'PRINTER_FONT'}
+                      onClick={() => act('set_font', { font: 'PRINTER_FONT' })}
+                    >
+                      Printer
+                    </Button>
+                  </Stack.Item>
+                </Stack>
               </LabeledList.Item>
             </LabeledList>
 
-            <Flex mt={1}>
-              <Button
-                color="good"
-                onClick={() => act('apply_tattoo')}
-                disabled={!canApply}
-              >
-                Apply Tattoo
-              </Button>
-              <Button ml={1} onClick={() => act('select_zone', { zone: null })}>Back</Button>
-              <Button ml={1} color="average" onClick={() => act('debug_message', { message: `Apply check: zone=${selected_zone}, artist=${artist_name}, design=${tattoo_design}, ink=${ink_uses}` })}>
-                Debug Apply
-              </Button>
-            </Flex>
-          </Section>
-        )}
-
-        <Section title="Preview & Details">
-          <Flex>
-            <Box width="60%">
-              <PreviewBox html={preview_text} />
-            </Box>
-
-            <Box width="40%" ml={1}>
-              <Section title="Current Design">
-                <Table>
-                  <Table.Row>
-                    <Table.Cell>Artist</Table.Cell>
-                    <Table.Cell>{artist_name || "—"}</Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell>Design</Table.Cell>
-                    <Table.Cell>{tattoo_design || "—"}</Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell>Layer</Table.Cell>
-                    <Table.Cell>{selected_layer}</Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell>Font</Table.Cell>
-                    <Table.Cell>{selected_font}</Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell>Ink</Table.Cell>
-                    <Table.Cell>{ink_uses}/{max_ink_uses}</Table.Cell>
-                  </Table.Row>
-                </Table>
-              </Section>
-
-              <Section title="Quick Actions" mt={1}>
+            <Stack mt={1}>
+              <Stack.Item>
                 <Button
                   color="good"
                   onClick={() => act('apply_tattoo')}
                   disabled={!canApply}
+                  tooltip={!canApply ? "Fill all required fields and ensure ink is available" : "Apply the tattoo"}
                 >
-                  Apply
+                  Apply Tattoo
                 </Button>
-                <Button ml={1} onClick={() => act('refill_ink')}>Refill Ink</Button>
-              </Section>
-            </Box>
-          </Flex>
+              </Stack.Item>
+              <Stack.Item>
+                <Button
+                  ml={1}
+                  onClick={() => act('select_zone', { zone: null })}
+                >
+                  Back
+                </Button>
+              </Stack.Item>
+            </Stack>
+          </Section>
+        )}
+
+        <Section title="Preview & Details" fill>
+          <Stack fill>
+            <Stack.Item grow>
+              <PreviewBox html={preview_text} />
+            </Stack.Item>
+            <Stack.Item width="40%">
+              <Stack fill vertical>
+                <Stack.Item>
+                  <Section title="Current Design">
+                    <Table>
+                      <Table.Row>
+                        <Table.Cell>Artist</Table.Cell>
+                        <Table.Cell>{artist_name || "—"}</Table.Cell>
+                      </Table.Row>
+                      <Table.Row>
+                        <Table.Cell>Design</Table.Cell>
+                        <Table.Cell>{tattoo_design || "—"}</Table.Cell>
+                      </Table.Row>
+                      <Table.Row>
+                        <Table.Cell>Layer</Table.Cell>
+                        <Table.Cell>{selected_layer}</Table.Cell>
+                      </Table.Row>
+                      <Table.Row>
+                        <Table.Cell>Font</Table.Cell>
+                        <Table.Cell>{selected_font}</Table.Cell>
+                      </Table.Row>
+                      <Table.Row>
+                        <Table.Cell>Ink</Table.Cell>
+                        <Table.Cell>{ink_uses}/{max_ink_uses}</Table.Cell>
+                      </Table.Row>
+                    </Table>
+                  </Section>
+                </Stack.Item>
+                <Stack.Item>
+                  <Section title="Quick Actions">
+                    <Stack>
+                      <Stack.Item>
+                        <Button
+                          color="good"
+                          onClick={() => act('apply_tattoo')}
+                          disabled={!canApply}
+                          fluid
+                        >
+                          Apply
+                        </Button>
+                      </Stack.Item>
+                      <Stack.Item>
+                        <Button
+                          ml={1}
+                          onClick={() => act('refill_ink')}
+                          fluid
+                        >
+                          Refill Ink
+                        </Button>
+                      </Stack.Item>
+                    </Stack>
+                  </Section>
+                </Stack.Item>
+              </Stack>
+            </Stack.Item>
+          </Stack>
         </Section>
       </Window.Content>
     </Window>
