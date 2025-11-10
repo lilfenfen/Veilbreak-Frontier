@@ -51,59 +51,45 @@ export const TattooKit = (props, context) => {
     </Box>
   );
 
-  // Use state to track input values
-  const [localArtist, setLocalArtist] = React.useState(artist_name);
-  const [localDesign, setLocalDesign] = React.useState(tattoo_design);
+  // FIXED: Use direct data binding without React state for inputs
+  // The issue was that React state was getting undefined values from the input events
 
-  // Sync with backend data when it changes
-  React.useEffect(() => {
-    setLocalArtist(artist_name);
-  }, [artist_name]);
-
-  React.useEffect(() => {
-    setLocalDesign(tattoo_design);
-  }, [tattoo_design]);
-
-  // Send debug message with input value
-  const handleArtistChange = (e, value) => {
-    setLocalArtist(value);
-    // Send debug action to show what we're trying to send
+  // Direct handlers that use the event target value
+  const handleArtistChange = (e) => {
+    const value = e.target.value;
     act('debug_message', {
       message: `TGUI: Artist input changed to: "${value}"`,
-      action: 'set_artist',
-      value: value
+      action: 'set_artist'
     });
-    // Also try to send the actual artist update
     act('set_artist', { value: value });
   };
 
-  const handleDesignChange = (e, value) => {
-    setLocalDesign(value);
-    // Send debug action to show what we're trying to send
+  const handleDesignChange = (e) => {
+    const value = e.target.value;
     act('debug_message', {
       message: `TGUI: Design input changed to: "${value}"`,
-      action: 'set_design',
-      value: value
+      action: 'set_design'
     });
-    // Also try to send the actual design update
     act('set_design', { value: value });
   };
 
-  // Alternative: Send on blur as well
-  const handleArtistBlur = () => {
+  // Blur handlers as backup
+  const handleArtistBlur = (e) => {
+    const value = e.target.value;
     act('debug_message', {
-      message: `TGUI: Artist blur with value: "${localArtist}"`,
+      message: `TGUI: Artist blur with value: "${value}"`,
       action: 'set_artist_blur'
     });
-    act('set_artist', { value: localArtist });
+    act('set_artist', { value: value });
   };
 
-  const handleDesignBlur = () => {
+  const handleDesignBlur = (e) => {
+    const value = e.target.value;
     act('debug_message', {
-      message: `TGUI: Design blur with value: "${localDesign}"`,
+      message: `TGUI: Design blur with value: "${value}"`,
       action: 'set_design_blur'
     });
-    act('set_design', { value: localDesign });
+    act('set_design', { value: value });
   };
 
   return (
@@ -121,7 +107,6 @@ export const TattooKit = (props, context) => {
                 <ColorBox color={ink_color} />
                 <Button ml={1} onClick={() => act('change_color')}>Choose</Button>
                 <Button ml={1} onClick={() => act('refill_ink')}>Refill</Button>
-                {/* Debug button to test action sending */}
                 <Button ml={1} color="average" onClick={() => act('debug_message', { message: "Manual debug button clicked" })}>
                   Debug
                 </Button>
@@ -159,7 +144,7 @@ export const TattooKit = (props, context) => {
                 <Box>
                   <Input
                     fluid
-                    value={localArtist}
+                    value={artist_name} // Use direct data from backend
                     placeholder="Artist name"
                     onChange={handleArtistChange}
                     onBlur={handleArtistBlur}
@@ -167,9 +152,9 @@ export const TattooKit = (props, context) => {
                   <Button
                     mt={0.5}
                     color="average"
-                    onClick={() => act('debug_message', { message: `Current local artist: "${localArtist}"` })}
+                    onClick={() => act('debug_message', { message: `Current artist from data: "${artist_name}"` })}
                   >
-                    Debug Artist
+                    Debug Artist Data
                   </Button>
                 </Box>
               </LabeledList.Item>
@@ -179,7 +164,7 @@ export const TattooKit = (props, context) => {
                   <TextArea
                     fluid
                     rows={4}
-                    value={localDesign}
+                    value={tattoo_design} // Use direct data from backend
                     placeholder="Describe the design"
                     onChange={handleDesignChange}
                     onBlur={handleDesignBlur}
@@ -187,9 +172,9 @@ export const TattooKit = (props, context) => {
                   <Button
                     mt={0.5}
                     color="average"
-                    onClick={() => act('debug_message', { message: `Current local design: "${localDesign}"` })}
+                    onClick={() => act('debug_message', { message: `Current design from data: "${tattoo_design}"` })}
                   >
-                    Debug Design
+                    Debug Design Data
                   </Button>
                 </Box>
               </LabeledList.Item>
