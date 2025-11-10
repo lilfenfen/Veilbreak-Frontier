@@ -13,24 +13,23 @@ import {
   TextArea,
   LabeledList,
   Table,
-  Divider,
 } from 'tgui-core/components';
 import { Window } from '../layouts';
 
 export const TattooKit = (props, context) => {
   const { act, data } = useBackend(context);
   const {
-    target_name = "No Target",
-    ink_uses = 0,
-    max_ink_uses = 1,
-    ink_color = "#000000",
-    selected_zone = null,
-    body_parts = [],
-    artist_name = "",
-    tattoo_design = "",
-    selected_layer = 2,
-    selected_font = "PEN_FONT",
-    preview_text = "",
+    target_name,
+    ink_uses,
+    max_ink_uses,
+    ink_color,
+    selected_zone,
+    body_parts,
+    artist_name,
+    tattoo_design,
+    selected_layer,
+    selected_font,
+    preview_text,
   } = data;
 
   const inkFraction = max_ink_uses ? ink_uses / max_ink_uses : 0;
@@ -64,7 +63,7 @@ export const TattooKit = (props, context) => {
             <Box width="40%" align="right">
               <Box>Ink Color</Box>
               <Flex align="center" justify="flex-end">
-                <ColorBox color={ink_color || "#000000"} />
+                <ColorBox color={ink_color} />
                 <Button ml={1} onClick={() => act('change_color')}>Choose</Button>
                 <Button ml={1} onClick={() => act('refill_ink')}>Refill</Button>
               </Flex>
@@ -85,8 +84,6 @@ export const TattooKit = (props, context) => {
                   key={part.zone}
                   m={0.5}
                   selected={selected_zone === part.zone}
-                  disabled={part.covered}
-                  tooltip={part.covered ? 'Covered — remove clothing first' : `${part.current_tattoos}/${part.max_tattoos} tattoos`}
                   onClick={() => act('select_zone', { zone: part.zone })}
                 >
                   {part.name}
@@ -113,7 +110,7 @@ export const TattooKit = (props, context) => {
                   fluid
                   rows={4}
                   value={tattoo_design}
-                  placeholder="Describe the design (supports simple emoji codes)"
+                  placeholder="Describe the design"
                   onChange={(e, value) => act('set_design', { value })}
                 />
               </LabeledList.Item>
@@ -163,7 +160,7 @@ export const TattooKit = (props, context) => {
                   </Table.Row>
                   <Table.Row>
                     <Table.Cell>Design</Table.Cell>
-                    <Table.Cell>{tattoo_design ? tattoo_design.substring(0, 120) : "—"}</Table.Cell>
+                    <Table.Cell>{tattoo_design || "—"}</Table.Cell>
                   </Table.Row>
                   <Table.Row>
                     <Table.Cell>Layer</Table.Cell>
