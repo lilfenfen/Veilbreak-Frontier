@@ -43,3 +43,11 @@
 	proc/generate_preview(mob/viewer, mob/living/carbon/human/victim, ink_color = "#000000")
 		preview_cache = "<b>Artist:</b> [artist_name]<br><b>Design:</b> [tattoo_design]<br><b>Color:</b> <span style='color:[ink_color]'>■</span>"
 		return preview_cache
+
+	// Clear all data
+	proc/clear()
+		artist_name = ""
+		tattoo_design = ""
+		selected_layer = CUSTOM_TATTOO_LAYER_NORMAL
+		selected_font = PEN_FONT
+		preview_cache = ""

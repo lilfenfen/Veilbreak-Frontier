@@ -62,17 +62,22 @@
 // Lazy accessors for per-zone UI data
 /mob/living/carbon/human/proc/get_tattoo_ui_data(zone)
 	LAZYINITLIST(tattoo_ui_data)
-	return LAZYACCESS(tattoo_ui_data, zone)
+	return tattoo_ui_data[zone]
 
 /mob/living/carbon/human/proc/set_tattoo_ui_data(zone, datum/custom_tattoo_ui_data/data)
 	if(!istype(data))
-		return
+		return FALSE
 	LAZYINITLIST(tattoo_ui_data)
-	LAZYSET(tattoo_ui_data, zone, data)
+	tattoo_ui_data[zone] = data
+	return TRUE
 
 /mob/living/carbon/human/proc/clear_tattoo_ui_data(zone)
 	if(tattoo_ui_data)
-		LAZYREMOVE(tattoo_ui_data, zone)
+		tattoo_ui_data -= zone
+
+// Clear all UI data
+/mob/living/carbon/human/proc/clear_all_tattoo_ui_data()
+	tattoo_ui_data = null
 
 // Return visible tattoos to a given viewer
 /mob/living/carbon/human/proc/get_visible_custom_tattoos(mob/viewer)
