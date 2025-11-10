@@ -175,7 +175,8 @@
 		to_chat(usr, span_warning("DEBUG: ui_act - no current target"))
 		return FALSE
 
-	to_chat(usr, span_warning("DEBUG: ui_act received - action: [action], params: [json_encode(params)]"))
+	// DEBUG: Show ALL parameters received for EVERY action
+	to_chat(usr, span_warning("DEBUG: ui_act received - action: [action], ALL params: [json_encode(params)]"))
 
 	switch(action)
 		if("select_zone")
@@ -184,13 +185,35 @@
 			. = TRUE
 
 		if("set_artist")
-			artist_name = params["value"]
-			to_chat(usr, span_warning("DEBUG: Artist set to: '[artist_name]'"))
+			// Try multiple parameter names to see what's actually being sent
+			var/new_artist = params["value"]
+			if(isnull(new_artist) || new_artist == "")
+				new_artist = params["artist"]
+			if(isnull(new_artist) || new_artist == "")
+				new_artist = params["text"]
+			if(isnull(new_artist) || new_artist == "")
+				new_artist = params["input"]
+			if(isnull(new_artist) || new_artist == "")
+				new_artist = params["data"]
+
+			artist_name = new_artist
+			to_chat(usr, span_warning("DEBUG: Artist set to: '[artist_name]' (raw params: [json_encode(params)])"))
 			. = TRUE
 
 		if("set_design")
-			tattoo_design = params["value"]
-			to_chat(usr, span_warning("DEBUG: Design set to: '[tattoo_design]'"))
+			// Try multiple parameter names to see what's actually being sent
+			var/new_design = params["value"]
+			if(isnull(new_design) || new_design == "")
+				new_design = params["design"]
+			if(isnull(new_design) || new_design == "")
+				new_design = params["text"]
+			if(isnull(new_design) || new_design == "")
+				new_design = params["input"]
+			if(isnull(new_design) || new_design == "")
+				new_design = params["data"]
+
+			tattoo_design = new_design
+			to_chat(usr, span_warning("DEBUG: Design set to: '[tattoo_design]' (raw params: [json_encode(params)])"))
 			. = TRUE
 
 		if("set_layer")
@@ -215,6 +238,13 @@
 
 		if("refill_ink")
 			refill_ink(usr)
+			. = TRUE
+
+		if("debug_message")
+			var/message = params["message"] || "No message"
+			var/debug_action = params["action"] || "unknown"
+			var/debug_value = params["value"] || "no value"
+			to_chat(usr, span_warning("DEBUG MESSAGE: [message] (action: [debug_action], value: '[debug_value]')"))
 			. = TRUE
 
 	if(.)

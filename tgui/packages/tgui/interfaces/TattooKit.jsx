@@ -51,15 +51,59 @@ export const TattooKit = (props, context) => {
     </Box>
   );
 
-  // FIXED: Proper event handlers for input changes
+  // Use state to track input values
+  const [localArtist, setLocalArtist] = React.useState(artist_name);
+  const [localDesign, setLocalDesign] = React.useState(tattoo_design);
+
+  // Sync with backend data when it changes
+  React.useEffect(() => {
+    setLocalArtist(artist_name);
+  }, [artist_name]);
+
+  React.useEffect(() => {
+    setLocalDesign(tattoo_design);
+  }, [tattoo_design]);
+
+  // Send debug message with input value
   const handleArtistChange = (e, value) => {
-    console.log("Artist change:", value); // Browser console debug
+    setLocalArtist(value);
+    // Send debug action to show what we're trying to send
+    act('debug_message', {
+      message: `TGUI: Artist input changed to: "${value}"`,
+      action: 'set_artist',
+      value: value
+    });
+    // Also try to send the actual artist update
     act('set_artist', { value: value });
   };
 
   const handleDesignChange = (e, value) => {
-    console.log("Design change:", value); // Browser console debug
+    setLocalDesign(value);
+    // Send debug action to show what we're trying to send
+    act('debug_message', {
+      message: `TGUI: Design input changed to: "${value}"`,
+      action: 'set_design',
+      value: value
+    });
+    // Also try to send the actual design update
     act('set_design', { value: value });
+  };
+
+  // Alternative: Send on blur as well
+  const handleArtistBlur = () => {
+    act('debug_message', {
+      message: `TGUI: Artist blur with value: "${localArtist}"`,
+      action: 'set_artist_blur'
+    });
+    act('set_artist', { value: localArtist });
+  };
+
+  const handleDesignBlur = () => {
+    act('debug_message', {
+      message: `TGUI: Design blur with value: "${localDesign}"`,
+      action: 'set_design_blur'
+    });
+    act('set_design', { value: localDesign });
   };
 
   return (
@@ -77,6 +121,10 @@ export const TattooKit = (props, context) => {
                 <ColorBox color={ink_color} />
                 <Button ml={1} onClick={() => act('change_color')}>Choose</Button>
                 <Button ml={1} onClick={() => act('refill_ink')}>Refill</Button>
+                {/* Debug button to test action sending */}
+                <Button ml={1} color="average" onClick={() => act('debug_message', { message: "Manual debug button clicked" })}>
+                  Debug
+                </Button>
               </Flex>
             </Box>
           </Flex>
@@ -108,22 +156,42 @@ export const TattooKit = (props, context) => {
           <Section title={`Design — ${selected_zone}`}>
             <LabeledList>
               <LabeledList.Item label="Artist">
-                <Input
-                  fluid
-                  value={artist_name}
-                  placeholder="Artist name"
-                  onChange={handleArtistChange}
-                />
+                <Box>
+                  <Input
+                    fluid
+                    value={localArtist}
+                    placeholder="Artist name"
+                    onChange={handleArtistChange}
+                    onBlur={handleArtistBlur}
+                  />
+                  <Button
+                    mt={0.5}
+                    color="average"
+                    onClick={() => act('debug_message', { message: `Current local artist: "${localArtist}"` })}
+                  >
+                    Debug Artist
+                  </Button>
+                </Box>
               </LabeledList.Item>
 
               <LabeledList.Item label="Design (text)">
-                <TextArea
-                  fluid
-                  rows={4}
-                  value={tattoo_design}
-                  placeholder="Describe the design"
-                  onChange={handleDesignChange}
-                />
+                <Box>
+                  <TextArea
+                    fluid
+                    rows={4}
+                    value={localDesign}
+                    placeholder="Describe the design"
+                    onChange={handleDesignChange}
+                    onBlur={handleDesignBlur}
+                  />
+                  <Button
+                    mt={0.5}
+                    color="average"
+                    onClick={() => act('debug_message', { message: `Current local design: "${localDesign}"` })}
+                  >
+                    Debug Design
+                  </Button>
+                </Box>
               </LabeledList.Item>
 
               <LabeledList.Item label="Layer">
@@ -152,6 +220,9 @@ export const TattooKit = (props, context) => {
                 Apply Tattoo
               </Button>
               <Button ml={1} onClick={() => act('select_zone', { zone: null })}>Back</Button>
+              <Button ml={1} color="average" onClick={() => act('debug_message', { message: `Apply check: zone=${selected_zone}, artist=${artist_name}, design=${tattoo_design}, ink=${ink_uses}` })}>
+                Debug Apply
+              </Button>
             </Flex>
           </Section>
         )}
