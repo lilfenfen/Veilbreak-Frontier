@@ -63,22 +63,19 @@
 /obj/item/custom_tattoo_kit/ui_data(mob/user)
 	var/list/data = list()
 
-	// Ensure no null values are sent to TGUI
+	// ALWAYS provide current state with null checks
 	data["target_name"] = current_target?.name || "No Target"
-	data["ink_uses"] = ink_uses || 0
-	data["max_ink_uses"] = max_ink_uses || 30
-	data["ink_color"] = ink_color || "#000000"
-	data["selected_zone"] = selected_zone || null
-	data["artist_name"] = artist_name || ""
-	data["tattoo_design"] = tattoo_design || ""
-	data["selected_layer"] = selected_layer || 2
-	data["selected_font"] = selected_font || "PEN_FONT"
+	data["ink_uses"] = ink_uses
+	data["max_ink_uses"] = max_ink_uses
+	data["ink_color"] = ink_color
+	data["selected_zone"] = selected_zone
+	data["artist_name"] = artist_name
+	data["tattoo_design"] = tattoo_design
+	data["selected_layer"] = selected_layer
+	data["selected_font"] = selected_font
 
 	// Generate preview
-	if(selected_zone && current_target)
-		data["preview_text"] = generate_preview()
-	else
-		data["preview_text"] = "Select a body part to begin designing."
+	data["preview_text"] = generate_preview()
 
 	// Body parts list
 	data["body_parts"] = list()
@@ -88,19 +85,21 @@
 			var/list/part_info = available_parts[zone]
 			data["body_parts"] += list(list(
 				"zone" = zone,
-				"name" = part_info["name"],
-				"covered" = part_info["covered"],
-				"current_tattoos" = part_info["current_tattoos"],
-				"max_tattoos" = part_info["max_tattoos"]
+				"name" = part_info["name"] || "Unknown",
+				"covered" = part_info["covered"] || FALSE,
+				"current_tattoos" = part_info["current_tattoos"] || 0,
+				"max_tattoos" = part_info["max_tattoos"] || 0
 			))
 
 	return data
 
 /obj/item/custom_tattoo_kit/proc/generate_preview()
-	var/preview_text = ""
+	if(!selected_zone || !current_target)
+		return "Select a body part to begin designing."
+
+	var/preview_text = "<div style='text-align: center;'>"
 
 	if(artist_name && tattoo_design)
-		preview_text += "<div style='text-align: center;'>"
 		preview_text += "<h3 style='color: [ink_color]; margin-bottom: 8px;'>Tattoo Preview</h3>"
 		preview_text += "<div style='border: 1px dashed [ink_color]; padding: 10px; border-radius: 4px;'>"
 		preview_text += "<strong>Artist:</strong> [artist_name]<br>"
@@ -112,12 +111,12 @@
 		preview_text += "<div style='margin-top: 8px; font-size: 0.8em; color: #666;'>"
 		preview_text += "Color: <span style='color: [ink_color];'>[ink_color]</span>"
 		preview_text += "</div>"
-		preview_text += "</div>"
 	else
-		preview_text += "<div style='text-align: center; padding: 20px; color: #666;'>"
+		preview_text += "<div style='padding: 20px; color: #666;'>"
 		preview_text += "<i>Enter artist name and design description to see preview</i>"
 		preview_text += "</div>"
 
+	preview_text += "</div>"
 	return preview_text
 
 /obj/item/custom_tattoo_kit/proc/can_apply_tattoo()
@@ -150,7 +149,7 @@
 	)
 
 	if(current_target.add_custom_tattoo(new_tattoo))
-		ink_uses--
+		ink_uses = max(0, ink_uses - 1)
 		next_use = world.time + 2 SECONDS
 		current_target.regenerate_icons()
 		update_appearance()
@@ -183,11 +182,11 @@
 			. = TRUE
 
 		if("set_layer")
-			selected_layer = text2num(params["layer"])
+			selected_layer = text2num(params["layer"]) || 2
 			. = TRUE
 
 		if("set_font")
-			selected_font = params["font"]
+			selected_font = params["font"] || "PEN_FONT"
 			. = TRUE
 
 		if("change_color")

@@ -41,8 +41,8 @@ export const TattooKit = (props, context) => {
         background: '#0F1720',
         padding: '10px',
         borderRadius: '6px',
-        minHeight: '160px',
-        maxHeight: '260px',
+        minHeight: '120px',
+        maxHeight: '180px',
         overflowY: 'auto',
         border: '1px solid rgba(255,255,255,0.04)',
       }}
@@ -51,22 +51,14 @@ export const TattooKit = (props, context) => {
     </Box>
   );
 
-  const handleArtistChange = (value) => {
-    act('set_artist', { value: value });
-  };
-
-  const handleDesignChange = (value) => {
-    act('set_design', { value: value });
-  };
-
   return (
-    <Window width={760} height={620} theme="ntos">
+    <Window width={760} height={580} theme="ntos">
       <Window.Content scrollable>
-        <Section title={`Tattoo Kit — Target: ${target_name}`}>
+        <Section title={`Tattoo Kit — Target: ${target_name || "None"}`}>
           <Stack fill align="center">
             <Stack.Item grow>
               <ProgressBar value={inkFraction} />
-              <Box mt={1}>Ink: {ink_uses}/{max_ink_uses}</Box>
+              <Box mt={1}>Ink: {ink_uses || 0}/{max_ink_uses || 0}</Box>
             </Stack.Item>
             <Stack.Item>
               <Stack align="center">
@@ -74,7 +66,7 @@ export const TattooKit = (props, context) => {
                   <Box>Ink Color</Box>
                 </Stack.Item>
                 <Stack.Item>
-                  <ColorBox color={ink_color} />
+                  <ColorBox color={ink_color || "#000000"} />
                 </Stack.Item>
                 <Stack.Item>
                   <Button ml={1} onClick={() => act('change_color')}>
@@ -109,17 +101,21 @@ export const TattooKit = (props, context) => {
         {!selected_zone && (
           <Section title="Select a Body Part">
             <Stack wrap>
-              {body_parts.map((part) => (
+              {body_parts?.map((part) => (
                 <Stack.Item key={part.zone}>
                   <Button
                     m={0.5}
                     selected={selected_zone === part.zone}
                     onClick={() => act('select_zone', { zone: part.zone })}
                   >
-                    {part.name}
+                    {part.name || "Unknown"}
                   </Button>
                 </Stack.Item>
-              ))}
+              )) || (
+                <Stack.Item>
+                  <Box color="average">No body parts available.</Box>
+                </Stack.Item>
+              )}
             </Stack>
           </Section>
         )}
@@ -130,19 +126,19 @@ export const TattooKit = (props, context) => {
               <LabeledList.Item label="Artist">
                 <Input
                   fluid
-                  value={artist_name}
+                  value={artist_name || ""}
                   placeholder="Artist name"
-                  onChange={(e, value) => handleArtistChange(value)}
+                  onChange={(e, value) => act('set_artist', { value: value || "" })}
                 />
               </LabeledList.Item>
 
               <LabeledList.Item label="Design (text)">
                 <TextArea
                   fluid
-                  rows={4}
-                  value={tattoo_design}
+                  rows={3}
+                  value={tattoo_design || ""}
                   placeholder="Describe the design"
-                  onChange={(e, value) => handleDesignChange(value)}
+                  onChange={(e, value) => act('set_design', { value: value || "" })}
                 />
               </LabeledList.Item>
 
@@ -251,15 +247,15 @@ export const TattooKit = (props, context) => {
                       </Table.Row>
                       <Table.Row>
                         <Table.Cell>Layer</Table.Cell>
-                        <Table.Cell>{selected_layer}</Table.Cell>
+                        <Table.Cell>{selected_layer || 2}</Table.Cell>
                       </Table.Row>
                       <Table.Row>
                         <Table.Cell>Font</Table.Cell>
-                        <Table.Cell>{selected_font}</Table.Cell>
+                        <Table.Cell>{selected_font || "PEN_FONT"}</Table.Cell>
                       </Table.Row>
                       <Table.Row>
                         <Table.Cell>Ink</Table.Cell>
-                        <Table.Cell>{ink_uses}/{max_ink_uses}</Table.Cell>
+                        <Table.Cell>{ink_uses || 0}/{max_ink_uses || 0}</Table.Cell>
                       </Table.Row>
                     </Table>
                   </Section>
