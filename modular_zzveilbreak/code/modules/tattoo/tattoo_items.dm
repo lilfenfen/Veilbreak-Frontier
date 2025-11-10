@@ -93,23 +93,26 @@
 	data["ink_color"] = ink_color
 	data["selected_zone"] = selected_zone
 
-	// Grab per-zone UI draft
+	// Get UI draft data for the selected zone
 	if(selected_zone)
-		var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
-		var/list/selected_part = available_parts[selected_zone]
-		if(selected_part)
-			data["selected_name"] = selected_part["name"] || "Unknown"
-			var/datum/custom_tattoo_ui_data/ui_data = current_target.get_tattoo_ui_data(selected_zone)
-			if(!ui_data)
-				ui_data = new(selected_zone)
-				current_target.set_tattoo_ui_data(selected_zone, ui_data)
-			data["artist_name"] = ui_data.artist_name
-			data["tattoo_design"] = ui_data.tattoo_design
-			data["selected_layer"] = ui_data.selected_layer
-			data["selected_font"] = ui_data.selected_font
-			data["preview_text"] = generate_selected_preview(selected_zone, user)
-		else
-			selected_zone = null
+		var/datum/custom_tattoo_ui_data/ui_data = current_target.get_tattoo_ui_data(selected_zone)
+		if(!ui_data)
+			ui_data = new(selected_zone)
+			current_target.set_tattoo_ui_data(selected_zone, ui_data)
+
+		// Always use the current UI data values
+		data["artist_name"] = ui_data.artist_name
+		data["tattoo_design"] = ui_data.tattoo_design
+		data["selected_layer"] = ui_data.selected_layer
+		data["selected_font"] = ui_data.selected_font
+		data["preview_text"] = generate_selected_preview(selected_zone, user)
+	else
+		// No zone selected, use defaults
+		data["artist_name"] = ""
+		data["tattoo_design"] = ""
+		data["selected_layer"] = CUSTOM_TATTOO_LAYER_NORMAL
+		data["selected_font"] = PEN_FONT
+		data["preview_text"] = "Select a body part to begin designing."
 
 	// List all body parts for UI table
 	data["body_parts"] = list()
@@ -156,6 +159,12 @@
 				preview_text += "<b>New Tattoo Preview:</b><br>"
 				preview_text += preview_tattoo_text + "<br>"
 			qdel(preview_tattoo)
+		else if(artist || design)
+			preview_text += "<b>Draft Tattoo (incomplete):</b><br>"
+			if(artist)
+				preview_text += "Artist: [artist]<br>"
+			if(design)
+				preview_text += "Design: [design]<br>"
 
 	return preview_text || "No tattoos on this area. Design a new one above!"
 
@@ -187,6 +196,7 @@
 
 	var/datum/custom_tattoo_ui_data/ui_data = current_target.get_tattoo_ui_data(zone)
 	if(!ui_data)
+		to_chat(user, span_warning("No tattoo design data found!"))
 		return FALSE
 
 	var/artist_name = trim(ui_data.artist_name)
@@ -215,6 +225,7 @@
 	if(current_target.add_custom_tattoo(new_tattoo))
 		ink_uses = max(0, ink_uses - 1)
 		next_use = world.time + 2 SECONDS
+		// Clear the UI draft data after successful application
 		current_target.clear_tattoo_ui_data(zone)
 		if(current_target.client?.prefs)
 			current_target.client.prefs.save_custom_tattoo_data()
@@ -248,10 +259,13 @@
 	switch(action)
 		if("select_zone")
 			var/zone = params["zone"]
-			if(!zone || !istext(zone)) return FALSE
+			if(!zone || !istext(zone))
+				return FALSE
 			var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
-			if(!(zone in available_parts)) return FALSE
+			if(!(zone in available_parts))
+				return FALSE
 			selected_zone = zone
+			// Ensure UI data exists for the selected zone
 			var/datum/custom_tattoo_ui_data/ui_data = current_target.get_tattoo_ui_data(selected_zone)
 			if(!ui_data)
 				ui_data = new(selected_zone)
@@ -269,6 +283,8 @@
 				ui_data = new(selected_zone)
 				current_target.set_tattoo_ui_data(selected_zone, ui_data)
 			ui_data.artist_name = value
+			// Update the UI data immediately
+			current_target.set_tattoo_ui_data(selected_zone, ui_data)
 			SStgui.update_uis(src)
 			return TRUE
 
@@ -282,6 +298,8 @@
 				ui_data = new(selected_zone)
 				current_target.set_tattoo_ui_data(selected_zone, ui_data)
 			ui_data.tattoo_design = value
+			// Update the UI data immediately
+			current_target.set_tattoo_ui_data(selected_zone, ui_data)
 			SStgui.update_uis(src)
 			return TRUE
 
@@ -290,12 +308,15 @@
 				to_chat(user, span_warning("No body part selected!"))
 				return FALSE
 			var/layer = params["layer"]
-			if(isnull(layer)) return FALSE
+			if(isnull(layer))
+				return FALSE
 			var/datum/custom_tattoo_ui_data/ui_data = current_target.get_tattoo_ui_data(selected_zone)
 			if(!ui_data)
 				ui_data = new(selected_zone)
 				current_target.set_tattoo_ui_data(selected_zone, ui_data)
 			ui_data.selected_layer = text2num(layer)
+			// Update the UI data immediately
+			current_target.set_tattoo_ui_data(selected_zone, ui_data)
 			SStgui.update_uis(src)
 			return TRUE
 
@@ -304,12 +325,15 @@
 				to_chat(user, span_warning("No body part selected!"))
 				return FALSE
 			var/font = params["font"]
-			if(isnull(font)) return FALSE
+			if(isnull(font))
+				return FALSE
 			var/datum/custom_tattoo_ui_data/ui_data = current_target.get_tattoo_ui_data(selected_zone)
 			if(!ui_data)
 				ui_data = new(selected_zone)
 				current_target.set_tattoo_ui_data(selected_zone, ui_data)
 			ui_data.selected_font = font
+			// Update the UI data immediately
+			current_target.set_tattoo_ui_data(selected_zone, ui_data)
 			SStgui.update_uis(src)
 			return TRUE
 
