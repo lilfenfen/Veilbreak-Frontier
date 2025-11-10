@@ -151,8 +151,8 @@
 
 	var/tattoo_zone_define = string_to_zone(selected_zone)
 	var/datum/custom_tattoo/new_tattoo = new(
-		trim(artist_name),
-		trim(tattoo_design),
+		artist_name,
+		tattoo_design,
 		tattoo_zone_define,
 		ink_color,
 		selected_layer,

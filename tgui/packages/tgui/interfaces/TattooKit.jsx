@@ -34,7 +34,7 @@ export const TattooKit = (props, context) => {
   } = data;
 
   const inkFraction = max_ink_uses ? ink_uses / max_ink_uses : 0;
-  const canApply = selected_zone && artist_name.trim() && tattoo_design.trim() && ink_uses > 0;
+  const canApply = selected_zone && artist_name && tattoo_design && ink_uses > 0;
 
   const PreviewBox = ({ html }) => (
     <Box
