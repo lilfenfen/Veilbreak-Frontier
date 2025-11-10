@@ -51,6 +51,17 @@ export const TattooKit = (props, context) => {
     </Box>
   );
 
+  // FIXED: Proper event handlers for input changes
+  const handleArtistChange = (e, value) => {
+    console.log("Artist change:", value); // Browser console debug
+    act('set_artist', { value: value });
+  };
+
+  const handleDesignChange = (e, value) => {
+    console.log("Design change:", value); // Browser console debug
+    act('set_design', { value: value });
+  };
+
   return (
     <Window width={760} height={620} theme="ntos">
       <Window.Content scrollable>
@@ -101,7 +112,7 @@ export const TattooKit = (props, context) => {
                   fluid
                   value={artist_name}
                   placeholder="Artist name"
-                  onChange={(e, value) => act('set_artist', { value })}
+                  onChange={handleArtistChange}
                 />
               </LabeledList.Item>
 
@@ -111,7 +122,7 @@ export const TattooKit = (props, context) => {
                   rows={4}
                   value={tattoo_design}
                   placeholder="Describe the design"
-                  onChange={(e, value) => act('set_design', { value })}
+                  onChange={handleDesignChange}
                 />
               </LabeledList.Item>
 
