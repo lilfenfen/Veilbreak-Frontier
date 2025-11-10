@@ -37,6 +37,7 @@
 		return TRUE
 
 	current_target = human_target
+	world.log << "TATTOO_KIT: Targeting [human_target.name]"
 	ui_interact(user)
 	return TRUE
 
@@ -47,80 +48,114 @@
 	ink_uses = max_ink_uses
 	to_chat(user, span_notice("Tattoo kit refilled."))
 	update_appearance()
+	world.log << "TATTOO_KIT: Ink refilled by [user.name]"
 	if(current_target)
 		ui_interact(user)
 
 /obj/item/custom_tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
 	if(!current_target || QDELETED(current_target))
 		to_chat(user, span_warning("No target selected."))
+		world.log << "TATTOO_KIT_UI: No target for [user.name]"
 		return
 
 	var/datum/custom_tattoo_ui_data/ui_data = current_target.get_tattoo_ui_data("global")
 	if(!ui_data)
 		ui_data = new()
 		current_target.set_tattoo_ui_data("global", ui_data)
+		world.log << "TATTOO_KIT_UI: Created new UI data for [current_target.name]"
 
 	var/interface_html = ui_data.generate_interface(current_target, user, ink_uses, max_ink_uses)
 
 	var/datum/browser/popup = new(user, "tattoo_kit", "Tattoo Kit", 700, 700)
 	popup.set_content(interface_html)
 	popup.open()
+	world.log << "TATTOO_KIT_UI: Interface opened for [user.name] targeting [current_target.name]"
 
 /obj/item/custom_tattoo_kit/Topic(href, href_list)
-	if(!current_target || usr != current_target)
+	if(!current_target)
+		world.log << "TATTOO_KIT_TOPIC: No current target"
 		return
 
 	var/datum/custom_tattoo_ui_data/ui_data = current_target.get_tattoo_ui_data("global")
 	if(!ui_data)
+		world.log << "TATTOO_KIT_TOPIC: No UI data found"
 		return
 
+	world.log << "TATTOO_KIT_TOPIC: Processing [href_list]"
+
 	if(ui_data.handle_topic(href, href_list, usr, src))
-		return
+		return TRUE
 
 	return ..()
 
-/obj/item/custom_tattoo_kit/proc/can_apply_tattoo()
+/obj/item/custom_tattoo_kit/proc/can_apply_tattoo(mob/user)
 	if(!current_target)
+		to_chat(user, span_warning("No target selected."))
+		world.log << "TATTOO_APPLY_CHECK: No target"
 		return FALSE
 
 	var/datum/custom_tattoo_ui_data/ui_data = current_target.get_tattoo_ui_data("global")
-	if(!ui_data || !ui_data.zone || !ui_data.design_mode)
+	if(!ui_data)
+		to_chat(user, span_warning("UI data not found."))
+		world.log << "TATTOO_APPLY_CHECK: No UI data"
 		return FALSE
 
-	// FIXED: Properly check both fields have content
+	if(!ui_data.zone || !ui_data.design_mode)
+		to_chat(user, span_warning("No body part selected or not in design mode."))
+		world.log << "TATTOO_APPLY_CHECK: No zone or design mode"
+		return FALSE
+
+	// Check if fields have content
 	if(!ui_data.artist_name || length(ui_data.artist_name) == 0)
+		to_chat(user, span_warning("Artist name is required."))
+		world.log << "TATTOO_APPLY_CHECK: Empty artist name"
 		return FALSE
 	if(!ui_data.tattoo_design || length(ui_data.tattoo_design) == 0)
+		to_chat(user, span_warning("Tattoo design is required."))
+		world.log << "TATTOO_APPLY_CHECK: Empty tattoo design"
 		return FALSE
 
 	if(ink_uses <= 0)
+		to_chat(user, span_warning("No ink remaining."))
+		world.log << "TATTOO_APPLY_CHECK: No ink"
 		return FALSE
 
 	if(!is_custom_tattoo_bodypart_existing(current_target, ui_data.zone))
+		to_chat(user, span_warning("Body part doesn't exist."))
+		world.log << "TATTOO_APPLY_CHECK: Body part doesn't exist"
 		return FALSE
 
 	if(!get_custom_tattoo_location_accessible(current_target, ui_data.zone))
+		to_chat(user, span_warning("Body part is not accessible."))
+		world.log << "TATTOO_APPLY_CHECK: Body part not accessible"
 		return FALSE
 
 	var/current_tattoos = length(current_target.get_custom_tattoos(ui_data.zone))
 	if(current_tattoos >= CUSTOM_MAX_TATTOOS_PER_PART)
+		to_chat(user, span_warning("Maximum tattoos reached for this body part."))
+		world.log << "TATTOO_APPLY_CHECK: Max tattoos reached"
 		return FALSE
 
+	world.log << "TATTOO_APPLY_CHECK: All checks passed"
 	return TRUE
 
 /obj/item/custom_tattoo_kit/proc/apply_tattoo(mob/user)
-	if(!can_apply_tattoo())
-		to_chat(user, span_warning("Cannot apply tattoo - check requirements."))
+	if(!can_apply_tattoo(user))
+		world.log << "TATTOO_APPLY: Pre-check failed"
 		return FALSE
 
 	to_chat(user, span_notice("You begin carefully applying the tattoo..."))
+	world.log << "TATTOO_APPLY: Starting application by [user.name]"
 
 	if(!do_after(user, 8 SECONDS, target = current_target))
 		to_chat(user, span_warning("Tattoo application interrupted!"))
+		world.log << "TATTOO_APPLY: Application interrupted"
 		return FALSE
 
 	var/datum/custom_tattoo_ui_data/ui_data = current_target.get_tattoo_ui_data("global")
 	if(!ui_data)
+		to_chat(user, span_warning("UI data lost during application."))
+		world.log << "TATTOO_APPLY: UI data lost"
 		return FALSE
 
 	// Auto-detect signature format based on %s
@@ -128,6 +163,8 @@
 	var/final_artist = ui_data.artist_name
 	if(is_signature_format)
 		final_artist = replacetext(final_artist, "%s", user.name)
+
+	world.log << "TATTOO_APPLY: Creating tattoo - Artist: [final_artist], Design: [ui_data.tattoo_design], Zone: [ui_data.zone]"
 
 	// Create tattoo with current UI data
 	var/datum/custom_tattoo/new_tattoo = new(
@@ -153,7 +190,9 @@
 		// Refresh UI
 		ui_interact(user)
 		to_chat(user, span_green("Tattoo applied successfully!"))
+		world.log << "TATTOO_APPLY: Successfully applied tattoo"
 		return TRUE
 	else
 		to_chat(user, span_warning("Failed to apply tattoo!"))
+		world.log << "TATTOO_APPLY: Failed to apply tattoo"
 		return FALSE

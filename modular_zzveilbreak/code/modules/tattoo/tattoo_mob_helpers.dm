@@ -57,8 +57,9 @@
 // Get a list of tattoos for a given body zone (string or define)
 /mob/living/carbon/human/proc/get_custom_tattoos(body_zone)
 	. = list()
-	if(!body_zone)
+	if(!body_zone || !custom_body_tattoos)
 		return .
+
 	var/search_zone = istext(body_zone) ? string_to_zone(body_zone) : body_zone
 	var/search_zone_string = zone_to_string(search_zone)
 	for(var/datum/custom_tattoo/T as anything in custom_body_tattoos)
@@ -109,12 +110,13 @@
 
 	// Handle tattoo kit interactions
 	if(href_list["tattoo_select_zone"] || href_list["tattoo_back_to_parts"] || \
-	   href_list["tattoo_toggle_signature"] || href_list["tattoo_set_font"] || \
-	   href_list["tattoo_set_layer"] || href_list["tattoo_change_color"] || \
-	   href_list["tattoo_apply"] || href_list["tattoo_artist"] || \
-	   href_list["tattoo_design"])
+	   href_list["tattoo_set_font"] || href_list["tattoo_set_layer"] || \
+	   href_list["tattoo_change_color"] || href_list["tattoo_apply"] || \
+	   href_list["submit_artist"] || href_list["submit_design"] || \
+	   href_list["tattoo_toggle_debug"])
 
 		var/obj/item/custom_tattoo_kit/kit = locate() in usr
 		if(kit && kit.current_target == src)
+			world.log << "TATTOO_MOB_TOPIC: Routing [href_list] from [usr.name] to kit targeting [src.name]"
 			kit.Topic(href, href_list)
 			return TRUE

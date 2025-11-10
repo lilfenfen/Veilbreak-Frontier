@@ -8,8 +8,8 @@
 	var/selected_layer = CUSTOM_TATTOO_LAYER_NORMAL
 	var/selected_font = PEN_FONT
 	var/ink_color = "#000000"
-	var/preview_cache = ""
 	var/design_mode = FALSE
+	var/debug_mode = FALSE
 	var/static/list/font_options = list(
 		"PEN_FONT" = "Pen",
 		"FOUNTAIN_PEN_FONT" = "Fountain Pen",
@@ -20,6 +20,7 @@
 
 	New(new_zone = "")
 		zone = new_zone
+		log_debug("UI_DATA: New instance created for zone [new_zone]")
 
 	// Generate complete UI HTML based on current state
 	proc/generate_interface(mob/living/carbon/human/victim, mob/viewer, ink_uses, max_ink_uses)
@@ -35,6 +36,10 @@
 			// Design mode
 			interface_html += generate_design_interface(victim, viewer, ink_uses)
 
+		// Debug tab
+		if(debug_mode)
+			interface_html += generate_debug_tab(victim, ink_uses)
+
 		interface_html += "</div>"
 		return interface_html
 
@@ -48,13 +53,92 @@
 		var/ink_color_class = ink_uses > 0 ? "#4CAF50" : "#f44336"
 		header += "<div style='margin-top: 8px;'>"
 		header += "<div style='background: #1a1a1a; height: 20px; border-radius: 10px; overflow: hidden;'>"
-		header += "<div style='background: [ink_color_class]; height: 100%; width: [ink_percent]%; transition: width 0.3s;'></div>"
+		header += "<div style='background: [ink_color_class]; height: 100%; width: [ink_percent]%;'></div>"
 		header += "</div>"
 		header += "<div style='text-align: center; margin-top: 4px;'>Ink: [ink_uses]/[max_ink_uses]</div>"
 		header += "</div>"
 
+		// Debug toggle
+		header += "<div style='margin-top: 8px; text-align: center;'>"
+		header += "<a href='?src=[REF(victim)];tattoo_toggle_debug=1' style='color: #888; font-size: 0.8em; text-decoration: none;'>"
+		header += "[debug_mode ? "Hide Debug" : "Show Debug"]"
+		header += "</a>"
+		header += "</div>"
+
 		header += "</div>"
 		return header
+
+	proc/generate_debug_tab(mob/living/carbon/human/victim, ink_uses)
+		var/debug_html = "<div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin-top: 10px; border: 2px solid #ff4444;'>"
+		debug_html += "<h3 style='color: #ff4444; margin-top: 0;'>Debug Information</h3>"
+
+		// Current UI state
+		debug_html += "<div style='margin-bottom: 10px;'>"
+		debug_html += "<h4 style='color: #ff8888;'>UI Data State:</h4>"
+		debug_html += "<div style='background: #0a0a0a; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.9em;'>"
+		debug_html += "Zone: [zone]<br>"
+		debug_html += "Design Mode: [design_mode]<br>"
+		debug_html += "Artist: '[artist_name]' (len: [length(artist_name)])<br>"
+		debug_html += "Design: '[tattoo_design]' (len: [length(tattoo_design)])<br>"
+		debug_html += "Layer: [selected_layer]<br>"
+		debug_html += "Font: [selected_font]<br>"
+		debug_html += "Color: [ink_color]<br>"
+		debug_html += "Can Apply: [check_can_apply(ink_uses, victim)]"
+		debug_html += "</div></div>"
+
+		// Storage state
+		debug_html += "<div style='margin-bottom: 10px;'>"
+		debug_html += "<h4 style='color: #ff8888;'>Storage State:</h4>"
+		debug_html += "<div style='background: #0a0a0a; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.9em;'>"
+		if(victim)
+			var/datum/custom_tattoo_ui_data/stored = victim.get_tattoo_ui_data("global")
+			if(stored)
+				debug_html += "Stored Zone: [stored.zone]<br>"
+				debug_html += "Stored Artist: '[stored.artist_name]' (len: [length(stored.artist_name)])<br>"
+				debug_html += "Stored Design: '[stored.tattoo_design]' (len: [length(stored.tattoo_design)])<br>"
+				debug_html += "Sync Status: [check_sync_status(stored)]<br>"
+			else
+				debug_html += "No data stored in mob<br>"
+		else
+			debug_html += "No victim<br>"
+		debug_html += "</div></div>"
+
+		// Action log
+		debug_html += "<div>"
+		debug_html += "<h4 style='color: #ff8888;'>Recent Actions:</h4>"
+		debug_html += "<div style='background: #0a0a0a; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.8em; max-height: 100px; overflow-y: auto;'>"
+		debug_html += get_recent_logs()
+		debug_html += "</div></div>"
+
+		debug_html += "</div>"
+		return debug_html
+
+	proc/check_sync_status(datum/custom_tattoo_ui_data/stored)
+		if(!stored)
+			return "NO_STORED_DATA"
+		if(zone != stored.zone)
+			return "ZONE_MISMATCH"
+		if(artist_name != stored.artist_name)
+			return "ARTIST_MISMATCH"
+		if(tattoo_design != stored.tattoo_design)
+			return "DESIGN_MISMATCH"
+		if(selected_layer != stored.selected_layer)
+			return "LAYER_MISMATCH"
+		if(selected_font != stored.selected_font)
+			return "FONT_MISMATCH"
+		if(ink_color != stored.ink_color)
+			return "COLOR_MISMATCH"
+		if(design_mode != stored.design_mode)
+			return "MODE_MISMATCH"
+		return "SYNCED"
+
+	proc/get_recent_logs()
+		. = ""
+		. += "[world.time]: UI generated<br>"
+		return .
+
+	proc/log_debug(message)
+		world.log << "TATTOO_DEBUG: [message]"
 
 	proc/generate_body_part_selection(mob/living/carbon/human/victim, mob/viewer)
 		var/body_html = "<div style='background: #2a2a2a; padding: 15px; border-radius: 0 0 8px 8px;'>"
@@ -78,16 +162,12 @@
 					var/max_tats = part_info["max_tattoos"]
 
 					var/button_color = covered ? "#f44336" : "#4CAF50"
-					var/button_hover = covered ? "#d32f2f" : "#388E3C"
 					var/tattoo_status = "([current_tats]/[max_tats])"
 
 					body_html += {"
 					<a href='?src=[REF(victim)];tattoo_select_zone=[zone_key]'
 					   style='display: block; background: [button_color]; color: white; padding: 12px;
-					          border-radius: 6px; text-decoration: none; text-align: center;
-					          transition: background 0.2s; border: 2px solid [button_color];'
-					   onmouseover='this.style.background=\"[button_hover]\"'
-					   onmouseout='this.style.background=\"[button_color]\"'>
+					          border-radius: 6px; text-decoration: none; text-align: center; border: 2px solid [button_color];'>
 						<div style='font-weight: bold; margin-bottom: 4px;'>[part_name]</div>
 						<div style='font-size: 0.9em; opacity: 0.9;'>[tattoo_status]</div>
 					</a>
@@ -101,7 +181,7 @@
 	proc/generate_design_interface(mob/living/carbon/human/victim, mob/viewer, ink_uses)
 		var/design_html = "<div style='background: #2a2a2a; padding: 15px; border-radius: 0 0 8px 8px;'>"
 
-		// Preview section - generate FIRST to ensure it's current
+		// Preview section
 		design_html += "<div style='margin-bottom: 20px;'>"
 		design_html += generate_preview(victim, viewer)
 		design_html += "</div>"
@@ -117,25 +197,27 @@
 		design_html += "<div style='color: #4CAF50; font-weight: bold; margin-bottom: 5px;'>"
 		design_html += "Artist Name [findtext(artist_name, "%s") ? "<span style='color: #FFD700;'>(Signature Format)</span>" : ""]"
 		design_html += "</div>"
-		design_html += "<form action='byond://' method='GET' style='margin: 0;'>"
+		design_html += "<form action='byond://' method='get' style='margin: 0;'>"
 		design_html += "<input type='hidden' name='src' value='[REF(victim)]'>"
 		design_html += "<input type='text' name='tattoo_artist' value='[html_encode(artist_name)]' "
-		design_html += "style='width: 100%; padding: 8px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 4px;' "
-		design_html += "placeholder='Artist name (use %s for signature format)'>"
+		design_html += "style='width: calc(100% - 80px); padding: 8px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 4px; display: inline-block;' "
+		design_html += "placeholder='Artist name (use %s for signature)'>"
+		design_html += "<input type='submit' name='submit_artist' value='Update' style='width: 70px; margin-left: 5px; padding: 8px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; display: inline-block;'>"
+		design_html += "</form>"
 		design_html += "<div style='color: #888; font-size: 0.9em; margin-top: 5px;'>"
 		design_html += "Use %s in name for signature formatting"
 		design_html += "</div>"
-		design_html += "</form>"
 		design_html += "</div>"
 
 		// Tattoo design
 		design_html += "<div style='margin-bottom: 15px;'>"
 		design_html += "<div style='color: #4CAF50; font-weight: bold; margin-bottom: 5px;'>Tattoo Design</div>"
-		design_html += "<form action='byond://' method='GET' style='margin: 0;'>"
+		design_html += "<form action='byond://' method='get' style='margin: 0;'>"
 		design_html += "<input type='hidden' name='src' value='[REF(victim)]'>"
 		design_html += "<textarea name='tattoo_design' "
-		design_html += "style='width: 100%; height: 80px; padding: 8px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 4px; resize: vertical;' "
+		design_html += "style='width: 100%; height: 80px; padding: 8px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 4px; resize: vertical; margin-bottom: 5px;' "
 		design_html += "placeholder='Describe the tattoo design (supports :emoji: and basic HTML)'>[html_encode(tattoo_design)]</textarea>"
+		design_html += "<input type='submit' name='submit_design' value='Update Design' style='padding: 8px 12px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;'>"
 		design_html += "</form>"
 		design_html += "</div>"
 
@@ -189,19 +271,17 @@
 		design_html += "</div>"
 
 		// Action buttons
-		var/can_apply = artist_name && tattoo_design && ink_uses > 0 && victim
+		var/can_apply = check_can_apply(ink_uses, victim)
 		design_html += "<div style='display: flex; gap: 10px;'>"
 
 		// Back button
 		design_html += "<a href='?src=[REF(victim)];tattoo_back_to_parts=1' "
 		design_html += "style='display: inline-block; background: #666; color: white; padding: 10px 20px; border-radius: 4px; text-decoration: none;'>← Back to Parts</a>"
 
-		// Apply button - now properly checks both fields
+		// Apply button
 		if(victim)
 			design_html += "<a href='?src=[REF(victim)];tattoo_apply=1' "
 			design_html += "style='display: inline-block; background: [can_apply ? "#4CAF50" : "#666"]; color: white; padding: 10px 20px; border-radius: 4px; text-decoration: none; flex-grow: 1; text-align: center;'"
-			if(!can_apply)
-				design_html += " onclick='alert(\"Cannot apply tattoo! Make sure both artist name and design are filled out and you have ink remaining.\"); return false;'"
 			design_html += ">"
 			design_html += "Apply Tattoo ([ink_uses] use[ink_uses != 1 ? "s" : ""] left)"
 			design_html += "</a>"
@@ -210,16 +290,42 @@
 
 		design_html += "</div>"
 
-		design_html += "</div>" // End design controls
-		design_html += "</div>" // End design interface
+		design_html += "</div>"
+		design_html += "</div>"
 
 		return design_html
+
+	proc/check_can_apply(ink_uses, mob/victim)
+		if(!victim || !zone || !design_mode)
+			log_debug("CAN_APPLY_FAIL: Missing victim/zone/design_mode")
+			return FALSE
+		if(!artist_name || length(artist_name) == 0)
+			log_debug("CAN_APPLY_FAIL: Empty artist_name")
+			return FALSE
+		if(!tattoo_design || length(tattoo_design) == 0)
+			log_debug("CAN_APPLY_FAIL: Empty tattoo_design")
+			return FALSE
+		if(ink_uses <= 0)
+			log_debug("CAN_APPLY_FAIL: No ink")
+			return FALSE
+		if(!is_custom_tattoo_bodypart_existing(victim, zone))
+			log_debug("CAN_APPLY_FAIL: Body part doesn't exist")
+			return FALSE
+		if(!get_custom_tattoo_location_accessible(victim, zone))
+			log_debug("CAN_APPLY_FAIL: Body part not accessible")
+			return FALSE
+		var/current_tattoos = length(get_custom_tattoos_fallback(victim, zone))
+		if(current_tattoos >= CUSTOM_MAX_TATTOOS_PER_PART)
+			log_debug("CAN_APPLY_FAIL: Max tattoos reached")
+			return FALSE
+		log_debug("CAN_APPLY_SUCCESS: All checks passed")
+		return TRUE
 
 	proc/generate_preview(mob/living/carbon/human/victim, mob/viewer)
 		if(!victim || !zone)
 			return "<div style='background: #1a1a1a; padding: 20px; border-radius: 6px; color: #666; text-align: center;'>Select a body part to begin designing</div>"
 
-		var/list/existing_tattoos = victim.get_custom_tattoos(zone)
+		var/list/existing_tattoos = get_custom_tattoos_fallback(victim, zone)
 		var/body_part_name = get_custom_tattoo_body_part_description(zone)
 
 		var/preview_html = "<div style='background: #1a1a1a; padding: 15px; border-radius: 6px; border: 2px solid #333;'>"
@@ -241,7 +347,7 @@
 			preview_html += "</div></div>"
 
 		// Show new design preview in examine format
-		if(artist_name && tattoo_design)
+		if(artist_name && length(artist_name) > 0 && tattoo_design && length(tattoo_design) > 0)
 			preview_html += "<div style='border: 2px dashed [ink_color]; padding: 12px; border-radius: 6px; background: rgba([hex_to_rgb(ink_color)], 0.1);'>"
 			preview_html += "<h4 style='color: [ink_color]; margin-top: 0;'>New Design Preview:</h4>"
 
@@ -255,7 +361,7 @@
 
 			// Automatically handle signature formatting based on %s
 			if(findtext(display_artist, "%s"))
-				display_artist = replacetext(display_artist, "%s", display_artist)
+				// For preview, just show the format, don't replace with actual name
 				display_artist = "<font face='[FOUNTAIN_PEN_FONT]'>[display_artist]</font>"
 
 			// Use the same format as examine text
@@ -274,7 +380,7 @@
 			preview_html += "<div style='color: #666; text-align: center; padding: 20px; border: 1px dashed #333; border-radius: 4px;'>"
 			if(!artist_name && !tattoo_design)
 				preview_html += "Enter artist name and design description to see preview"
-			else if(!artist_name)
+			else if(!artist_name || length(artist_name) == 0)
 				preview_html += "Enter artist name to see preview"
 			else
 				preview_html += "Enter design description to see preview"
@@ -283,73 +389,98 @@
 		preview_html += "</div>"
 		return preview_html
 
-	// Handle UI interactions - FIXED to preserve text on font changes
+	// Handle UI interactions
 	proc/handle_topic(href, href_list, mob/user, obj/item/custom_tattoo_kit/kit)
 		if(!kit || !user)
-			return
+			log_debug("HANDLE_TOPIC_FAIL: Missing kit or user")
+			return FALSE
+
+		log_debug("HANDLE_TOPIC: [href_list]")
 
 		// Handle form submissions FIRST to preserve text
-		if(href_list["tattoo_artist"])
+		if(href_list["submit_artist"] && href_list["tattoo_artist"])
 			var/new_artist = href_list["tattoo_artist"]
+			log_debug("ARTIST_UPDATE: Old='[artist_name]' New='[new_artist]'")
 			artist_name = new_artist
 			if(kit.current_target)
 				kit.current_target.set_tattoo_ui_data("global", src)
+				log_debug("ARTIST_SAVED: Saved to mob storage")
 			kit.ui_interact(user)
 			return TRUE
 
-		if(href_list["tattoo_design"])
+		if(href_list["submit_design"] && href_list["tattoo_design"])
 			var/new_design = href_list["tattoo_design"]
+			log_debug("DESIGN_UPDATE: Old='[tattoo_design]' New='[new_design]'")
 			tattoo_design = new_design
 			if(kit.current_target)
 				kit.current_target.set_tattoo_ui_data("global", src)
+				log_debug("DESIGN_SAVED: Saved to mob storage")
 			kit.ui_interact(user)
 			return TRUE
 
 		if(href_list["tattoo_select_zone"])
 			var/new_zone = href_list["tattoo_select_zone"]
+			log_debug("ZONE_SELECT: [new_zone]")
 			if(kit.current_target && is_custom_tattoo_bodypart_existing(kit.current_target, new_zone))
 				zone = new_zone
 				design_mode = TRUE
-				kit.current_target.set_tattoo_ui_data("global", src)
+				if(kit.current_target)
+					kit.current_target.set_tattoo_ui_data("global", src)
+					log_debug("ZONE_SAVED: Saved to mob storage")
 				kit.ui_interact(user)
 			return TRUE
 
 		if(href_list["tattoo_back_to_parts"])
+			log_debug("BACK_TO_PARTS")
 			design_mode = FALSE
 			if(kit.current_target)
 				kit.current_target.set_tattoo_ui_data("global", src)
+				log_debug("MODE_SAVED: Saved to mob storage")
+			kit.ui_interact(user)
+			return TRUE
+
+		if(href_list["tattoo_toggle_debug"])
+			debug_mode = !debug_mode
+			log_debug("DEBUG_MODE: [debug_mode ? "ON" : "OFF"]")
 			kit.ui_interact(user)
 			return TRUE
 
 		if(href_list["tattoo_set_font"])
 			var/new_font = href_list["tattoo_set_font"]
+			log_debug("FONT_CHANGE: [selected_font] -> [new_font]")
 			if(new_font in font_options)
 				selected_font = new_font
 				if(kit.current_target)
 					kit.current_target.set_tattoo_ui_data("global", src)
+					log_debug("FONT_SAVED: Saved to mob storage")
 				kit.ui_interact(user)
 			return TRUE
 
 		if(href_list["tattoo_set_layer"])
 			var/new_layer = text2num(href_list["tattoo_set_layer"])
+			log_debug("LAYER_CHANGE: [selected_layer] -> [new_layer]")
 			if(new_layer in list(1, 2, 3))
 				selected_layer = new_layer
 				if(kit.current_target)
 					kit.current_target.set_tattoo_ui_data("global", src)
+					log_debug("LAYER_SAVED: Saved to mob storage")
 				kit.ui_interact(user)
 			return TRUE
 
 		if(href_list["tattoo_change_color"])
 			var/new_color = input(user, "Choose ink color:", "Tattoo Kit", ink_color) as color|null
 			if(new_color)
+				log_debug("COLOR_CHANGE: [ink_color] -> [new_color]")
 				ink_color = new_color
 				if(kit.current_target)
 					kit.current_target.set_tattoo_ui_data("global", src)
+					log_debug("COLOR_SAVED: Saved to mob storage")
 				kit.ui_interact(user)
 			return TRUE
 
 		if(href_list["tattoo_apply"])
-			if(kit.can_apply_tattoo())
+			log_debug("APPLY_ATTEMPT")
+			if(kit.can_apply_tattoo(user))
 				kit.apply_tattoo(user)
 			else
 				to_chat(user, span_warning("Cannot apply tattoo - check requirements."))
@@ -364,8 +495,26 @@
 		selected_layer = CUSTOM_TATTOO_LAYER_NORMAL
 		selected_font = PEN_FONT
 		ink_color = "#000000"
-		preview_cache = ""
 		design_mode = FALSE
+		log_debug("UI_DATA_CLEARED")
+
+// Fallback helper to get tattoos for a victim if the mob helper isn't available
+/proc/get_custom_tattoos_fallback(mob/living/carbon/human/victim, body_zone)
+	if(!istype(victim) || !victim.custom_body_tattoos)
+		return list()
+
+	var/search_zone = istext(body_zone) ? string_to_zone(body_zone) : body_zone
+	var/search_zone_string = zone_to_string(search_zone)
+	var/list/found_tattoos = list()
+
+	for(var/datum/custom_tattoo/T as anything in victim.custom_body_tattoos)
+		if(QDELETED(T))
+			continue
+		var/tattoo_zone_string = zone_to_string(T.body_part)
+		if(tattoo_zone_string == search_zone_string)
+			found_tattoos += T
+
+	return sortTim(found_tattoos, GLOBAL_PROC_REF(cmp_custom_tattoo_layer_asc))
 
 // Helper proc to convert hex color to RGB values for rgba()
 /proc/hex_to_rgb(hex_color)
