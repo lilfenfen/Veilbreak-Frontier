@@ -17,18 +17,29 @@
 /mob/living/carbon/human/proc/add_custom_tattoo(datum/custom_tattoo/new_tattoo)
 	if(!istype(new_tattoo) || QDELETED(new_tattoo))
 		return FALSE
-	if(!is_custom_tattoo_bodypart_valid(new_tattoo.body_part))
+
+	// Convert string zone to define if needed
+	var/actual_zone = istext(new_tattoo.body_part) ? string_to_zone(new_tattoo.body_part) : new_tattoo.body_part
+
+	if(!is_custom_tattoo_bodypart_valid(actual_zone))
 		return FALSE
+
 	if(!custom_body_tattoos)
 		custom_body_tattoos = list()
-	var/current_tattoos = length(get_custom_tattoos(new_tattoo.body_part))
+
+	var/current_tattoos = length(get_custom_tattoos(actual_zone))
 	if(current_tattoos >= CUSTOM_MAX_TATTOOS_PER_PART)
 		return FALSE
+
+	// Ensure the tattoo has the correct zone
+	new_tattoo.body_part = actual_zone
+
 	LAZYADD(custom_body_tattoos, new_tattoo)
-	// Keep sorted by layer
 	sortTim(custom_body_tattoos, GLOBAL_PROC_REF(cmp_custom_tattoo_layer_asc))
+
 	if(client?.prefs)
 		client.prefs.save_custom_tattoo_data()
+
 	regenerate_icons()
 	return TRUE
 

@@ -1,5 +1,5 @@
 // tgui/packages/tgui/interfaces/TattooKit.jsx
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useBackend } from '../backend';
 import {
   Section,
@@ -19,21 +19,92 @@ import { Window } from '../layouts';
 export const TattooKit = (props, context) => {
   const { act, data } = useBackend(context);
   const {
-    target_name,
-    ink_uses,
-    max_ink_uses,
-    ink_color,
+    target_name = "None",
+    ink_uses = 0,
+    max_ink_uses = 0,
+    ink_color = "#000000",
     selected_zone,
-    body_parts,
-    artist_name,
-    tattoo_design,
-    selected_layer,
-    selected_font,
-    preview_text,
+    body_parts = [],
+    artist_name = "",
+    tattoo_design = "",
+    selected_layer = 2,
+    selected_font = "PEN_FONT",
+    preview_text = "",
   } = data;
 
+  // Enhanced local state with sync tracking
+  const [localArtist, setLocalArtist] = useState(artist_name);
+  const [localDesign, setLocalDesign] = useState(tattoo_design);
+  const [lastBackendArtist, setLastBackendArtist] = useState(artist_name);
+  const [lastBackendDesign, setLastBackendDesign] = useState(tattoo_design);
+  const [syncStatus, setSyncStatus] = useState("synced");
+
+  // Refs to track pending updates
+  const pendingArtistUpdate = useRef(false);
+  const pendingDesignUpdate = useRef(false);
+
+  // Robust sync with backend - handles sanitization conflicts
+  useEffect(() => {
+    if (artist_name !== lastBackendArtist) {
+      // If we have a pending update, check if backend accepted it or modified it
+      if (pendingArtistUpdate.current) {
+        if (artist_name === localArtist) {
+          // Backend accepted our update exactly
+          setSyncStatus("synced");
+        } else {
+          // Backend modified our input - sync local to backend
+          setLocalArtist(artist_name);
+          setSyncStatus("backend_modified");
+        }
+        pendingArtistUpdate.current = false;
+      } else {
+        // External change from backend, sync local
+        setLocalArtist(artist_name);
+      }
+      setLastBackendArtist(artist_name);
+    }
+  }, [artist_name, lastBackendArtist, localArtist]);
+
+  useEffect(() => {
+    if (tattoo_design !== lastBackendDesign) {
+      if (pendingDesignUpdate.current) {
+        if (tattoo_design === localDesign) {
+          setSyncStatus("synced");
+        } else {
+          setLocalDesign(tattoo_design);
+          setSyncStatus("backend_modified");
+        }
+        pendingDesignUpdate.current = false;
+      } else {
+        setLocalDesign(tattoo_design);
+      }
+      setLastBackendDesign(tattoo_design);
+    }
+  }, [tattoo_design, lastBackendDesign, localDesign]);
+
   const inkFraction = max_ink_uses ? ink_uses / max_ink_uses : 0;
-  const canApply = selected_zone && artist_name && tattoo_design && ink_uses > 0;
+
+  // Use UNSANITIZED local state for validation to match what user sees
+  const canApply = selected_zone &&
+                  localArtist && localArtist.length > 0 &&
+                  localDesign && localDesign.length > 0 &&
+                  ink_uses > 0;
+
+  const handleArtistChange = (value) => {
+    setLocalArtist(value);
+    setSyncStatus("pending");
+    pendingArtistUpdate.current = true;
+    // Send RAW data to backend - let backend decide about sanitization
+    act('set_artist', { value: value });
+  };
+
+  const handleDesignChange = (value) => {
+    setLocalDesign(value);
+    setSyncStatus("pending");
+    pendingDesignUpdate.current = true;
+    // Send RAW data to backend
+    act('set_design', { value: value });
+  };
 
   const PreviewBox = ({ html }) => (
     <Box
@@ -47,38 +118,28 @@ export const TattooKit = (props, context) => {
         border: '1px solid rgba(255,255,255,0.04)',
       }}
     >
-      <div dangerouslySetInnerHTML={{ __html: html || "<i>No preview available.</i>" }} />
+      <div dangerouslySetInnerHTML={{ __html: html }} />
     </Box>
   );
 
   return (
-    <Window width={760} height={580} theme="ntos">
+    <Window width={760} height={600} theme="ntos">
       <Window.Content scrollable>
-        <Section title={`Tattoo Kit — Target: ${target_name || "None"}`}>
+        {/* Sync Status Indicator */}
+        <Section title={`Tattoo Kit — Target: ${target_name}`}>
           <Stack fill align="center">
             <Stack.Item grow>
               <ProgressBar value={inkFraction} />
-              <Box mt={1}>Ink: {ink_uses || 0}/{max_ink_uses || 0}</Box>
+              <Box mt={1}>Ink: {ink_uses}/{max_ink_uses}</Box>
             </Stack.Item>
             <Stack.Item>
-              <Stack align="center">
-                <Stack.Item>
-                  <Box>Ink Color</Box>
-                </Stack.Item>
-                <Stack.Item>
-                  <ColorBox color={ink_color || "#000000"} />
-                </Stack.Item>
-                <Stack.Item>
-                  <Button ml={1} onClick={() => act('change_color')}>
-                    Choose
-                  </Button>
-                </Stack.Item>
-                <Stack.Item>
-                  <Button ml={1} onClick={() => act('refill_ink')}>
-                    Refill
-                  </Button>
-                </Stack.Item>
-              </Stack>
+              <Box color={
+                syncStatus === "synced" ? "good" :
+                syncStatus === "pending" ? "average" :
+                "bad"
+              }>
+                Sync: {syncStatus}
+              </Box>
             </Stack.Item>
           </Stack>
         </Section>
@@ -101,21 +162,17 @@ export const TattooKit = (props, context) => {
         {!selected_zone && (
           <Section title="Select a Body Part">
             <Stack wrap>
-              {body_parts?.map((part) => (
+              {body_parts.map((part) => (
                 <Stack.Item key={part.zone}>
                   <Button
                     m={0.5}
                     selected={selected_zone === part.zone}
                     onClick={() => act('select_zone', { zone: part.zone })}
                   >
-                    {part.name || "Unknown"}
+                    {part.name}
                   </Button>
                 </Stack.Item>
-              )) || (
-                <Stack.Item>
-                  <Box color="average">No body parts available.</Box>
-                </Stack.Item>
-              )}
+              ))}
             </Stack>
           </Section>
         )}
@@ -126,9 +183,9 @@ export const TattooKit = (props, context) => {
               <LabeledList.Item label="Artist">
                 <Input
                   fluid
-                  value={artist_name || ""}
+                  value={localArtist}
                   placeholder="Artist name"
-                  onChange={(e, value) => act('set_artist', { value: value || "" })}
+                  onChange={(e, value) => handleArtistChange(value)}
                 />
               </LabeledList.Item>
 
@@ -136,9 +193,9 @@ export const TattooKit = (props, context) => {
                 <TextArea
                   fluid
                   rows={3}
-                  value={tattoo_design || ""}
+                  value={localDesign}
                   placeholder="Describe the design"
-                  onChange={(e, value) => act('set_design', { value: value || "" })}
+                  onChange={(e, value) => handleDesignChange(value)}
                 />
               </LabeledList.Item>
 
@@ -148,7 +205,6 @@ export const TattooKit = (props, context) => {
                     <Button
                       selected={selected_layer === 1}
                       onClick={() => act('set_layer', { layer: 1 })}
-                      tooltip="Under layer - appears below clothing"
                     >
                       Under
                     </Button>
@@ -157,7 +213,6 @@ export const TattooKit = (props, context) => {
                     <Button
                       selected={selected_layer === 2}
                       onClick={() => act('set_layer', { layer: 2 })}
-                      tooltip="Normal layer - standard placement"
                     >
                       Normal
                     </Button>
@@ -166,7 +221,6 @@ export const TattooKit = (props, context) => {
                     <Button
                       selected={selected_layer === 3}
                       onClick={() => act('set_layer', { layer: 3 })}
-                      tooltip="Over layer - appears above clothing"
                     >
                       Over
                     </Button>
@@ -210,7 +264,6 @@ export const TattooKit = (props, context) => {
                   color="good"
                   onClick={() => act('apply_tattoo')}
                   disabled={!canApply}
-                  tooltip={!canApply ? "Fill all required fields and ensure ink is available" : "Apply the tattoo"}
                 >
                   Apply Tattoo
                 </Button>
@@ -227,7 +280,35 @@ export const TattooKit = (props, context) => {
           </Section>
         )}
 
-        <Section title="Preview & Details" fill>
+        <Section title="Data Integrity Monitor">
+          <Table>
+            <Table.Row>
+              <Table.Cell>Local Artist</Table.Cell>
+              <Table.Cell>"{localArtist}" (length: {localArtist?.length || 0})</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>Backend Artist</Table.Cell>
+              <Table.Cell>"{artist_name}" (length: {artist_name?.length || 0})</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>Local Design</Table.Cell>
+              <Table.Cell>"{localDesign}" (length: {localDesign?.length || 0})</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>Backend Design</Table.Cell>
+              <Table.Cell>"{tattoo_design}" (length: {tattoo_design?.length || 0})</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>Data Match</Table.Cell>
+              <Table.Cell>
+                {localArtist === artist_name && localDesign === tattoo_design ?
+                  "✅ PERFECT SYNC" : "❌ OUT OF SYNC"}
+              </Table.Cell>
+            </Table.Row>
+          </Table>
+        </Section>
+
+        <Section title="Preview & Details">
           <Stack fill>
             <Stack.Item grow>
               <PreviewBox html={preview_text} />
@@ -239,23 +320,27 @@ export const TattooKit = (props, context) => {
                     <Table>
                       <Table.Row>
                         <Table.Cell>Artist</Table.Cell>
-                        <Table.Cell>{artist_name || "—"}</Table.Cell>
+                        <Table.Cell>{localArtist || "—"}</Table.Cell>
                       </Table.Row>
                       <Table.Row>
                         <Table.Cell>Design</Table.Cell>
-                        <Table.Cell>{tattoo_design || "—"}</Table.Cell>
+                        <Table.Cell>{localDesign || "—"}</Table.Cell>
                       </Table.Row>
                       <Table.Row>
                         <Table.Cell>Layer</Table.Cell>
-                        <Table.Cell>{selected_layer || 2}</Table.Cell>
+                        <Table.Cell>{selected_layer}</Table.Cell>
                       </Table.Row>
                       <Table.Row>
                         <Table.Cell>Font</Table.Cell>
-                        <Table.Cell>{selected_font || "PEN_FONT"}</Table.Cell>
+                        <Table.Cell>{selected_font}</Table.Cell>
                       </Table.Row>
                       <Table.Row>
                         <Table.Cell>Ink</Table.Cell>
-                        <Table.Cell>{ink_uses || 0}/{max_ink_uses || 0}</Table.Cell>
+                        <Table.Cell>{ink_uses}/{max_ink_uses}</Table.Cell>
+                      </Table.Row>
+                      <Table.Row>
+                        <Table.Cell>Can Apply</Table.Cell>
+                        <Table.Cell>{canApply ? "YES" : "NO"}</Table.Cell>
                       </Table.Row>
                     </Table>
                   </Section>

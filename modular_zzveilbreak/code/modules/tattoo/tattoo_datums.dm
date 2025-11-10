@@ -11,37 +11,39 @@
 	var/is_signature = FALSE
 	var/font = PEN_FONT
 
-	// Constructor - sets safe defaults and sanitizes inputs
+	// Constructor - MINIMAL sanitization only for security, not formatting
 	New(artist_in, design_in, body_part_in, color_in, layer_in = CUSTOM_TATTOO_LAYER_NORMAL, is_signature_in = FALSE, font_in = PEN_FONT)
+		// Preserve exact input for artist and design
 		artist = artist_in || "Unknown Artist"
-		design = process_tattoo_design(design_in || "An intricate design", artist, is_signature_in)
+		design = design_in || "An intricate design"
+
+		// Only sanitize where absolutely necessary for security/functionality
 		body_part = body_part_in || BODY_ZONE_CHEST
-		color = sanitize_hexcolor(color_in, default = "#000000")
+		color = sanitize_hexcolor(color_in, default = "#000000") // Security: prevent invalid colors
 		layer = sanitize_integer(layer_in, CUSTOM_TATTOO_LAYER_UNDER, CUSTOM_TATTOO_LAYER_OVER, CUSTOM_TATTOO_LAYER_NORMAL)
 		date_applied = time2text(world.realtime, "YYYY-MM-DD")
 		is_signature = is_signature_in
-		font = (font_in in GLOB.custom_tattoo_fonts) ? font_in : PEN_FONT
+		font = (font_in in GLOB.custom_tattoo_fonts) ? font_in : PEN_FONT // Security: valid font only
 
 	// Returns an HTML-safe examine string for TGUI (uses emoji images if requested)
 	proc/get_examine_text(viewer, victim, use_emoji_images = FALSE)
 		if(!is_custom_tattoo_visible(viewer, victim))
 			return ""
+
+		// Use EXACT stored data - no processing unless requested
 		var/display_design = design
 		var/display_artist = artist
-		if(!display_design || trimtext(display_design) == "")
-			display_design = "an intricate design"
-		if(!display_artist || trimtext(display_artist) == "")
-			display_artist = "an unknown artist"
-		if(findtext(display_design, "%s"))
-			display_design = replacetext(display_design, "%s", display_artist)
+
+		// Only apply visual formatting for UI display, never modify content
 		if(use_emoji_images && CONFIG_GET(flag/emojis))
 			display_design = emoji_parse(display_design)
-		else
-			display_design = replace_emoji_codes_text(display_design)
+
 		if(use_emoji_images && font && font != PEN_FONT)
 			display_design = "<font face='[font]'>[display_design]</font>"
+
 		if(use_emoji_images && is_signature)
 			display_artist = "<font face='[FOUNTAIN_PEN_FONT]'>[display_artist]</font>"
+
 		var/body_part_description = get_custom_tattoo_body_part_description(body_part)
 		var/text = "<span style='color:[color]'>- [body_part_description]: \"[display_design]\" (by [display_artist])</span>"
 		return text
@@ -116,13 +118,13 @@
 		if("vagina") return ORGAN_SLOT_VAGINA
 		if("testicles", "balls") return ORGAN_SLOT_TESTICLES
 		if("breasts", "boobs", "tits") return ORGAN_SLOT_BREASTS
-	 if("anus", "asshole") return ORGAN_SLOT_ANUS
+		if("anus", "asshole") return ORGAN_SLOT_ANUS
 		if("nipples") return ORGAN_SLOT_NIPPLES
 		if("tail") return ORGAN_SLOT_TAIL
 		if("slit") return ORGAN_SLOT_SLIT
 		if("sheath") return ORGAN_SLOT_SHEATH
 		if("wings") return ORGAN_SLOT_WINGS
-		else return body_part_string
+		else return string_to_zone(body_part_string)
 
 /proc/process_tattoo_design(design, artist, is_signature)
 	if(!design || !istext(design)) return "An intricate design"

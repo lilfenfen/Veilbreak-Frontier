@@ -124,6 +124,13 @@
 		return FALSE
 	if(!artist_name || !tattoo_design)
 		return FALSE
+	if(!is_custom_tattoo_bodypart_existing(current_target, selected_zone))
+		return FALSE
+	if(!get_custom_tattoo_location_accessible(current_target, selected_zone))
+		return FALSE
+	var/current_tattoos = length(current_target.get_custom_tattoos(selected_zone))
+	if(current_tattoos >= CUSTOM_MAX_TATTOOS_PER_PART)
+		return FALSE
 	return TRUE
 
 /obj/item/custom_tattoo_kit/proc/apply_tattoo(mob/user)
@@ -137,10 +144,10 @@
 		to_chat(user, span_warning("Tattoo application interrupted!"))
 		return FALSE
 
-	// Create tattoo with current data
+	// Create tattoo with current data - NO SANITIZATION of artist/design
 	var/datum/custom_tattoo/new_tattoo = new(
-		artist_name,
-		tattoo_design,
+		artist_name,        // Preserved exactly as user entered
+		tattoo_design,      // Preserved exactly as user entered
 		selected_zone,
 		ink_color,
 		selected_layer,
@@ -170,24 +177,44 @@
 
 	switch(action)
 		if("select_zone")
-			selected_zone = params["zone"]
-			. = TRUE
+			var/new_zone = params["zone"]
+			if(new_zone && is_custom_tattoo_bodypart_existing(current_target, new_zone))
+				selected_zone = new_zone
+				. = TRUE
+			else
+				selected_zone = null
+				. = TRUE
 
 		if("set_artist")
-			artist_name = params["value"] || ""
-			. = TRUE
+			var/new_artist = params["value"] || "" // NO TRIMMING - preserve exact input
+			// Only validate presence, don't modify data
+			if(length(new_artist) > 0)
+				artist_name = new_artist
+				. = TRUE
+			else
+				artist_name = ""
+				. = TRUE
 
 		if("set_design")
-			tattoo_design = params["value"] || ""
-			. = TRUE
+			var/new_design = params["value"] || "" // NO TRIMMING - preserve exact input
+			if(length(new_design) > 0)
+				tattoo_design = new_design
+				. = TRUE
+			else
+				tattoo_design = ""
+				. = TRUE
 
 		if("set_layer")
-			selected_layer = text2num(params["layer"]) || 2
-			. = TRUE
+			var/new_layer = text2num(params["layer"])
+			if(new_layer in list(1, 2, 3))
+				selected_layer = new_layer
+				. = TRUE
 
 		if("set_font")
-			selected_font = params["font"] || "PEN_FONT"
-			. = TRUE
+			var/new_font = params["font"]
+			if(new_font in list("PEN_FONT", "FOUNTAIN_PEN_FONT", "PRINTER_FONT"))
+				selected_font = new_font
+				. = TRUE
 
 		if("change_color")
 			var/new_color = input(usr, "Choose ink color:", "Tattoo Kit", ink_color) as color|null
@@ -196,7 +223,11 @@
 				. = TRUE
 
 		if("apply_tattoo")
-			. = apply_tattoo(usr)
+			if(can_apply_tattoo())
+				. = apply_tattoo(usr)
+			else
+				to_chat(usr, span_warning("Cannot apply tattoo - check requirements."))
+				. = FALSE
 
 		if("refill_ink")
 			refill_ink(usr)
