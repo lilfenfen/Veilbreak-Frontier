@@ -9,8 +9,8 @@
 // Tattoo preference path
 #define CUSTOM_TATTOO_PREFERENCE_PATH /datum/preference/toggle/allow_bodywriting
 
-// Maximum tattoos per body part
-#define CUSTOM_MAX_TATTOOS_PER_PART 5
+// Maximum tattoos per body part - CHANGED TO 3
+#define CUSTOM_MAX_TATTOOS_PER_PART 3
 
 // Default tattoo application time
 #define CUSTOM_TATTOO_APPLICATION_TIME (8 SECONDS)

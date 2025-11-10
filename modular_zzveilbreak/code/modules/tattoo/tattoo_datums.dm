@@ -52,6 +52,15 @@
 	proc/get_examine_text_tgui(viewer, victim)
 		return get_examine_text(viewer, victim, TRUE)
 
+	// Simple version for regular examine (no HTML formatting)
+	proc/get_simple_examine_text(viewer, victim)
+		if(!is_custom_tattoo_visible(viewer, victim))
+			return ""
+
+		var/body_part_description = get_custom_tattoo_body_part_description(body_part)
+		var/text = "- [body_part_description]: \"[design]\" (by [artist])"
+		return text
+
 	// Visibility checks (distance + clothing)
 	proc/is_custom_tattoo_visible(viewer, victim)
 		if(!victim || !viewer)

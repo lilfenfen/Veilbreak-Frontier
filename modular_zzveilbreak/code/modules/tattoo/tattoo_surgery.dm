@@ -111,7 +111,7 @@
 		burn_damage = 8
 		tool_message = "precisely with the cautery"
 	else if(istype(tool, /obj/item/cigarette))
-		burn_damage = 15
+		burn_damage = 25
 		tool_message = "carefully with the cigarette"
 	else if(istype(tool, /obj/item/lighter))
 		burn_damage = 25

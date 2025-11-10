@@ -27,8 +27,13 @@
 	if(!custom_body_tattoos)
 		custom_body_tattoos = list()
 
-	var/current_tattoos = length(get_custom_tattoos(actual_zone))
-	if(current_tattoos >= CUSTOM_MAX_TATTOOS_PER_PART)
+	// CHANGED: Check if layer is already taken for this body part
+	var/list/current_tattoos = get_custom_tattoos(actual_zone)
+	for(var/datum/custom_tattoo/existing_tattoo in current_tattoos)
+		if(existing_tattoo.layer == new_tattoo.layer)
+			return FALSE // Layer already taken
+
+	if(length(current_tattoos) >= CUSTOM_MAX_TATTOOS_PER_PART)
 		return FALSE
 
 	// Ensure the tattoo has the correct zone
@@ -37,6 +42,7 @@
 	LAZYADD(custom_body_tattoos, new_tattoo)
 	sortTim(custom_body_tattoos, GLOBAL_PROC_REF(cmp_custom_tattoo_layer_asc))
 
+	// Save to preferences
 	if(client?.prefs)
 		client.prefs.save_custom_tattoo_data()
 
@@ -47,10 +53,14 @@
 /mob/living/carbon/human/proc/remove_custom_tattoo(datum/custom_tattoo/tattoo)
 	if(!tattoo || !custom_body_tattoos || !(tattoo in custom_body_tattoos))
 		return FALSE
+
 	custom_body_tattoos -= tattoo
 	qdel(tattoo)
+
+	// Save to preferences
 	if(client?.prefs)
 		client.prefs.save_custom_tattoo_data()
+
 	regenerate_icons()
 	return TRUE
 
@@ -101,6 +111,32 @@
 			. += T
 	. = sortTim(., GLOBAL_PROC_REF(cmp_custom_tattoo_layer_asc))
 	return .
+
+// Get tattoo examine text for display in examine proc
+/mob/living/carbon/human/proc/get_tattoo_examine_text(mob/viewer)
+	var/list/visible_tattoos = get_visible_custom_tattoos(viewer)
+	if(!length(visible_tattoos))
+		return list()
+
+	var/list/tattoo_text = list()
+	for(var/datum/custom_tattoo/tattoo as anything in visible_tattoos)
+		var/examine_text = tattoo.get_simple_examine_text(viewer, src)
+		if(examine_text)
+			tattoo_text += examine_text
+
+	return tattoo_text
+
+// Override the human examine to include tattoos
+/mob/living/carbon/human/examine(mob/user)
+	. = ..()
+
+	var/list/tattoo_examines = get_tattoo_examine_text(user)
+	if(length(tattoo_examines))
+		// Add spacing if there are previous entries
+		if(length(.) > 0 && .[length(.)])
+			. += ""
+		. += span_notice("[p_they(TRUE)] [p_have()] visible tattoos:")
+		. += tattoo_examines
 
 // Handle tattoo kit interactions
 /mob/living/carbon/human/Topic(href, href_list)

@@ -192,19 +192,19 @@
 		var/zone_name = zone ? get_custom_tattoo_body_part_description(zone) : "Unknown Location"
 		design_html += "<h3 style='color: #fff; margin-top: 0;'>Design for [zone_name]</h3>"
 
-		// Artist name - automatically handles %s for signature
+		// Combined form for artist and design with single update button
+		design_html += "<form action='byond://' method='get' style='margin: 0;'>"
+		design_html += "<input type='hidden' name='src' value='[REF(victim)]'>"
+
+		// Artist name
 		design_html += "<div style='margin-bottom: 15px;'>"
 		design_html += "<div style='color: #4CAF50; font-weight: bold; margin-bottom: 5px;'>"
 		design_html += "Artist Name [findtext(artist_name, "%s") ? "<span style='color: #FFD700;'>(Signature Format)</span>" : ""]"
 		design_html += "</div>"
-		design_html += "<form action='byond://' method='get' style='margin: 0;'>"
-		design_html += "<input type='hidden' name='src' value='[REF(victim)]'>"
 		design_html += "<input type='text' name='tattoo_artist' value='[html_encode(artist_name)]' "
-		design_html += "style='width: calc(100% - 80px); padding: 8px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 4px; display: inline-block;' "
+		design_html += "style='width: 100%; padding: 8px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 4px; margin-bottom: 10px;' "
 		design_html += "placeholder='Artist name (use %s for signature)'>"
-		design_html += "<input type='submit' name='submit_artist' value='Update' style='width: 70px; margin-left: 5px; padding: 8px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; display: inline-block;'>"
-		design_html += "</form>"
-		design_html += "<div style='color: #888; font-size: 0.9em; margin-top: 5px;'>"
+		design_html += "<div style='color: #888; font-size: 0.9em;'>"
 		design_html += "Use %s in name for signature formatting"
 		design_html += "</div>"
 		design_html += "</div>"
@@ -212,14 +212,16 @@
 		// Tattoo design
 		design_html += "<div style='margin-bottom: 15px;'>"
 		design_html += "<div style='color: #4CAF50; font-weight: bold; margin-bottom: 5px;'>Tattoo Design</div>"
-		design_html += "<form action='byond://' method='get' style='margin: 0;'>"
-		design_html += "<input type='hidden' name='src' value='[REF(victim)]'>"
 		design_html += "<textarea name='tattoo_design' "
-		design_html += "style='width: 100%; height: 80px; padding: 8px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 4px; resize: vertical; margin-bottom: 5px;' "
+		design_html += "style='width: 100%; height: 80px; padding: 8px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 4px; resize: vertical; margin-bottom: 10px;' "
 		design_html += "placeholder='Describe the tattoo design (supports :emoji: and basic HTML)'>[html_encode(tattoo_design)]</textarea>"
-		design_html += "<input type='submit' name='submit_design' value='Update Design' style='padding: 8px 12px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;'>"
-		design_html += "</form>"
 		design_html += "</div>"
+
+		// Update Preview button
+		design_html += "<div style='margin-bottom: 20px; text-align: center;'>"
+		design_html += "<input type='submit' name='update_preview' value='Update Preview' style='padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em;'>"
+		design_html += "</div>"
+		design_html += "</form>"
 
 		// Font selection
 		design_html += "<div style='margin-bottom: 15px;'>"
@@ -237,7 +239,7 @@
 		design_html += "</div>"
 		design_html += "</div>"
 
-		// Layer selection
+		// Layer selection with layer availability info
 		design_html += "<div style='margin-bottom: 15px;'>"
 		design_html += "<div style='color: #4CAF50; font-weight: bold; margin-bottom: 5px;'>Tattoo Layer</div>"
 		design_html += "<div style='display: flex; gap: 8px;'>"
@@ -248,14 +250,34 @@
 			"3" = "Over (Top)"
 		)
 
+		var/list/current_tattoos = get_custom_tattoos_fallback(victim, zone)
+		var/list/taken_layers = list()
+		for(var/datum/custom_tattoo/T in current_tattoos)
+			taken_layers += T.layer
+
 		for(var/layer_key in layer_options)
+			var/layer_num = text2num(layer_key)
 			var/layer_name = layer_options[layer_key]
-			var/is_selected = (selected_layer == text2num(layer_key))
+			var/is_selected = (selected_layer == layer_num)
+			var/is_taken = (layer_num in taken_layers)
+			var/button_color = is_selected ? "#4CAF50" : "#444"
+			var/button_text = layer_name
+
+			if(is_taken)
+				button_color = "#f44336"
+				button_text = "[layer_name] (Taken)"
+
 			design_html += "<a href='?src=[REF(victim)];tattoo_set_layer=[layer_key]' "
-			design_html += "style='display: inline-block; background: [is_selected ? "#4CAF50" : "#444"]; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 0.9em;'>"
-			design_html += "[layer_name]"
+			design_html += "style='display: inline-block; background: [button_color]; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 0.9em;'"
+			if(is_taken)
+				design_html += " onclick='return confirm(\"This layer already has a tattoo. Are you sure you want to select it?\");'"
+			design_html += ">"
+			design_html += "[button_text]"
 			design_html += "</a>"
 
+		design_html += "</div>"
+		design_html += "<div style='color: #888; font-size: 0.9em; margin-top: 5px;'>"
+		design_html += "Only one tattoo per layer allowed per body part"
 		design_html += "</div>"
 		design_html += "</div>"
 
@@ -314,8 +336,15 @@
 		if(!get_custom_tattoo_location_accessible(victim, zone))
 			log_debug("CAN_APPLY_FAIL: Body part not accessible")
 			return FALSE
-		var/current_tattoos = length(get_custom_tattoos_fallback(victim, zone))
-		if(current_tattoos >= CUSTOM_MAX_TATTOOS_PER_PART)
+
+		// Check if layer is already taken
+		var/list/current_tattoos = get_custom_tattoos_fallback(victim, zone)
+		for(var/datum/custom_tattoo/T in current_tattoos)
+			if(T.layer == selected_layer)
+				log_debug("CAN_APPLY_FAIL: Layer [selected_layer] already taken")
+				return FALSE
+
+		if(length(current_tattoos) >= CUSTOM_MAX_TATTOOS_PER_PART)
 			log_debug("CAN_APPLY_FAIL: Max tattoos reached")
 			return FALSE
 		log_debug("CAN_APPLY_SUCCESS: All checks passed")
@@ -397,24 +426,21 @@
 
 		log_debug("HANDLE_TOPIC: [href_list]")
 
-		// Handle form submissions FIRST to preserve text
-		if(href_list["submit_artist"] && href_list["tattoo_artist"])
+		// Handle preview update (both artist and design)
+		if(href_list["update_preview"])
 			var/new_artist = href_list["tattoo_artist"]
-			log_debug("ARTIST_UPDATE: Old='[artist_name]' New='[new_artist]'")
-			artist_name = new_artist
-			if(kit.current_target)
-				kit.current_target.set_tattoo_ui_data("global", src)
-				log_debug("ARTIST_SAVED: Saved to mob storage")
-			kit.ui_interact(user)
-			return TRUE
-
-		if(href_list["submit_design"] && href_list["tattoo_design"])
 			var/new_design = href_list["tattoo_design"]
-			log_debug("DESIGN_UPDATE: Old='[tattoo_design]' New='[new_design]'")
-			tattoo_design = new_design
+
+			log_debug("PREVIEW_UPDATE: Artist='[new_artist]', Design='[new_design]'")
+
+			if(new_artist)
+				artist_name = new_artist
+			if(new_design)
+				tattoo_design = new_design
+
 			if(kit.current_target)
 				kit.current_target.set_tattoo_ui_data("global", src)
-				log_debug("DESIGN_SAVED: Saved to mob storage")
+				log_debug("PREVIEW_SAVED: Saved to mob storage")
 			kit.ui_interact(user)
 			return TRUE
 

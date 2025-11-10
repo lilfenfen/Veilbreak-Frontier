@@ -119,7 +119,7 @@ GLOBAL_LIST_INIT(coverage_relationships, list(
 		if("tail") return ORGAN_SLOT_TAIL
 		if("slit") return ORGAN_SLOT_SLIT
 		if("sheath") return ORGAN_SLOT_SHEATH
-		if("wings") return ORGAN_SLOT_WINGS
+	 if("wings") return ORGAN_SLOT_WINGS
 		if("butt") return ORGAN_SLOT_BUTT
 		if("belly") return ORGAN_SLOT_BELLY
 		else
