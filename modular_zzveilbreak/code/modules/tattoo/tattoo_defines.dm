@@ -1,4 +1,5 @@
-// Custom Tattoo System Defines - COMPLETELY SEPARATE from prison/memory tattoos
+// modular_zzveilbreak/code/modules/tattoo/tattoo_defines.dm
+// Custom Tattoo System Defines
 
 // Tattoo layer defines
 #define CUSTOM_TATTOO_LAYER_UNDER 1
@@ -29,7 +30,7 @@
 	ORGAN_SLOT_WINGS\
 )
 
-// Custom tattoo fonts
+// Custom tattoo fonts (must match client font options if you add any)
 GLOBAL_LIST_INIT(custom_tattoo_fonts, list(
 	PEN_FONT,
 	FOUNTAIN_PEN_FONT,

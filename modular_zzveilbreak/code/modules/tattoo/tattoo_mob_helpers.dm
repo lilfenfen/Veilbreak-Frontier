@@ -1,131 +1,86 @@
-/mob/living/carbon/human
-	var/list/datum/custom_tattoo/custom_body_tattoos = list()
-	var/list/datum/custom_tattoo_ui_data/tattoo_ui_data = list() // Store UI state per zone
+// modular_zzveilbreak/code/modules/tattoo/tattoo_mob_helpers.dm
+// Mob helpers for storing applied tattoos and per-zone UI data.
 
+// Global comparator proc so sortTim can refer to it safely.
 /proc/cmp_custom_tattoo_layer_asc(datum/custom_tattoo/A, datum/custom_tattoo/B)
+	if(!istype(A) || !istype(B))
+		return 0
 	return A.layer - B.layer
 
-/mob/living/carbon/human/proc/add_custom_tattoo(datum/custom_tattoo/new_tattoo)
-	if(!new_tattoo || QDELETED(new_tattoo) || !istype(new_tattoo))
-		return FALSE
+/mob/living/carbon/human
+	// list of applied tattoo datums
+	var/list/custom_body_tattoos = list()
+	// per-zone UI storage (string -> datum/custom_tattoo_ui_data)
+	var/list/tattoo_ui_data = list()
 
+// Add a tattoo datum to the mob. Returns TRUE on success.
+/mob/living/carbon/human/proc/add_custom_tattoo(datum/custom_tattoo/new_tattoo)
+	if(!istype(new_tattoo) || QDELETED(new_tattoo))
+		return FALSE
 	if(!is_custom_tattoo_bodypart_valid(new_tattoo.body_part))
 		return FALSE
-
-	// Check if we've reached the maximum tattoos for this body part
+	if(!custom_body_tattoos)
+		custom_body_tattoos = list()
 	var/current_tattoos = length(get_custom_tattoos(new_tattoo.body_part))
 	if(current_tattoos >= CUSTOM_MAX_TATTOOS_PER_PART)
 		return FALSE
-
 	LAZYADD(custom_body_tattoos, new_tattoo)
-
-	// Save to preferences if we have a client
+	// Keep sorted by layer
+	sortTim(custom_body_tattoos, GLOBAL_PROC_REF(cmp_custom_tattoo_layer_asc))
 	if(client?.prefs)
 		client.prefs.save_custom_tattoo_data()
-
-	// Update appearance
 	regenerate_icons()
-
 	return TRUE
 
+// Remove a tattoo from the mob.
 /mob/living/carbon/human/proc/remove_custom_tattoo(datum/custom_tattoo/tattoo)
-	if(!tattoo || !(tattoo in custom_body_tattoos))
+	if(!tattoo || !custom_body_tattoos || !(tattoo in custom_body_tattoos))
 		return FALSE
-
 	custom_body_tattoos -= tattoo
 	qdel(tattoo)
-
-	// Save to preferences if we have a client
 	if(client?.prefs)
 		client.prefs.save_custom_tattoo_data()
-
-	// Update appearance
 	regenerate_icons()
-
 	return TRUE
 
-/mob/living/carbon/human/examine(mob/user)
-	. = ..()
-
-	var/list/visible_tattoos = get_visible_custom_tattoos(user)
-
-	if(length(visible_tattoos))
-		. += span_notice("<b>Visible Tattoos:</b>")
-		for(var/datum/custom_tattoo/T as anything in visible_tattoos)
-			// Use text-only emoji for examine (no images)
-			var/tattoo_text = T.get_examine_text(user, src, FALSE)
-			if(tattoo_text)
-				. += " [tattoo_text]"
-
-/mob/living/carbon/human/verb/examine_my_custom_tattoos()
-	set name = "Examine My Tattoos"
-	set category = "IC"
-	set desc = "Look at your own tattoos"
-
-	var/list/visible_tattoos = get_visible_custom_tattoos(src)
-	if(!length(visible_tattoos))
-		to_chat(src, span_notice("You don't see any tattoos on your exposed skin."))
-		return
-
-	to_chat(src, span_notice("<b>Your Visible Tattoos:</b>"))
-	for(var/datum/custom_tattoo/T as anything in visible_tattoos)
-		// Use text-only emoji for examine (no images)
-		var/tattoo_text = T.get_examine_text(src, src, FALSE)
-		if(tattoo_text)
-			to_chat(src, " • [tattoo_text]")
-
-/mob/living/carbon/human/Login()
-	. = ..()
-	if(client?.prefs)
-		client.prefs.apply_custom_tattoos_to_mob(src)
-		// Force icon update after loading tattoos
-		regenerate_icons()
-
-/mob/living/carbon/human/Initialize(mapload)
-	. = ..()
-	addtimer(CALLBACK(src, .proc/load_custom_tattoos_from_prefs), 1 SECONDS)
-
-/mob/living/carbon/human/proc/load_custom_tattoos_from_prefs()
-	if(client?.prefs)
-		client.prefs.apply_custom_tattoos_to_mob(src)
-		// Force icon update
-		addtimer(CALLBACK(src, .proc/regenerate_icons), 1 SECONDS)
-
-/mob/living/carbon/human/proc/get_visible_custom_tattoos(mob/viewer)
-	. = list()
-	for(var/datum/custom_tattoo/T as anything in custom_body_tattoos)
-		var/visible = T.is_custom_tattoo_visible(viewer, src)
-		if(visible)
-			. += T
-
-	. = sortTim(., GLOBAL_PROC_REF(cmp_custom_tattoo_layer_asc))
-
-/mob/living/carbon/human/proc/get_tattoo_ui_data(zone)
-	return LAZYACCESS(tattoo_ui_data, zone)
-
-/mob/living/carbon/human/proc/set_tattoo_ui_data(zone, datum/custom_tattoo_ui_data/data)
-	LAZYSET(tattoo_ui_data, zone, data)
-
-/mob/living/carbon/human/proc/clear_tattoo_ui_data(zone)
-	LAZYREMOVE(tattoo_ui_data, zone)
-
+// Get a list of tattoos for a given body zone (string or define)
 /mob/living/carbon/human/proc/get_custom_tattoos(body_zone)
 	. = list()
 	if(!body_zone)
 		return .
-
-	// Convert the search zone to a standardized format
 	var/search_zone = istext(body_zone) ? string_to_zone(body_zone) : body_zone
 	var/search_zone_string = zone_to_string(search_zone)
-
 	for(var/datum/custom_tattoo/T as anything in custom_body_tattoos)
 		if(QDELETED(T))
 			continue
-
 		var/tattoo_zone_string = zone_to_string(T.body_part)
-
-		// Compare the string representations
 		if(tattoo_zone_string == search_zone_string)
 			. += T
-
 	. = sortTim(., GLOBAL_PROC_REF(cmp_custom_tattoo_layer_asc))
+	return .
+
+// Lazy accessors for per-zone UI data
+/mob/living/carbon/human/proc/get_tattoo_ui_data(zone)
+	LAZYINITLIST(tattoo_ui_data)
+	return LAZYACCESS(tattoo_ui_data, zone)
+
+/mob/living/carbon/human/proc/set_tattoo_ui_data(zone, datum/custom_tattoo_ui_data/data)
+	if(!istype(data))
+		return
+	LAZYINITLIST(tattoo_ui_data)
+	LAZYSET(tattoo_ui_data, zone, data)
+
+/mob/living/carbon/human/proc/clear_tattoo_ui_data(zone)
+	if(tattoo_ui_data)
+		LAZYREMOVE(tattoo_ui_data, zone)
+
+// Return visible tattoos to a given viewer
+/mob/living/carbon/human/proc/get_visible_custom_tattoos(mob/viewer)
+	. = list()
+	for(var/datum/custom_tattoo/T as anything in custom_body_tattoos)
+		if(QDELETED(T))
+			continue
+		if(T.is_custom_tattoo_visible(viewer, src))
+			. += T
+	. = sortTim(., GLOBAL_PROC_REF(cmp_custom_tattoo_layer_asc))
+	return .
