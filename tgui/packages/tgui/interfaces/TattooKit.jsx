@@ -1,7 +1,4 @@
 // tgui/packages/tgui/interfaces/TattooKit.jsx
-// Modernized TGUI for the Tattoo Kit. Uses available tgui-core components only.
-// No Markdown dependency. Preview HTML is inserted into a safe preview box.
-
 import React from 'react';
 import { useBackend } from '../backend';
 import {
@@ -20,11 +17,6 @@ import {
 } from 'tgui-core/components';
 import { Window } from '../layouts';
 
-/**
- * TattooKit TGUI
- * Actions (act): select_zone, set_artist, set_design, set_layer, set_font, change_color, apply_tattoo, refill_ink
- */
-
 export const TattooKit = (props, context) => {
   const { act, data } = useBackend(context);
   const {
@@ -42,8 +34,8 @@ export const TattooKit = (props, context) => {
   } = data;
 
   const inkFraction = max_ink_uses ? ink_uses / max_ink_uses : 0;
+  const canApply = selected_zone && artist_name.trim() && tattoo_design.trim() && ink_uses > 0;
 
-  // Render preview HTML into a box via dangerouslySetInnerHTML (server provides sanitized HTML)
   const PreviewBox = ({ html }) => (
     <Box
       style={{
@@ -69,7 +61,6 @@ export const TattooKit = (props, context) => {
               <ProgressBar value={inkFraction} />
               <Box mt={1}>Ink: {ink_uses}/{max_ink_uses}</Box>
             </Box>
-
             <Box width="40%" align="right">
               <Box>Ink Color</Box>
               <Flex align="center" justify="flex-end">
@@ -84,10 +75,8 @@ export const TattooKit = (props, context) => {
         <Tabs>
           <Tabs.Tab selected={!selected_zone}>Body Parts</Tabs.Tab>
           <Tabs.Tab selected={!!selected_zone}>Design</Tabs.Tab>
-          <Tabs.Tab>Preview</Tabs.Tab>
         </Tabs>
 
-        {/* Body Parts grid */}
         {!selected_zone && (
           <Section title="Select a Body Part">
             <Flex wrap>
@@ -104,12 +93,9 @@ export const TattooKit = (props, context) => {
                 </Button>
               ))}
             </Flex>
-            <Divider />
-            <Box mt={1}><i>Select a body part to open the design editor. The preview pane will show applied tattoos and your design.</i></Box>
           </Section>
         )}
 
-        {/* Design panel */}
         {selected_zone && (
           <Section title={`Design — ${selected_zone}`}>
             <LabeledList>
@@ -150,22 +136,26 @@ export const TattooKit = (props, context) => {
             </LabeledList>
 
             <Flex mt={1}>
-              <Button color="good" onClick={() => act('apply_tattoo')}>Apply Tattoo</Button>
+              <Button
+                color="good"
+                onClick={() => act('apply_tattoo')}
+                disabled={!canApply}
+              >
+                Apply Tattoo
+              </Button>
               <Button ml={1} onClick={() => act('select_zone', { zone: null })}>Back</Button>
             </Flex>
           </Section>
         )}
 
-        {/* Preview Section */}
-        <Section title="Preview">
+        <Section title="Preview & Details">
           <Flex>
             <Box width="60%">
-              {/* Server provides HTML snippet for preview; we render it safely here */}
               <PreviewBox html={preview_text} />
             </Box>
 
             <Box width="40%" ml={1}>
-              <Section title="Details">
+              <Section title="Current Design">
                 <Table>
                   <Table.Row>
                     <Table.Cell>Artist</Table.Cell>
@@ -187,21 +177,22 @@ export const TattooKit = (props, context) => {
                     <Table.Cell>Ink</Table.Cell>
                     <Table.Cell>{ink_uses}/{max_ink_uses}</Table.Cell>
                   </Table.Row>
-                  <Table.Row>
-                    <Table.Cell>Color</Table.Cell>
-                    <Table.Cell><ColorBox color={ink_color || "#000"} /></Table.Cell>
-                  </Table.Row>
                 </Table>
               </Section>
 
               <Section title="Quick Actions" mt={1}>
-                <Button color="good" onClick={() => act('apply_tattoo')}>Apply</Button>
+                <Button
+                  color="good"
+                  onClick={() => act('apply_tattoo')}
+                  disabled={!canApply}
+                >
+                  Apply
+                </Button>
                 <Button ml={1} onClick={() => act('refill_ink')}>Refill Ink</Button>
               </Section>
             </Box>
           </Flex>
         </Section>
-
       </Window.Content>
     </Window>
   );

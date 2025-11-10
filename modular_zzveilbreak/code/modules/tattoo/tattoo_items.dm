@@ -1,6 +1,4 @@
 // modular_zzveilbreak/code/modules/tattoo/tattoo_items.dm
-// Tattoo kit item + TGUI integration. Uses SStgui subsystem for updates.
-
 /obj/item/custom_tattoo_kit
 	name = "professional tattoo kit"
 	desc = "A complete tattoo application system with multiple ink reservoirs and precision needles."
@@ -12,8 +10,9 @@
 	var/ink_color = "#000000"
 	var/mob/living/carbon/human/current_target = null
 	var/next_use = 0
+
+	// SIMPLE STATE - No complex datums
 	var/selected_zone = null
-	// Store UI data directly in the kit for the session
 	var/artist_name = ""
 	var/tattoo_design = ""
 	var/selected_layer = CUSTOM_TATTOO_LAYER_NORMAL
@@ -35,7 +34,6 @@
 	icon_state = (ink_uses > 0) ? "tgun" : "tgun_empty"
 	return ..()
 
-// When attacking a mob with the kit, open UI if allowed
 /obj/item/custom_tattoo_kit/attack(mob/living/target, mob/living/user, params)
 	if(!ishuman(target))
 		return ..()
@@ -43,23 +41,13 @@
 	if(!human_target.client?.prefs?.read_preference(CUSTOM_TATTOO_PREFERENCE_PATH))
 		to_chat(user, span_warning("[human_target] doesn't allow body modifications!"))
 		return TRUE
-	if(world.time < next_use)
-		to_chat(user, span_warning("The kit needs a moment to recharge."))
-		return TRUE
 	current_target = human_target
-	selected_zone = null
-	// Reset UI data when starting with new target
-	artist_name = ""
-	tattoo_design = ""
-	selected_layer = CUSTOM_TATTOO_LAYER_NORMAL
-	selected_font = PEN_FONT
 	ui_interact(user)
 	return TRUE
 
 /obj/item/custom_tattoo_kit/attack_self(mob/user)
 	refill_ink(user)
 
-// Refill ink
 /obj/item/custom_tattoo_kit/proc/refill_ink(mob/user)
 	if(ink_uses >= max_ink_uses)
 		to_chat(user, span_warning("The ink reservoir is already full!"))
@@ -67,128 +55,93 @@
 	ink_uses = max_ink_uses
 	to_chat(user, span_notice("Tattoo kit refilled. Current ink: [ink_uses]/[max_ink_uses]"))
 	update_appearance()
+	SStgui.update_uis(src)
 
-// Open or update the TGUI for the user
 /obj/item/custom_tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
 	if(!current_target || QDELETED(current_target))
 		to_chat(user, span_warning("No target selected!"))
 		return
-	var/datum/tgui/active_ui = SStgui.try_update_ui(user, src, ui)
-	if(!active_ui)
-		active_ui = new(user, src, "TattooKit")
-		active_ui.open()
+	ui = SStgui.try_update_ui(user, src, ui)
+	if(!ui)
+		ui = new(user, src, "TattooKit")
+		ui.open()
 
-// Provide data for TGUI - FIXED: Always provide artist/design data
 /obj/item/custom_tattoo_kit/ui_data(mob/user)
 	var/list/data = list()
 
-	// Always provide target info
+	// ALWAYS provide current state
 	data["target_name"] = current_target?.name || "No Target"
 	data["ink_uses"] = ink_uses
 	data["max_ink_uses"] = max_ink_uses
 	data["ink_color"] = ink_color
 	data["selected_zone"] = selected_zone
-
-	// ALWAYS provide artist and design data - details section needs this regardless of zone
 	data["artist_name"] = artist_name
 	data["tattoo_design"] = tattoo_design
 	data["selected_layer"] = selected_layer
 	data["selected_font"] = selected_font
 
-	// Generate preview based on current state
+	// Generate preview
 	if(selected_zone && current_target)
-		data["preview_text"] = generate_selected_preview(selected_zone, user)
+		data["preview_text"] = generate_preview()
 	else
 		data["preview_text"] = "Select a body part to begin designing."
 
-	// List all body parts for UI table
+	// Body parts list
 	data["body_parts"] = list()
-	if(current_target && !QDELETED(current_target))
+	if(current_target)
 		var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
 		for(var/zone in available_parts)
 			var/list/part_info = available_parts[zone]
 			data["body_parts"] += list(list(
 				"zone" = zone,
-				"name" = part_info["name"] || "Unknown",
-				"covered" = part_info["covered"] ? TRUE : FALSE,
-				"current_tattoos" = part_info["current_tattoos"] || 0,
-				"max_tattoos" = part_info["max_tattoos"] || CUSTOM_MAX_TATTOOS_PER_PART
+				"name" = part_info["name"],
+				"covered" = part_info["covered"],
+				"current_tattoos" = part_info["current_tattoos"],
+				"max_tattoos" = part_info["max_tattoos"]
 			))
-	else
-		data["body_parts"] = list()
 
 	return data
 
-// Build preview HTML text to show in TGUI preview panel
-/obj/item/custom_tattoo_kit/proc/generate_selected_preview(zone, mob/user)
+/obj/item/custom_tattoo_kit/proc/generate_preview()
 	var/preview_text = ""
-	var/actual_zone = string_to_zone(zone)
+	var/actual_zone = string_to_zone(selected_zone)
 	var/list/tattoos = current_target.get_custom_tattoos(actual_zone)
 
-	// list existing tattoos in that area
-	if(tattoos && length(tattoos) > 0)
+	// Existing tattoos
+	if(length(tattoos))
 		preview_text += "<b>Existing Tattoos:</b><br>"
-		for(var/datum/custom_tattoo/tattoo as anything in tattoos)
-			if(QDELETED(tattoo)) continue
-			var/tattoo_text = tattoo.get_examine_text_tgui(user, current_target)
-			if(tattoo_text)
-				preview_text += tattoo_text + "<br>"
+		for(var/datum/custom_tattoo/tattoo in tattoos)
+			preview_text += tattoo.get_examine_text_tgui(usr, current_target) + "<br>"
 		preview_text += "<br>"
 
-	// Show preview for new tattoo using current kit data
-	if(artist_name || tattoo_design)
-		if(artist_name && tattoo_design)
-			var/datum/custom_tattoo/preview_tattoo = new(artist_name, tattoo_design, actual_zone, ink_color, selected_layer, FALSE, selected_font)
-			var/preview_tattoo_text = preview_tattoo.get_examine_text_tgui(user, current_target)
-			if(preview_tattoo_text)
-				preview_text += "<b>New Tattoo Preview:</b><br>"
-				preview_text += preview_tattoo_text + "<br>"
-			qdel(preview_tattoo)
-		else
-			preview_text += "<b>Draft Tattoo (incomplete):</b><br>"
-			if(artist_name)
-				preview_text += "Artist: [artist_name]<br>"
-			if(tattoo_design)
-				preview_text += "Design: [tattoo_design]<br>"
+	// New tattoo preview
+	if(artist_name && tattoo_design)
+		var/datum/custom_tattoo/preview_tattoo = new(artist_name, tattoo_design, actual_zone, ink_color, selected_layer, FALSE, selected_font)
+		preview_text += "<b>New Tattoo Preview:</b><br>"
+		preview_text += preview_tattoo.get_examine_text_tgui(usr, current_target) + "<br>"
+		qdel(preview_tattoo)
 
 	return preview_text || "No tattoos on this area. Design a new one above!"
 
-// Attempt to apply tattoo to selected zone (called from UI)
-/obj/item/custom_tattoo_kit/proc/handle_apply_tattoo(mob/user, zone)
-	if(!current_target || QDELETED(current_target))
+/obj/item/custom_tattoo_kit/proc/can_apply_tattoo()
+	if(!selected_zone || !current_target || ink_uses <= 0)
+		return FALSE
+	if(!artist_name || !tattoo_design)
+		return FALSE
+	var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
+	var/list/part_info = available_parts[selected_zone]
+	if(!part_info || part_info["covered"])
+		return FALSE
+	if(part_info["current_tattoos"] >= part_info["max_tattoos"])
+		return FALSE
+	return TRUE
+
+/obj/item/custom_tattoo_kit/proc/apply_tattoo(mob/user)
+	if(!can_apply_tattoo())
 		return FALSE
 
 	var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
-	var/list/part_info = available_parts[zone]
-	if(!part_info)
-		return FALSE
-
-	if(part_info["covered"])
-		to_chat(user, span_warning("[current_target]'s [part_info["name"]] is covered! Expose it first."))
-		return FALSE
-
-	if(part_info["current_tattoos"] >= part_info["max_tattoos"])
-		to_chat(user, span_warning("This body part already has the maximum number of tattoos!"))
-		return FALSE
-
-	if(!current_target.client?.prefs?.read_preference(CUSTOM_TATTOO_PREFERENCE_PATH))
-		to_chat(user, span_warning("[current_target] doesn't allow body modifications!"))
-		return FALSE
-
-	if(ink_uses <= 0)
-		to_chat(user, span_warning("The tattoo kit is out of ink!"))
-		return FALSE
-
-	var/final_artist = trim(artist_name)
-	var/final_design = trim(tattoo_design)
-
-	if(!final_artist || final_artist == "")
-		to_chat(user, span_warning("Please enter a valid artist name!"))
-		return FALSE
-
-	if(!final_design || final_design == "")
-		to_chat(user, span_warning("Please enter a valid tattoo design description!"))
-		return FALSE
+	var/list/part_info = available_parts[selected_zone]
 
 	to_chat(user, span_notice("You begin carefully applying the tattoo to [current_target]'s [part_info["name"]]..."))
 
@@ -196,101 +149,77 @@
 		to_chat(user, span_warning("Tattoo application interrupted!"))
 		return FALSE
 
-	var/tattoo_zone_define = string_to_zone(zone)
-
-	var/datum/custom_tattoo/new_tattoo = new(final_artist, final_design, tattoo_zone_define, ink_color, selected_layer, FALSE, selected_font)
+	var/tattoo_zone_define = string_to_zone(selected_zone)
+	var/datum/custom_tattoo/new_tattoo = new(
+		trim(artist_name),
+		trim(tattoo_design),
+		tattoo_zone_define,
+		ink_color,
+		selected_layer,
+		FALSE,
+		selected_font
+	)
 
 	if(current_target.add_custom_tattoo(new_tattoo))
-		ink_uses = max(0, ink_uses - 1)
+		ink_uses--
 		next_use = world.time + 2 SECONDS
-		// Clear the UI data after successful application
+		// Clear design after successful application
 		artist_name = ""
 		tattoo_design = ""
-		if(current_target.client?.prefs)
-			current_target.client.prefs.save_custom_tattoo_data()
 		current_target.regenerate_icons()
 		update_appearance()
 		SStgui.update_uis(src)
-		to_chat(user, span_green("Tattoo applied successfully to [current_target]'s [part_info["name"]]!"))
-		user.log_message("applied custom tattoo '[final_design]' by [final_artist] to [current_target]'s [zone]", LOG_GAME)
+		to_chat(user, span_green("Tattoo applied successfully!"))
+		user.log_message("applied custom tattoo to [current_target]", LOG_GAME)
 		return TRUE
 	else
 		to_chat(user, span_warning("Failed to apply tattoo!"))
 		return FALSE
 
-// TGUI action handler for the item - SIMPLIFIED: Direct variable access
 /obj/item/custom_tattoo_kit/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
 	. = ..()
 	if(.)
 		return
 
-	var/mob/user = usr
-
-	if(!current_target || QDELETED(current_target) || !istype(current_target, /mob/living/carbon/human))
-		to_chat(user, span_warning("The target is no longer valid!"))
-		current_target = null
-		return FALSE
-
-	if(!user.is_holding(src))
-		to_chat(user, span_warning("You must be holding the tattoo kit!"))
+	if(!current_target || QDELETED(current_target))
 		return FALSE
 
 	switch(action)
 		if("select_zone")
-			var/zone = params["zone"]
-			if(!zone || !istext(zone))
-				return FALSE
-			var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
-			if(!(zone in available_parts))
-				return FALSE
-			selected_zone = zone
-			SStgui.update_uis(src)
-			return TRUE
+			selected_zone = params["zone"]
+			// Reset design when changing zones
+			artist_name = ""
+			tattoo_design = ""
+			. = TRUE
 
 		if("set_artist")
-			var/value = params["value"] || ""
-			artist_name = value
-			SStgui.update_uis(src)
-			return TRUE
+			artist_name = params["value"]
+			. = TRUE
 
 		if("set_design")
-			var/value = params["value"] || ""
-			tattoo_design = value
-			SStgui.update_uis(src)
-			return TRUE
+			tattoo_design = params["value"]
+			. = TRUE
 
 		if("set_layer")
-			var/layer = params["layer"]
-			if(isnull(layer))
-				return FALSE
-			selected_layer = text2num(layer)
-			SStgui.update_uis(src)
-			return TRUE
+			selected_layer = text2num(params["layer"])
+			. = TRUE
 
 		if("set_font")
-			var/font = params["font"]
-			if(isnull(font))
-				return FALSE
-			selected_font = font
-			SStgui.update_uis(src)
-			return TRUE
+			selected_font = params["font"]
+			. = TRUE
 
 		if("change_color")
-			var/new_color = input(user, "Choose ink color:", "Tattoo Kit", ink_color) as color|null
+			var/new_color = input(usr, "Choose ink color:", "Tattoo Kit", ink_color) as color|null
 			if(new_color)
 				ink_color = new_color
-				SStgui.update_uis(src)
-				return TRUE
+				. = TRUE
 
 		if("apply_tattoo")
-			if(!selected_zone)
-				to_chat(user, span_warning("No body part selected!"))
-				return FALSE
-			return handle_apply_tattoo(user, selected_zone)
+			. = apply_tattoo(usr)
 
 		if("refill_ink")
-			refill_ink(user)
-			SStgui.update_uis(src)
-			return TRUE
+			refill_ink(usr)
+			. = TRUE
 
-	return FALSE
+	if(.)
+		SStgui.update_uis(src)
