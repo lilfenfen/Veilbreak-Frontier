@@ -100,3 +100,21 @@
 			. += T
 	. = sortTim(., GLOBAL_PROC_REF(cmp_custom_tattoo_layer_asc))
 	return .
+
+// Handle tattoo kit interactions
+/mob/living/carbon/human/Topic(href, href_list)
+	. = ..()
+	if(.)
+		return
+
+	// Handle tattoo kit interactions
+	if(href_list["tattoo_select_zone"] || href_list["tattoo_back_to_parts"] || \
+	   href_list["tattoo_toggle_signature"] || href_list["tattoo_set_font"] || \
+	   href_list["tattoo_set_layer"] || href_list["tattoo_change_color"] || \
+	   href_list["tattoo_apply"] || href_list["tattoo_artist"] || \
+	   href_list["tattoo_design"])
+
+		var/obj/item/custom_tattoo_kit/kit = locate() in usr
+		if(kit && kit.current_target == src)
+			kit.Topic(href, href_list)
+			return TRUE
