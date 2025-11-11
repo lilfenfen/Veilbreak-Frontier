@@ -18,7 +18,8 @@
 
 /datum/vote/storyteller/New()
 	. = ..()
-	default_choices = list("Extended")
+	default_choices = list()
+	default_choices = list("Extended (No Chaos)")
 
 /datum/vote/storyteller/initiate_vote(initiator, duration)
 	. = ..()
