@@ -25,6 +25,9 @@ GLOBAL_LIST_INIT(coverage_relationships, list(
 	BODY_ZONE_R_LEG = list(BODY_ZONE_PRECISE_R_FOOT),
 ))
 
+// Cache for body parts per mob
+GLOBAL_LIST_EMPTY(cached_body_parts)
+
 /proc/populate_custom_tattooable_body_parts()
 	var/list/parts = list()
 	for(var/path in subtypesof(/obj/item/bodypart))
@@ -119,7 +122,7 @@ GLOBAL_LIST_INIT(coverage_relationships, list(
 		if("tail") return ORGAN_SLOT_TAIL
 		if("slit") return ORGAN_SLOT_SLIT
 		if("sheath") return ORGAN_SLOT_SHEATH
-	 if("wings") return ORGAN_SLOT_WINGS
+		if("wings") return ORGAN_SLOT_WINGS
 		if("butt") return ORGAN_SLOT_BUTT
 		if("belly") return ORGAN_SLOT_BELLY
 		else
@@ -175,15 +178,24 @@ GLOBAL_LIST_INIT(coverage_relationships, list(
 	return (body_zone in GLOB.custom_tattooable_body_parts) && !(body_zone in GLOB.custom_tattoo_blacklist)
 
 /proc/get_all_custom_tattoo_body_parts(mob/living/carbon/human/H)
-	var/list/available_parts = list()
 	if(!istype(H) || QDELETED(H))
-		return available_parts
+		return list()
+
+	// Simple cache key based on the mob's reference
+	var/cache_key = REF(H)
+	if(GLOB.cached_body_parts[cache_key])
+		return GLOB.cached_body_parts[cache_key]
+
+	var/list/available_parts = list()
 	for(var/zone in GLOB.custom_tattooable_body_parts)
-		if(zone in GLOB.custom_tattoo_blacklist) continue
+		if(zone in GLOB.custom_tattoo_blacklist)
+			continue
+
 		var/display_name = get_custom_tattoo_body_part_description(zone)
 		var/exists = FALSE
 		var/covered = TRUE
 		var/obj/item/bodypart/BP = H.get_bodypart(zone)
+
 		if(BP)
 			exists = TRUE
 			covered = !get_custom_tattoo_location_accessible(H, zone)
@@ -192,9 +204,11 @@ GLOBAL_LIST_INIT(coverage_relationships, list(
 			if(organ)
 				exists = TRUE
 				covered = !get_custom_tattoo_location_accessible(H, zone)
+
 		if(exists)
 			var/string_zone = zone_to_string(zone)
-			if(!string_zone || !istext(string_zone)) continue
+			if(!string_zone || !istext(string_zone))
+				continue
 			var/current_tattoos = length(H.get_custom_tattoos(string_zone))
 			available_parts[string_zone] = list(
 				"name" = display_name || "Unknown Body Part",
@@ -203,4 +217,12 @@ GLOBAL_LIST_INIT(coverage_relationships, list(
 				"current_tattoos" = current_tattoos,
 				"max_tattoos" = CUSTOM_MAX_TATTOOS_PER_PART
 			)
+
+	// Cache for a short time (5 seconds)
+	GLOB.cached_body_parts[cache_key] = available_parts
+	addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(clear_body_part_cache), cache_key), 5 SECONDS)
+
 	return available_parts
+
+/proc/clear_body_part_cache(cache_key)
+	GLOB.cached_body_parts -= cache_key
