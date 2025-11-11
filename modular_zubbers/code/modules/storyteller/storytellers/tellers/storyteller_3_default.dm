@@ -1,12 +1,13 @@
-//VENUS EDIT: Renamed from Default Andy to Balanced Barry
 /datum/storyteller/default
-	name = "Balanced Barry (Medium Chaos)"
-	desc = "Balanced Barry is the default Storyteller, and the comparison point for every other Storyteller. \
-	More frequent events than the Chill or the Fragile, but less frequent events than The Gamer or the Clown. Best for an average, varied experience."
-	welcome_text = "If I chopped you up in a meat grinder..."
-	antag_divisor = 8
+	name = "Peaceful (Events Only)"
+	desc = "A peaceful station to enjoy projects or exploring. Random events may occur, but no antagonists are expected."
+	welcome_text = "Parameters suggest a peaceful round with anomalous events. Good luck exploring, Frontiers."
+	antag_divisor = 0
 	storyteller_type = STORYTELLER_TYPE_ALWAYS_AVAILABLE
+	disable_distribution = FALSE
+	guarantees_roundstart_crewset = FALSE
 
 	tag_multipliers = list(
-		TAG_CHAOTIC = 0.7
+		TAG_CHAOTIC = 0,
+		TAG_ANTAGONIST = 0
 	)

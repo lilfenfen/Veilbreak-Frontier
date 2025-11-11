@@ -4,6 +4,9 @@
 /datum/storyteller/fragile
 	votable = FALSE
 
+/datum/storyteller/extended
+	votable = FALSE
+
 //VENUS REMOVAL START: Make default votable
 /*
 /datum/storyteller/default

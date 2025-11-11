@@ -19,7 +19,7 @@
 /datum/vote/storyteller/New()
 	. = ..()
 	default_choices = list()
-	default_choices = list("Extended (No Chaos)")
+	default_choices = SSgamemode.storyteller_vote_choices()
 
 /datum/vote/storyteller/initiate_vote(initiator, duration)
 	. = ..()
