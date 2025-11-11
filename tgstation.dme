@@ -10534,6 +10534,7 @@
 #include "modular_zzveilbreak\code\modules\atmospherics\gasmixtures\gas_types.dm"
 #include "modular_zzveilbreak\code\modules\cargo\exports\veilbreak.dm"
 #include "modular_zzveilbreak\code\modules\dungeons\_veilbreak.dm"
+#include "modular_zzveilbreak\code\modules\dungeons\background_process.dm"
 #include "modular_zzveilbreak\code\modules\dungeons\portal_config.dm"
 #include "modular_zzveilbreak\code\modules\dungeons\portal_control.dm"
 #include "modular_zzveilbreak\code\modules\dungeons\portal_debug.dm"

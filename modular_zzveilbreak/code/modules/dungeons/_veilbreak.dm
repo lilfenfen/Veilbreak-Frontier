@@ -4,6 +4,9 @@
 #include "portal_config.dm"
 #include "portal_globals.dm"
 
+// Background processing system
+#include "background_process.dm"
+
 // Portal functionality
 #include "portal_machinery.dm"
 #include "portal_control.dm"

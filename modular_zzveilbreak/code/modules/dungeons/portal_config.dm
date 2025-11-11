@@ -13,3 +13,7 @@
 #define PORTAL_STATE_GENERATING "generating"
 #define PORTAL_STATE_READY "ready"
 #define PORTAL_STATE_ERROR "error"
+
+// Background processing constants
+#define BG_PROCESSING_CONTINUE 1
+#define BG_PROCESSING_FINISHED 2
