@@ -298,7 +298,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 	log_dungeon("Dungeon Generator: Starting DMM content load for Veilbreak dungeon")
 
 	// Save original DMM for debugging
-	text2file(dmm_content, "data/logs/dungeon_content_[world.time].dmm")
+	//text2file(dmm_content, "data/logs/dungeon_content_[world.time].dmm")
 
 	// Verify mapping subsystem is ready
 	if(!SSmapping.initialized)
@@ -414,7 +414,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 
 	return success_count >= 3 // Return TRUE if at least critical systems initialized
 
-// CRITICAL - Force initialization of all atoms on the Z-level
+// CRITICAL - Force initialization of all atoms on the Z-level with safe smoothing
 /datum/portal_destination/veilbreak/proc/initialize_dungeon_atoms(z_level)
 	log_dungeon("Dungeon Generator: Initializing atoms for Z-level [z_level]")
 
@@ -454,28 +454,44 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 
 	log_dungeon("Dungeon Generator: Initialized [atoms_initialized] atoms, found [turfs_processed] turfs on Z-level [z_level]")
 
-	// Second pass: Trigger smoothing for turfs only
-	log_dungeon("Dungeon Generator: Starting turf smoothing for [length(turfs_to_smooth)] turfs")
+	// Second pass: Safe turf smoothing with error handling
+	log_dungeon("Dungeon Generator: Starting safe turf smoothing for [length(turfs_to_smooth)] turfs")
 	var/smoothed_turfs = 0
+	var/failed_smooths = 0
 
 	for(var/turf/T as anything in turfs_to_smooth)
-		// Only smooth turfs that support smoothing
+		// Only smooth turfs that support smoothing and have proper initialization
 		if(T.smoothing_flags & (SMOOTH_BITMASK))
-			T.smooth_icon()
-		T.update_icon()
-		T.update_appearance()
+			// Safe smoothing with error handling
+			try
+				T.smooth_icon()
+			catch(var/exception/smoothing_exception)
+				log_dungeon("Dungeon Generator: Smoothing failed for [T.type] at [AREACOORD(T)]: [smoothing_exception]")
+				failed_smooths++
 
-		// Trigger AfterChange for turfs to handle connections
+		// Always update appearance, but safely
+		try
+			T.update_icon()
+			T.update_appearance()
+		catch(var/exception/appearance_exception)
+			log_dungeon("Dungeon Generator: Appearance update failed for [T.type] at [AREACOORD(T)]: [appearance_exception]")
+			failed_smooths++
+
+		// Trigger AfterChange for closed turfs safely
 		if(istype(T, /turf/closed))
-			var/turf/closed/CT = T
-			CT.AfterChange()
+			try
+				var/turf/closed/CT = T
+				CT.AfterChange()
+			catch(var/exception/afterchange_exception)
+				log_dungeon("Dungeon Generator: AfterChange failed for [T.type] at [AREACOORD(T)]: [afterchange_exception]")
+				failed_smooths++
 
 		smoothed_turfs++
 
 		if(smoothed_turfs % 100 == 0)
 			CHECK_TICK
 
-	log_dungeon("Dungeon Generator: Processed [smoothed_turfs] turfs on Z-level [z_level]")
+	log_dungeon("Dungeon Generator: Processed [smoothed_turfs] turfs, [failed_smooths] failures on Z-level [z_level]")
 
 	// Let SSicon_smooth handle the actual smoothing in the next tick
 	log_dungeon("Dungeon Generator: Queuing icon smoothing subsystem for Z-level [z_level]")
@@ -1018,7 +1034,6 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 			qdel(object)
 			objects_cleaned++
 
-	// FIXED: Added missing closing parenthesis
 	log_dungeon("Dungeon Generator: Cleaned up [mobs_cleaned] mobs and [objects_cleaned] objects from Z-level [z_level]")
 
 /// Check if an object should be preserved during cleanup

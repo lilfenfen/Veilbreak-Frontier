@@ -61,7 +61,7 @@
 
 	var/datum/action/cooldown/mob_cooldown/astral_step/astral_step
 	var/datum/action/cooldown/mob_cooldown/inai_wave/resonant_wave
-	// Abilities
+	// Abilities - define with default values
 	var/ASTRAL_STEP_CD = 10 SECONDS
 	var/RESONANT_WAVE_CD = 17 SECONDS
 	var/channeling = FALSE  // Flag to prevent actions during channeling
@@ -72,6 +72,12 @@
 		resonant_wave = new(src)
 		astral_step.Grant(src)
 		resonant_wave.Grant(src)
+
+		// Set cooldowns after actions are created
+		if(astral_step)
+			astral_step.cooldown_time = ASTRAL_STEP_CD
+		if(resonant_wave)
+			resonant_wave.cooldown_time = RESONANT_WAVE_CD
 
 	Destroy()
 		QDEL_NULL(astral_step)
@@ -118,10 +124,7 @@
 	button_icon = 'modular_zzveilbreak/icons/bosses/inai.dmi'
 	button_icon_state = "astral_step"
 
-/datum/action/cooldown/mob_cooldown/astral_step/New(Target)
-	. = ..()
-	var/mob/living/simple_animal/hostile/megafauna/inai/inai = owner
-	cooldown_time = inai.ASTRAL_STEP_CD
+	// Remove the New() proc that was causing null reference
 
 /datum/action/cooldown/mob_cooldown/astral_step/Activate(atom/target)
 	var/mob/living/simple_animal/hostile/megafauna/inai/inai = owner
@@ -167,10 +170,7 @@
 	button_icon = 'modular_zzveilbreak/icons/bosses/inai.dmi'
 	button_icon_state = "resonant_wave"
 
-/datum/action/cooldown/mob_cooldown/inai_wave/New(Target)
-	. = ..()
-	var/mob/living/simple_animal/hostile/megafauna/inai/inai = owner
-	cooldown_time = inai.RESONANT_WAVE_CD
+	// Remove the New() proc that was causing null reference
 
 /datum/action/cooldown/mob_cooldown/inai_wave/Activate()
 	var/mob/living/simple_animal/hostile/megafauna/inai/inai = owner
