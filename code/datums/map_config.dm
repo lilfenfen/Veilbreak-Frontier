@@ -11,7 +11,7 @@
 	var/config_max_users = 0
 	var/config_min_users = 0
 	var/voteweight = 1
-	var/votable = FALSE
+	var/votable = TRUE
 
 	///A URL linking to a place for people to send feedback about this map.
 	var/feedback_link

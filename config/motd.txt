@@ -1,5 +1,6 @@
 <!-- Most valid html will work in here, but you have to use URL links for images. -->
 
-<h1>Welcome to Space Station 13!</h1>
+<h1>Welcome to Veilbreak Frontier!</h1>
 
-<i>This server is running a /tg/station 13 Git build.</i>
+<i>A relaxed MRP ERP server with standards. We are also working on our own pve content to have our players enjoy their time and have glorious stories to tell.
+github link: https://github.com/lilfenfen/Veilbreak-Frontier/tree/master</i>
