@@ -10,4 +10,3 @@
 
 // Debug and admin tools
 #include "portal_debug.dm"
-

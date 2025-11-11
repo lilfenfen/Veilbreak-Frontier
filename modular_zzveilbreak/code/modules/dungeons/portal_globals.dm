@@ -10,6 +10,9 @@
 // Global list for portal destinations (separate from gateways)
 GLOBAL_LIST_EMPTY(portal_destinations)
 
+// Fixed Z-level for all portal dungeons (will be set to world.maxz)
+GLOBAL_VAR(portal_dungeon_z_level)
+
 // Helper proc for dungeon generator logging that's compatible with our log_game
 /proc/log_dungeon(text)
 	log_game(text, list(), LOG_GAME)
@@ -279,46 +282,37 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 		connected_control_computer.on_generation_failed(reason)
 		connected_control_computer = null // Clear reference
 
-// Add interface method for portal control
-/datum/portal_destination/veilbreak/activate(obj/machinery/portal/activated)
-	. = ..() // Call parent for logging
-	log_dungeon("Dungeon Generator: Portal activated to [name] at Z-level [dungeon_z_level]")
-	// Ensure portal connection is established when activated
-	if(activated == connected_portal) // Only do this for the station portal, not the dungeon portal
-		ensure_portal_connection()
+// NEW: Initialize the fixed portal Z-level on first use
+/datum/portal_destination/veilbreak/proc/initialize_portal_z_level()
+	if(GLOB.portal_dungeon_z_level)
+		dungeon_z_level = GLOB.portal_dungeon_z_level
+		return TRUE
 
-/datum/portal_destination/veilbreak/deactivate(obj/machinery/portal/deactivated)
-	log_dungeon("Dungeon Generator: Portal deactivated from [name]")
+	// Use the highest existing Z-level
+	if(world.maxz > 0)
+		GLOB.portal_dungeon_z_level = world.maxz
+		dungeon_z_level = GLOB.portal_dungeon_z_level
+		log_dungeon("Dungeon Generator: Using existing Z-level [dungeon_z_level] for portal dungeons")
+		return TRUE
 
-// CORRECTED: Complete dungeon loading implementation with proper atom initialization
+	log_dungeon("Dungeon Generator: ERROR - No Z-levels available for portal dungeons")
+	return FALSE
+
+// CORRECTED: Modified dungeon loading implementation to use fixed Z-level
 /datum/portal_destination/veilbreak/proc/load_generated_dmm(dmm_content, list/metadata)
 	if(!dmm_content)
 		return generation_failed("No DMM content provided")
 
 	log_dungeon("Dungeon Generator: Starting DMM content load for Veilbreak dungeon")
 
-	// Save original DMM for debugging
-	//text2file(dmm_content, "data/logs/dungeon_content_[world.time].dmm")
+	// Initialize or get the fixed portal Z-level
+	if(!initialize_portal_z_level())
+		return generation_failed("Failed to initialize portal Z-level")
 
-	// Verify mapping subsystem is ready
-	if(!SSmapping.initialized)
-		return generation_failed("Mapping subsystem not initialized")
+	log_dungeon("Dungeon Generator: Using fixed portal Z-level [dungeon_z_level]")
 
-	// Create new Z-level using mapping subsystem - FIXED: Remove try without catch
-	var/datum/space_level/dungeon_level = SSmapping.add_new_zlevel(
-		name = "Veilbreak Dungeon [rand(1000,9999)]",
-		traits = list(
-			ZTRAIT_AWAY = TRUE,
-			ZTRAIT_MINING = TRUE,
-			ZTRAIT_BASETURF = /turf/open/space/basic
-		)
-	)
-
-	if(!dungeon_level)
-		return generation_failed("Failed to create new Z-level")
-
-	dungeon_z_level = dungeon_level.z_value
-	log_dungeon("Dungeon Generator: Created new dungeon at Z-level [dungeon_z_level]")
+	// Clean the Z-level before loading new content
+	cleanup_z_level_completely(dungeon_z_level)
 
 	// Parse and load the DMM content
 	var/datum/parsed_map/parsed = new(dmm_content)
@@ -341,7 +335,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 			z_offset = dungeon_z_level,
 			no_changeturf = FALSE,
 			place_on_top = FALSE,
-			new_z = TRUE
+			new_z = FALSE // Don't create new Z-level, use existing one
 		)
 	catch(var/exception/e)
 		log_dungeon("Dungeon Generator: Exception during map load: [e]")
@@ -374,6 +368,57 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 
 	log_dungeon("Dungeon Generator: Veilbreak dungeon fully initialized at Z-level [dungeon_z_level]")
 	return TRUE
+
+// NEW: Completely clean a Z-level before reuse
+/datum/portal_destination/veilbreak/proc/cleanup_z_level_completely(z_level)
+	log_dungeon("Dungeon Generator: Completely cleaning Z-level [z_level] for reuse")
+
+	var/cleaned_objects = 0
+	var/cleaned_turfs = 0
+
+	// First pass: Remove all movable atoms (mobs, objects, items)
+	for(var/atom/movable/AM in world)
+		if(AM.z == z_level)
+			// Skip players and important structures
+			if(should_preserve_for_cleanup(AM))
+				continue
+			qdel(AM)
+			cleaned_objects++
+
+	// Second pass: Reset all turfs to basic space
+	for(var/turf/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
+		if(istype(T, /turf/open/space/basic))
+			continue // Already space, no need to change
+
+		T.ChangeTurf(/turf/open/space/basic)
+		cleaned_turfs++
+
+		if(cleaned_turfs % 100 == 0)
+			CHECK_TICK
+
+	log_dungeon("Dungeon Generator: Cleaned [cleaned_objects] objects and reset [cleaned_turfs] turfs on Z-level [z_level]")
+
+// NEW: Check if an atom should be preserved during Z-level cleanup
+/datum/portal_destination/veilbreak/proc/should_preserve_for_cleanup(atom/movable/AM)
+	// Preserve players and player-related entities
+	if(ismob(AM))
+		var/mob/M = AM
+		if(M.client || M.ckey)
+			return TRUE
+		if(M.mind)
+			return TRUE
+
+	// Preserve important portal infrastructure
+	if(istype(AM, /obj/machinery/portal))
+		return TRUE
+	if(istype(AM, /obj/effect/portal_bumper))
+		return TRUE
+
+	// Preserve station-bound items and structures
+	if(AM.resistance_flags & INDESTRUCTIBLE)
+		return TRUE
+
+	return FALSE
 
 // ===== SUBSYSTEM INITIALIZATION =====
 /datum/portal_destination/veilbreak/proc/initialize_dungeon_subsystems(z_level)
@@ -863,16 +908,8 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 
 	log_dungeon("Dungeon Generator: Starting comprehensive cleanup for Z-level [dungeon_z_level]")
 
-	// 1. Mark Z-level for cleanup - FIXED: Use correct approach
-	if(dungeon_z_level <= world.maxz)
-		// In SS13, we can't directly delete Z-levels, but we can mark them for garbage collection
-		// and clean up all the important connections
-		log_dungeon("Dungeon Generator: Marking Z-level [dungeon_z_level] for cleanup")
-
-		// Clean up all mobs and objects on the Z-level (except players who were already dumped)
-		cleanup_z_level_contents(dungeon_z_level)
-	else
-		log_dungeon("Dungeon Generator: Z-level [dungeon_z_level] already deleted or invalid")
+	// 1. Clean up all mobs and objects on the Z-level (except players who were already dumped)
+	cleanup_z_level_contents(dungeon_z_level)
 
 	// 2. Clean up any remaining portal connections
 	if(connected_portal && connected_portal.target == src)
@@ -895,8 +932,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 		qdel(dungeon_portal)
 		log_dungeon("Dungeon Generator: Queued dungeon portal for deletion")
 
-	// 4. Reset state
-	dungeon_z_level = 0
+	// 4. Reset state - but keep the Z-level for reuse
 	generated = FALSE
 	generating = FALSE
 	last_generation_data = null

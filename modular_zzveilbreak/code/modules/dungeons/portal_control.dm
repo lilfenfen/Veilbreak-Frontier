@@ -294,12 +294,7 @@
 	// Now call the destination's own cleanup proc
 	veil_dest.cleanup_dungeon()
 
-	// Remove the destination from global list
-	for(var/key in GLOB.portal_destinations)
-		if(GLOB.portal_destinations[key] == veil_dest)
-			GLOB.portal_destinations -= key
-			log_portal_control("Portal Control: Removed destination [key] from global list")
-			break
+	// We don't remove the destination from global list anymore since we're reusing it
 
 // ===== SIMPLIFIED DUMPING SYSTEM =====
 
