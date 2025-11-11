@@ -7,8 +7,3 @@
 
 /datum/preference/toggle/allow_bodywriting/apply_to_client(client/client, value)
 	return TRUE
-
-/datum/preference/text_list/custom_tattoos
-	category = PREFERENCE_CATEGORY_NON_CONTEXTUAL
-	savefile_identifier = PREFERENCE_CHARACTER
-	savefile_key = "custom_tattoos"

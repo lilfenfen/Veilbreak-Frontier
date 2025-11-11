@@ -173,3 +173,11 @@ export const vore_overlay_options: FeatureToggle = {
     'Do you want to see fullscreen vore overlays as an option for soulcatcher overlays?',
   component: CheckboxInput,
 };
+
+export const allow_bodywriting: FeatureToggle = {
+  name: 'Allow Body Modifications',
+  category: 'ERP',
+  description:
+    'Allow other players to apply bodywriting and tattoos to your character.',
+  component: CheckboxInput,
+};
