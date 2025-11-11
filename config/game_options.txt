@@ -1,3 +1,6 @@
+## Default Storyteller. Comment out to enable voting.
+DEFAULT_STORYTELLER /datum/storyteller/extended
+
 ## HEALTH ###
 
 ##Damage multiplier, effects both weapons and healing on all mobs. For example, 1.25 would result in 25% higher damage.

@@ -4,4 +4,4 @@
 	welcome_text = "Parameters suggest that we are safe, unless we go and touch things."
 	disable_distribution = TRUE
 	storyteller_type = STORYTELLER_TYPE_CALM
-	votable = FALSE
+	votable = TRUE
