@@ -14,8 +14,8 @@ GLOBAL_LIST_EMPTY(portal_destinations)
 GLOBAL_VAR(portal_dungeon_z_level)
 
 // Helper proc for dungeon generator logging that's compatible with our log_game
-/proc/log_dungeon(text)
-	log_game(text, list(), LOG_GAME)
+/proc/log_dungeon(text, list/data)
+	log_game("DUNGEON: [text]", data, LOG_GAME)
 
 // HTTP request manager for dungeon generation
 /datum/http_dungeon_generator
@@ -35,7 +35,7 @@ GLOBAL_VAR(portal_dungeon_z_level)
 	var/datum/http_request/request = new()
 	var/url = "[DUNGEON_GENERATOR_URL][DUNGEON_GENERATE_ENDPOINT]?width=[width]&height=[height]&seed=[rand(1,1000000)]"
 
-	log_dungeon("Dungeon Generator: Starting HTTP request to [url]")
+	log_dungeon("HTTP: Starting request to [url]")
 
 	request.prepare(RUSTG_HTTP_METHOD_GET, url, "", "")
 	request.begin_async()
@@ -48,18 +48,25 @@ GLOBAL_VAR(portal_dungeon_z_level)
 
 /datum/http_dungeon_generator/proc/check_request(request_id)
 	var/datum/portal_destination/veilbreak/destination = active_requests["[request_id]"]
-	if(!destination)
+	if(!destination || QDELETED(destination))
+		log_dungeon("HTTP: Request [request_id] - destination missing or deleted")
+		active_requests -= "[request_id]"
+		active_requests -= "[request_id]_req"
+		active_requests -= "[request_id]_time"
 		return FALSE
 
 	var/datum/http_request/request = active_requests["[request_id]_req"]
-	if(!request)
+	if(!request || QDELETED(request))
+		log_dungeon("HTTP: Request [request_id] - request object missing")
 		active_requests -= "[request_id]"
+		active_requests -= "[request_id]_time"
 		return FALSE
 
 	if(!request.is_complete())
 		// Check for timeout
 		var/start_time = active_requests["[request_id]_time"]
 		if(world.time - start_time > DUNGEON_GENERATOR_TIMEOUT)
+			log_dungeon("HTTP: Request [request_id] - timeout after [DUNGEON_GENERATOR_TIMEOUT/10] seconds")
 			destination.generation_failed("Request timeout after [DUNGEON_GENERATOR_TIMEOUT/10] seconds")
 			active_requests -= "[request_id]"
 			active_requests -= "[request_id]_req"
@@ -70,12 +77,15 @@ GLOBAL_VAR(portal_dungeon_z_level)
 	var/datum/http_response/response = request.into_response()
 
 	if(response.errored || !response.body)
+		log_dungeon("HTTP: Request [request_id] - error: [response.error]")
 		destination.generation_failed("HTTP error: [response.error]")
 	else
 		var/list/data = json_decode(response.body)
 		if(data && data["status"] == "success")
+			log_dungeon("HTTP: Request [request_id] - success, data received")
 			destination.generation_complete(data)
 		else
+			log_dungeon("HTTP: Request [request_id] - API error: [data?["message"] || "Unknown error"]")
 			destination.generation_failed(data?["message"] || "Unknown error from generator")
 
 	// Cleanup
@@ -117,10 +127,11 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 			M.client.move_delay = max(world.time + 5, M.client.move_delay)
 
 /datum/portal_destination/proc/activate(obj/machinery/portal/activated)
-	log_dungeon("Portal Destination: [name] activated by portal at [AREACOORD(activated)]")
+	log_dungeon("Destination: [name] activated by portal at [AREACOORD(activated)]")
 	return
 
 /datum/portal_destination/proc/deactivate(obj/machinery/portal/deactivated)
+	log_dungeon("Destination: [name] deactivated by portal at [AREACOORD(deactivated)]")
 	return
 
 /datum/portal_destination/proc/get_ui_data()
@@ -152,6 +163,10 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 	var/datum/background_process/cleanup_process
 	var/datum/background_process/init_process
 	var/datum/background_process/load_process
+	/// Prevent multiple simultaneous cleanups
+	var/cleanup_in_progress = FALSE
+	/// Prevent processing during cleanup
+	var/processing_disabled = FALSE
 
 /datum/portal_destination/veilbreak/is_available()
 	return ..() && generated && !generating
@@ -165,21 +180,22 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 
 /datum/portal_destination/veilbreak/get_target_turf()
 	if(!dungeon_z_level)
+		log_dungeon("TargetTurf: No dungeon Z-level assigned")
 		return null
 
 	// Just find any portal on the Z-level and use its location
 	var/obj/machinery/portal/any_portal = scan_for_existing_portal()
 	if(any_portal)
-		log_dungeon("Dungeon Generator: Using portal at [AREACOORD(any_portal)] as target")
+		log_dungeon("TargetTurf: Using portal at [AREACOORD(any_portal)] as target")
 		return get_turf(any_portal)
 
 	// Fallback to center if no portal found (shouldn't happen with our new system)
-	log_dungeon("Dungeon Generator: No portal found, using center as fallback")
+	log_dungeon("TargetTurf: No portal found, using center as fallback")
 	return locate(round(world.maxx/2), round(world.maxy/2), dungeon_z_level)
 
 /datum/portal_destination/veilbreak/proc/start_generation()
 	if(generating)
-		log_dungeon("Dungeon Generator: Attempted to start generation while already generating")
+		log_dungeon("Generation: Attempted to start while already generating")
 		return
 
 	// Verify mapping subsystem is ready
@@ -203,20 +219,21 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 	if(!GLOB.dungeon_generator)
 		GLOB.dungeon_generator = new /datum/http_dungeon_generator()
 
-	log_dungeon("Dungeon Generator: Starting generation for portal destination [name]")
+	log_dungeon("Generation: Starting for portal destination [name]")
 	current_request_id = GLOB.dungeon_generator.generate_dungeon(src, 100, 100) // Reduced size for safety
 
 	if(!current_request_id)
 		generation_failed("Failed to start generation request")
 		return
 
-	log_dungeon("Dungeon Generator: Started generation request [current_request_id]")
+	log_dungeon("Generation: Started request [current_request_id]")
 
 	// Start progress updates
 	START_PROCESSING(SSobj, src)
 
 /datum/portal_destination/veilbreak/process()
-	if(!generating)
+	if(!generating || processing_disabled)
+		log_dungeon("Generation: Stopping process - generating=[generating], disabled=[processing_disabled]")
 		STOP_PROCESSING(SSobj, src)
 		return
 
@@ -224,6 +241,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 	if(world.time - last_progress_update > 1 SECONDS)
 		generation_progress = min(generation_progress + rand(5, 15), 90)
 		last_progress_update = world.time
+		log_dungeon("Generation: Progress updated to [generation_progress]%")
 
 	// Check if request is complete
 	if(current_request_id && GLOB.dungeon_generator.check_request(current_request_id))
@@ -231,32 +249,22 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 		return
 
 	// Request completed or failed
+	log_dungeon("Generation: Request completed, stopping process")
 	STOP_PROCESSING(SSobj, src)
 	generation_progress = 100
 
 /datum/portal_destination/veilbreak/proc/generation_complete(list/data)
+	log_dungeon("Generation: Complete, processing data")
 	generating = FALSE
 
 	// DEBUG: Log the complete data structure we received
-	log_dungeon("Dungeon Generator: Received complete data structure")
-	log_dungeon("Dungeon Generator: Status: [data["status"]]")
-	log_dungeon("Dungeon Generator: DMM content length: [length(data["dmm_content"] || "")] bytes")
-	log_dungeon("Dungeon Generator: Metadata present: [data["metadata"] ? "YES" : "NO"]")
+	log_dungeon("Generation: Received data - status: [data["status"]], dmm length: [length(data["dmm_content"] || "")] bytes")
 
 	if(data["metadata"])
-		log_dungeon("Dungeon Generator: Metadata keys: [json_encode(data["metadata"])]")
-		if(data["metadata"]["key_positions"])
-			log_dungeon("Dungeon Generator: Key positions found: [json_encode(data["metadata"]["key_positions"])]")
-			if(data["metadata"]["key_positions"]["gateway"])
-				log_dungeon("Dungeon Generator: Gateway position: [json_encode(data["metadata"]["key_positions"]["gateway"])]")
+		log_dungeon("Generation: Metadata present with keys: [json_encode(data["metadata"])]")
 
 	// CRITICAL FIX: Store the complete data structure
 	last_generation_data = data.Copy()
-
-	// Double-check storage worked
-	log_dungeon("Dungeon Generator: Stored data verification - metadata: [last_generation_data["metadata"] ? "PRESENT" : "MISSING"]")
-	if(last_generation_data["metadata"] && last_generation_data["metadata"]["key_positions"])
-		log_dungeon("Dungeon Generator: Stored key positions: [json_encode(last_generation_data["metadata"]["key_positions"])]")
 
 	// Access dmm_content from top level
 	if(data["dmm_content"])
@@ -265,54 +273,54 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 	else
 		generation_failed("No DMM content in response")
 
-	// NEW: Notify control computer of completion
-	if(connected_control_computer)
+	// Notify control computer of completion
+	if(connected_control_computer && !QDELETED(connected_control_computer))
 		connected_control_computer.on_generation_completed()
 		connected_control_computer = null // Clear reference
 
 /datum/portal_destination/veilbreak/proc/generation_failed(reason)
+	log_dungeon("Generation: FAILED - [reason]")
 	generating = FALSE
 	generated = FALSE
 	generation_progress = 0
 
-	log_dungeon("Dungeon Generator: Generation failed - [reason]")
-
-	if(connected_portal)
+	if(connected_portal && !QDELETED(connected_portal))
 		connected_portal.say("Dungeon generation failed: [reason]")
 
-	// NEW: Notify control computer of failure
-	if(connected_control_computer)
+	// Notify control computer of failure
+	if(connected_control_computer && !QDELETED(connected_control_computer))
 		connected_control_computer.on_generation_failed(reason)
 		connected_control_computer = null // Clear reference
 
-// NEW: Initialize the fixed portal Z-level on first use
+// Initialize the fixed portal Z-level on first use
 /datum/portal_destination/veilbreak/proc/initialize_portal_z_level()
 	if(GLOB.portal_dungeon_z_level)
 		dungeon_z_level = GLOB.portal_dungeon_z_level
+		log_dungeon("ZLevel: Using existing portal Z-level [dungeon_z_level]")
 		return TRUE
 
 	// Use the highest existing Z-level
 	if(world.maxz > 0)
 		GLOB.portal_dungeon_z_level = world.maxz
 		dungeon_z_level = GLOB.portal_dungeon_z_level
-		log_dungeon("Dungeon Generator: Using existing Z-level [dungeon_z_level] for portal dungeons")
+		log_dungeon("ZLevel: Set new portal Z-level to [dungeon_z_level]")
 		return TRUE
 
-	log_dungeon("Dungeon Generator: ERROR - No Z-levels available for portal dungeons")
+	log_dungeon("ZLevel: ERROR - No Z-levels available for portal dungeons")
 	return FALSE
 
-// MODIFIED: Load generated DMM with incremental background processing
+// Load generated DMM with incremental background processing
 /datum/portal_destination/veilbreak/proc/load_generated_dmm(dmm_content, list/metadata)
 	if(!dmm_content)
 		return generation_failed("No DMM content provided")
 
-	log_dungeon("Dungeon Generator: Starting DMM content load for Veilbreak dungeon")
+	log_dungeon("DMM: Starting content load for Veilbreak dungeon")
 
 	// Initialize or get the fixed portal Z-level
 	if(!initialize_portal_z_level())
 		return generation_failed("Failed to initialize portal Z-level")
 
-	log_dungeon("Dungeon Generator: Using fixed portal Z-level [dungeon_z_level]")
+	log_dungeon("DMM: Using fixed portal Z-level [dungeon_z_level]")
 
 	// Queue cleanup to happen in background
 	cleanup_z_level_completely(dungeon_z_level)
@@ -323,20 +331,21 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 	// Use incremental loading instead of blocking load
 	return load_dmm_incrementally(dmm_content, metadata)
 
-// NEW: Incremental DMM loading using proper BYOND map loading
+// Incremental DMM loading using proper BYOND map loading
 /datum/portal_destination/veilbreak/proc/load_dmm_incrementally(dmm_content, list/metadata)
 	if(!dmm_content)
 		return generation_failed("No DMM content provided")
 
-	log_dungeon("Dungeon Generator: Starting INCREMENTAL DMM load")
+	log_dungeon("DMM: Starting incremental load")
 
 	// Write DMM content to a temporary file
 	var/temp_filename = "data/dungeon_temp_[world.time]_[rand(1000,9999)].dmm"
 
 	try
 		text2file(dmm_content, temp_filename)
+		log_dungeon("DMM: Wrote temporary file [temp_filename]")
 	catch(var/exception/e)
-		log_dungeon("Dungeon Generator: Failed to write temporary DMM file: [e]")
+		log_dungeon("DMM: Failed to write temporary DMM file: [e]")
 		return generation_failed("Failed to write map data")
 
 	// Start background map loading
@@ -346,23 +355,27 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 	)
 	load_process.start()
 
-	log_dungeon("Dungeon Generator: Started incremental DMM loading process")
+	log_dungeon("DMM: Started incremental loading process")
 	return TRUE
 
 /datum/portal_destination/veilbreak/proc/execute_dmm_load_step(temp_filename, z_level)
+	if(processing_disabled)
+		log_dungeon("DMM: Load step aborted - processing disabled")
+		return BG_PROCESSING_FINISHED
+
 	// Get or initialize loading state
 	var/current_step = load_process.metadata["current_step"] || 1
 
 	switch(current_step)
 		if(1) // Initialize Z-level as space
-			log_dungeon("Dungeon Generator: Step 1 - Initializing Z-level [z_level] as space")
+			log_dungeon("DMM: Step 1 - Initializing Z-level [z_level] as space")
 			initialize_z_as_space(z_level)
 			current_step++
 			load_process.metadata["current_step"] = current_step
 			return BG_PROCESSING_CONTINUE
 
 		if(2) // Load the map file
-			log_dungeon("Dungeon Generator: Step 2 - Loading DMM file for Z-level [z_level]")
+			log_dungeon("DMM: Step 2 - Loading DMM file for Z-level [z_level]")
 
 			// Use SSatoms to handle initialization
 			SSatoms.map_loader_begin("dungeon_generator_[z_level]")
@@ -376,11 +389,12 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 				var/datum/parsed_map/parsed = new(file(temp_filename))
 				if(parsed && parsed.bounds)
 					loaded_successfully = parsed.load(1, 1, z_level, no_changeturf = FALSE, place_on_top = FALSE, new_z = FALSE)
+					log_dungeon("DMM: Map load result: [loaded_successfully ? "SUCCESS" : "FAILED"]")
 				else
-					log_dungeon("Dungeon Generator: Failed to parse map file")
+					log_dungeon("DMM: Failed to parse map file")
 					loaded_successfully = FALSE
 			catch(var/exception/e)
-				log_dungeon("Dungeon Generator: Exception during map load: [e]")
+				log_dungeon("DMM: Exception during map load: [e]")
 				loaded_successfully = FALSE
 
 			if(SSair.initialized)
@@ -390,6 +404,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 
 			// Clean up temp file regardless of success
 			fdel(temp_filename)
+			log_dungeon("DMM: Cleaned up temporary file")
 
 			if(!loaded_successfully)
 				generation_failed("Failed to load map into world")
@@ -398,17 +413,17 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 
 			current_step++
 			load_process.metadata["current_step"] = current_step
-			log_dungeon("Dungeon Generator: Map loaded successfully, starting background initialization")
+			log_dungeon("DMM: Map loaded successfully, starting background initialization")
 			return BG_PROCESSING_CONTINUE
 
 		if(3) // Start subsystem initialization
-			log_dungeon("Dungeon Generator: Step 3 - Starting subsystem initialization")
+			log_dungeon("DMM: Step 3 - Starting subsystem initialization")
 
 			// Mark as complete (systems will initialize in background)
 			generated = TRUE
 			generation_progress = 100
 
-			if(connected_portal)
+			if(connected_portal && !QDELETED(connected_portal))
 				connected_portal.say("Dungeon generation complete. Portal stabilized.")
 
 			// Start background initialization
@@ -418,11 +433,12 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 			return BG_PROCESSING_FINISHED
 
 	// Should never reach here
+	log_dungeon("DMM: WARNING - Reached end of load steps unexpectedly")
 	load_process = null
 	return BG_PROCESSING_FINISHED
 
 /datum/portal_destination/veilbreak/proc/initialize_z_as_space(z_level)
-	log_dungeon("Dungeon Generator: Initializing Z-level [z_level] as space")
+	log_dungeon("Init: Initializing Z-level [z_level] as space")
 
 	var/turfs_processed = 0
 
@@ -436,11 +452,11 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 		if(turfs_processed % 100 == 0)
 			CHECK_TICK
 
-	log_dungeon("Dungeon Generator: Space initialization completed for [turfs_processed] turfs")
+	log_dungeon("Init: Space initialization completed for [turfs_processed] turfs")
 
-// NEW: Completely clean a Z-level before reuse with background processing
+// Completely clean a Z-level before reuse with background processing
 /datum/portal_destination/veilbreak/proc/cleanup_z_level_completely(z_level)
-	log_dungeon("Dungeon Generator: Starting background cleanup of Z-level [z_level]")
+	log_dungeon("Cleanup: Starting background cleanup of Z-level [z_level]")
 
 	// Use background processing for cleanup
 	cleanup_process = new /datum/background_process(CALLBACK(src, .proc/execute_cleanup_step, z_level), "portal_cleanup_[z_level]")
@@ -449,9 +465,15 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 	return TRUE // Return immediately, cleanup happens in background
 
 /datum/portal_destination/veilbreak/proc/execute_cleanup_step(z_level)
+	if(processing_disabled)
+		log_dungeon("Cleanup: Cleanup step aborted - processing disabled")
+		return BG_PROCESSING_FINISHED
+
 	var/start_time = world.time
 	var/max_processing_time = 0.5 SECONDS // Process for max 0.5 seconds per tick
 	var/processed_count = cleanup_process.metadata["cleanup_processed"] || 0
+
+	log_dungeon("Cleanup: Executing step - processed so far: [processed_count]")
 
 	// Process mobs in chunks
 	for(var/mob/living/mob in GLOB.mob_living_list)
@@ -467,7 +489,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 		// Check if we've used our time budget for this tick
 		if(world.time - start_time > max_processing_time)
 			cleanup_process.metadata["cleanup_processed"] = processed_count
-			log_dungeon("Dungeon Generator: Cleanup yielding after [processed_count] mobs")
+			log_dungeon("Cleanup: Yielding after [processed_count] mobs")
 			return BG_PROCESSING_CONTINUE // Continue next tick
 
 	// Process objects in chunks
@@ -483,7 +505,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 
 		if(world.time - start_time > max_processing_time)
 			cleanup_process.metadata["cleanup_processed"] = processed_count
-			log_dungeon("Dungeon Generator: Cleanup yielding after [processed_count] objects")
+			log_dungeon("Cleanup: Yielding after [processed_count] objects")
 			return BG_PROCESSING_CONTINUE
 
 	// Reset turfs to space in chunks
@@ -502,17 +524,17 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 		if(world.time - start_time > max_processing_time)
 			cleanup_process.metadata["cleanup_processed"] = processed_count
 			cleanup_process.metadata["turf_processed"] = turf_processed + 1
-			log_dungeon("Dungeon Generator: Cleanup yielding after [processed_count] items")
+			log_dungeon("Cleanup: Yielding after [processed_count] items")
 			return BG_PROCESSING_CONTINUE
 
 	// Cleanup complete
-	log_dungeon("Dungeon Generator: Cleanup completed for Z-level [z_level] - processed [processed_count] items")
+	log_dungeon("Cleanup: COMPLETE for Z-level [z_level] - processed [processed_count] items")
 	cleanup_process = null
 	return BG_PROCESSING_FINISHED
 
-// MODIFIED: Initialize dungeon subsystems with proper tick checking
+// Initialize dungeon subsystems with proper tick checking
 /datum/portal_destination/veilbreak/proc/initialize_dungeon_subsystems(z_level)
-	log_dungeon("Dungeon Generator: Starting background subsystem initialization for Z-level [z_level]")
+	log_dungeon("Subsystems: Starting background initialization for Z-level [z_level]")
 
 	// Use background processing for initialization
 	init_process = new /datum/background_process(CALLBACK(src, .proc/execute_init_step, z_level), "portal_init_[z_level]")
@@ -521,9 +543,15 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 	return TRUE // Return immediately, initialization happens in background
 
 /datum/portal_destination/veilbreak/proc/execute_init_step(z_level)
+	if(processing_disabled)
+		log_dungeon("Subsystems: Init step aborted - processing disabled")
+		return BG_PROCESSING_FINISHED
+
 	var/start_time = world.time
 	var/max_processing_time = 0.5 SECONDS // Process for max 0.5 seconds per tick
 	var/current_step = init_process.metadata["current_step"] || 1
+
+	log_dungeon("Subsystems: Executing step [current_step]")
 
 	switch(current_step)
 		if(1) // Initialize atoms
@@ -580,7 +608,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 				return BG_PROCESSING_CONTINUE
 
 	// Initialization complete
-	log_dungeon("Dungeon Generator: Subsystem initialization completed for Z-level [z_level]")
+	log_dungeon("Subsystems: INITIALIZATION COMPLETE for Z-level [z_level]")
 
 	// Ensure portal connection now that everything is ready
 	ensure_portal_connection()
@@ -588,7 +616,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 	init_process = null
 	return BG_PROCESSING_FINISHED
 
-// NEW: Incremental versions of initialization procs with proper tick checking
+// Incremental versions of initialization procs with proper tick checking
 /datum/portal_destination/veilbreak/proc/initialize_dungeon_atoms_incremental(z_level, start_time, max_time)
 	var/current_index = init_process.metadata["atom_index"] || 1
 	var/list/atoms_to_initialize = init_process.metadata["atoms_list"]
@@ -601,7 +629,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 				atoms_to_initialize += A
 		init_process.metadata["atoms_list"] = atoms_to_initialize
 		init_process.metadata["atom_index"] = 1
-		log_dungeon("Dungeon Generator: Found [length(atoms_to_initialize)] atoms to initialize")
+		log_dungeon("Subsystems: Found [length(atoms_to_initialize)] atoms to initialize")
 		return BG_PROCESSING_CONTINUE
 
 	for(var/i = current_index to min(current_index + 50, length(atoms_to_initialize)))
@@ -611,10 +639,10 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 
 		if(world.time - start_time > max_time)
 			init_process.metadata["atom_index"] = i + 1
-			log_dungeon("Dungeon Generator: Atom initialization yielding")
+			log_dungeon("Subsystems: Atom initialization yielding at index [i]")
 			return BG_PROCESSING_CONTINUE
 
-	log_dungeon("Dungeon Generator: Atom initialization completed")
+	log_dungeon("Subsystems: Atom initialization completed")
 	return BG_PROCESSING_FINISHED
 
 /datum/portal_destination/veilbreak/proc/initialize_dungeon_areas_incremental(z_level, start_time, max_time)
@@ -633,6 +661,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 				areas_to_process += area
 		init_process.metadata["areas_list"] = areas_to_process
 		init_process.metadata["area_index"] = 1
+		log_dungeon("Subsystems: Found [length(areas_to_process)] areas to initialize")
 		return BG_PROCESSING_CONTINUE
 
 	for(var/i = current_index to min(current_index + 20, length(areas_to_process)))
@@ -646,8 +675,10 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 
 		if(world.time - start_time > max_time)
 			init_process.metadata["area_index"] = i + 1
+			log_dungeon("Subsystems: Area initialization yielding at index [i]")
 			return BG_PROCESSING_CONTINUE
 
+	log_dungeon("Subsystems: Area initialization completed")
 	return BG_PROCESSING_FINISHED
 
 /datum/portal_destination/veilbreak/proc/initialize_dungeon_power_incremental(z_level, start_time, max_time)
@@ -662,13 +693,15 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 
 		if(world.time - start_time > max_time)
 			init_process.metadata["power_index"] = current_index + 1
+			log_dungeon("Subsystems: Power initialization yielding")
 			return BG_PROCESSING_CONTINUE
 
+	log_dungeon("Subsystems: Power initialization completed")
 	return BG_PROCESSING_FINISHED
 
 /datum/portal_destination/veilbreak/proc/initialize_dungeon_lighting_incremental(z_level, start_time, max_time)
 	if(!SSlighting || !SSlighting.initialized)
-		log_dungeon("Dungeon Generator: Lighting subsystem not available")
+		log_dungeon("Subsystems: Lighting subsystem not available")
 		return BG_PROCESSING_FINISHED
 
 	var/current_x = init_process.metadata["lighting_x"] || 1
@@ -683,17 +716,20 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 			if(world.time - start_time > max_time)
 				init_process.metadata["lighting_x"] = x
 				init_process.metadata["lighting_y"] = y + 1
+				log_dungeon("Subsystems: Lighting initialization yielding at [x],[y]")
 				return BG_PROCESSING_CONTINUE
 		current_y = 1
 
+	log_dungeon("Subsystems: Lighting initialization completed")
 	return BG_PROCESSING_FINISHED
 
 /datum/portal_destination/veilbreak/proc/initialize_dungeon_atmospherics_incremental(z_level, start_time, max_time)
 	if(!SSair || !SSair.initialized)
-		log_dungeon("Dungeon Generator: Air subsystem not available")
+		log_dungeon("Subsystems: Air subsystem not available")
 		return BG_PROCESSING_FINISHED
 
 	// Atmos machinery will be handled by SSair naturally
+	log_dungeon("Subsystems: Atmospherics initialization completed")
 	return BG_PROCESSING_FINISHED
 
 /datum/portal_destination/veilbreak/proc/initialize_dungeon_machinery_incremental(z_level, start_time, max_time)
@@ -710,8 +746,10 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 
 		if(world.time - start_time > max_time)
 			init_process.metadata["machinery_index"] = current_index + 1
+			log_dungeon("Subsystems: Machinery initialization yielding")
 			return BG_PROCESSING_CONTINUE
 
+	log_dungeon("Subsystems: Machinery initialization completed")
 	return BG_PROCESSING_FINISHED
 
 /datum/portal_destination/veilbreak/proc/force_immediate_visual_updates_incremental(z_level, start_time, max_time)
@@ -728,12 +766,14 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 			if(world.time - start_time > max_time)
 				init_process.metadata["visual_x"] = x
 				init_process.metadata["visual_y"] = y + 1
+				log_dungeon("Subsystems: Visual updates yielding at [x],[y]")
 				return BG_PROCESSING_CONTINUE
 		current_y = 1
 
+	log_dungeon("Subsystems: Visual updates completed")
 	return BG_PROCESSING_FINISHED
 
-// NEW: Check if an atom should be preserved during Z-level cleanup
+// Check if an atom should be preserved during Z-level cleanup
 /datum/portal_destination/veilbreak/proc/should_preserve_for_cleanup(atom/movable/AM)
 	// Preserve players and player-related entities
 	if(ismob(AM))
@@ -758,42 +798,43 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 // ===== PORTAL CONNECTION SYSTEM =====
 /datum/portal_destination/veilbreak/proc/ensure_portal_connection()
 	if(!dungeon_z_level)
-		log_dungeon("Dungeon Generator: Cannot ensure connection - no Z-level assigned")
+		log_dungeon("Connection: Cannot ensure connection - no Z-level assigned")
 		return FALSE
 
-	log_dungeon("Dungeon Generator: Scanning Z-level [dungeon_z_level] for portals...")
+	log_dungeon("Connection: Scanning Z-level [dungeon_z_level] for portals...")
 
 	// Scan the entire Z-level for portal objects
 	var/obj/machinery/portal/found_portal = scan_for_existing_portal()
 
 	if(found_portal)
-		log_dungeon("Dungeon Generator: Found existing portal at [AREACOORD(found_portal)]")
+		log_dungeon("Connection: Found existing portal at [AREACOORD(found_portal)]")
 		return connect_to_existing_portal(found_portal)
 	else
-		log_dungeon("Dungeon Generator: No portal found in dungeon, creating optimal one")
+		log_dungeon("Connection: No portal found in dungeon, creating optimal one")
 		return create_and_connect_new_portal()
 
 /datum/portal_destination/veilbreak/proc/scan_for_existing_portal()
 	// Method 1: Direct search for portal machinery
 	for(var/obj/machinery/portal/P in world)
 		if(P.z == dungeon_z_level)
-			log_dungeon("Dungeon Generator: Found portal at [AREACOORD(P)]")
+			log_dungeon("Connection: Found portal at [AREACOORD(P)]")
 			return P
 
 	// Method 2: Search for portal bumpers (they indicate portal presence)
 	for(var/obj/effect/portal_bumper/bumper in world)
 		if(bumper.z == dungeon_z_level && bumper.parent_portal)
-			log_dungeon("Dungeon Generator: Found portal via bumper at [AREACOORD(bumper.parent_portal)]")
+			log_dungeon("Connection: Found portal via bumper at [AREACOORD(bumper.parent_portal)]")
 			return bumper.parent_portal
 
-	log_dungeon("Dungeon Generator: No portals found on Z-level [dungeon_z_level]")
+	log_dungeon("Connection: No portals found on Z-level [dungeon_z_level]")
 	return null
 
 /datum/portal_destination/veilbreak/proc/connect_to_existing_portal(obj/machinery/portal/dungeon_portal)
-	if(!dungeon_portal)
+	if(!dungeon_portal || QDELETED(dungeon_portal))
+		log_dungeon("Connection: Invalid dungeon portal")
 		return FALSE
 
-	log_dungeon("Dungeon Generator: Connecting to existing portal at [AREACOORD(dungeon_portal)]")
+	log_dungeon("Connection: Connecting to existing portal at [AREACOORD(dungeon_portal)]")
 
 	// Configure the found portal for dungeon use
 	dungeon_portal.use_power = NO_POWER_USE
@@ -811,46 +852,46 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 	// Register return destination
 	var/return_id = "veilbreak_return_[dungeon_z_level]_[world.time]"
 	GLOB.portal_destinations[return_id] = return_destination
-	log_dungeon("Dungeon Generator: Registered return destination [return_id]")
+	log_dungeon("Connection: Registered return destination [return_id]")
 
 	// Configure the dungeon portal to target the return destination
 	dungeon_portal.target = return_destination
 	dungeon_portal.transport_active = TRUE
 	dungeon_portal.update_appearance()
 
-	log_dungeon("Dungeon Generator: Dungeon portal configured at [AREACOORD(dungeon_portal)]")
+	log_dungeon("Connection: Dungeon portal configured at [AREACOORD(dungeon_portal)]")
 
 	// Configure the station portal to target this dungeon
-	if(connected_portal)
+	if(connected_portal && !QDELETED(connected_portal))
 		connected_portal.target = src
 		connected_portal.transport_active = TRUE
 		connected_portal.update_appearance()
 
-		log_dungeon("Dungeon Generator: SUCCESS - Bidirectional connection established!")
-		log_dungeon("Dungeon Generator: Station -> Dungeon: [AREACOORD(connected_portal)]")
-		log_dungeon("Dungeon Generator: Dungeon -> Station: [AREACOORD(dungeon_portal)]")
+		log_dungeon("Connection: SUCCESS - Bidirectional connection established!")
+		log_dungeon("Connection: Station -> Dungeon: [AREACOORD(connected_portal)]")
+		log_dungeon("Connection: Dungeon -> Station: [AREACOORD(dungeon_portal)]")
 		return TRUE
 
-	log_dungeon("Dungeon Generator: WARNING - No connected portal found for station side")
+	log_dungeon("Connection: WARNING - No connected portal found for station side")
 	return FALSE
 
 /datum/portal_destination/veilbreak/proc/create_and_connect_new_portal()
-	log_dungeon("Dungeon Generator: Creating new portal at optimal location")
+	log_dungeon("Connection: Creating new portal at optimal location")
 
 	var/turf/optimal_turf = find_optimal_portal_location()
 	if(!optimal_turf)
-		log_dungeon("Dungeon Generator: ERROR - Could not find suitable location for portal")
+		log_dungeon("Connection: ERROR - Could not find suitable location for portal")
 		return FALSE
 
 	// Create the portal
 	var/obj/machinery/portal/dungeon_portal = new(optimal_turf)
-	log_dungeon("Dungeon Generator: Created new portal at [AREACOORD(dungeon_portal)]")
+	log_dungeon("Connection: Created new portal at [AREACOORD(dungeon_portal)]")
 
 	// Now connect it (reuse the same logic as for existing portals)
 	return connect_to_existing_portal(dungeon_portal)
 
 /datum/portal_destination/veilbreak/proc/find_optimal_portal_location()
-	log_dungeon("Dungeon Generator: Searching for optimal portal location on Z-level [dungeon_z_level]")
+	log_dungeon("Connection: Searching for optimal portal location on Z-level [dungeon_z_level]")
 
 	// Strategy: Look for open areas that are accessible and not blocked
 	var/list/candidate_turfs = list()
@@ -861,13 +902,13 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 			candidate_turfs += T
 		CHECK_TICK
 
-	log_dungeon("Dungeon Generator: Found [length(candidate_turfs)] candidate locations")
+	log_dungeon("Connection: Found [length(candidate_turfs)] candidate locations")
 
 	if(!length(candidate_turfs))
 		// Emergency fallback: any open turf
 		for(var/turf/open/T in block(locate(1, 1, dungeon_z_level), locate(world.maxx, world.maxy, dungeon_z_level)))
 			if(!T.density)
-				log_dungeon("Dungeon Generator: Using emergency fallback location at [AREACOORD(T)]")
+				log_dungeon("Connection: Using emergency fallback location at [AREACOORD(T)]")
 				return T
 			CHECK_TICK
 		return null
@@ -883,7 +924,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 			best_score = score
 		CHECK_TICK
 
-	log_dungeon("Dungeon Generator: Selected optimal location at [AREACOORD(best_turf)] with score [best_score]")
+	log_dungeon("Connection: Selected optimal location at [AREACOORD(best_turf)] with score [best_score]")
 	return best_turf
 
 /datum/portal_destination/veilbreak/proc/is_good_portal_location(turf/T)
@@ -942,42 +983,130 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 
 // ===== CLEANUP AND UTILITY PROCS =====
 /datum/portal_destination/veilbreak/proc/cleanup_dungeon()
-	if(!dungeon_z_level)
-		log_dungeon("Dungeon Generator: No Z-level to clean up")
+	if(cleanup_in_progress || processing_disabled)
+		log_dungeon("Cleanup: Already in progress or disabled, skipping")
 		return
 
-	log_dungeon("Dungeon Generator: Starting comprehensive cleanup for Z-level [dungeon_z_level]")
+	cleanup_in_progress = TRUE
+	processing_disabled = TRUE
 
-	// 1. Clean up all mobs and objects on the Z-level (except players who were already dumped)
+	if(!dungeon_z_level)
+		log_dungeon("Cleanup: No Z-level to clean up")
+		cleanup_in_progress = FALSE
+		processing_disabled = FALSE
+		return
+
+	log_dungeon("Cleanup: Starting comprehensive cleanup for Z-level [dungeon_z_level]")
+
+	// Stop any background processing first
+	STOP_PROCESSING(SSobj, src)
+	if(cleanup_process)
+		cleanup_process.stop()
+		cleanup_process = null
+	if(init_process)
+		init_process.stop()
+		init_process = null
+	if(load_process)
+		load_process.stop()
+		load_process = null
+
+	// 1. Clean up all mobs and objects on the Z-level
 	cleanup_z_level_contents(dungeon_z_level)
 
-	// 2. Clean up any remaining portal connections
-	if(connected_portal && connected_portal.target == src)
+	// 2. Clean up any remaining portal connections with safety checks
+	if(connected_portal && !QDELETED(connected_portal) && connected_portal.target == src)
 		connected_portal.target = null
 		connected_portal.transport_active = FALSE
 		connected_portal.update_appearance()
-		log_dungeon("Dungeon Generator: Disconnected station portal")
+		log_dungeon("Cleanup: Disconnected station portal")
 
-	// 3. Clean up any dungeon-side portal
+	// 3. Clean up any dungeon-side portal safely
 	var/obj/machinery/portal/dungeon_portal = scan_for_existing_portal()
-	if(dungeon_portal)
-		// Find and remove the return destination
+	if(dungeon_portal && !QDELETED(dungeon_portal))
+		// Find and remove the return destination safely
 		if(dungeon_portal.target)
 			for(var/key in GLOB.portal_destinations)
-				if(GLOB.portal_destinations[key] == dungeon_portal.target)
+				var/datum/portal_destination/dest = GLOB.portal_destinations[key]
+				if(dest == dungeon_portal.target)
 					GLOB.portal_destinations -= key
-					log_dungeon("Dungeon Generator: Removed return destination [key]")
+					log_dungeon("Cleanup: Removed return destination [key]")
 					break
-		// Queue the portal for deletion
-		qdel(dungeon_portal)
-		log_dungeon("Dungeon Generator: Queued dungeon portal for deletion")
+
+		// Use a timer to safely delete the portal
+		QDEL_NULL(dungeon_portal)
+		log_dungeon("Cleanup: Queued dungeon portal for deletion")
 
 	// 4. Reset state - but keep the Z-level for reuse
 	generated = FALSE
 	generating = FALSE
-	last_generation_data = null
+	// Don't clear last_generation_data - we might want it for analytics
 
-	log_dungeon("Dungeon Generator: Cleanup complete for veilbreak destination")
+	// Re-enable processing after cleanup
+	addtimer(CALLBACK(src, .proc/enable_processing), 1 SECONDS)
+
+	log_dungeon("Cleanup: Cleanup complete for veilbreak destination")
+
+/datum/portal_destination/veilbreak/proc/enable_processing()
+	processing_disabled = FALSE
+	cleanup_in_progress = FALSE
+	log_dungeon("Cleanup: Processing re-enabled")
+
+/datum/portal_destination/veilbreak/proc/cleanup_z_level_contents(z_level)
+	log_dungeon("Cleanup: Cleaning up contents of Z-level [z_level]")
+
+	var/mobs_cleaned = 0
+	var/objects_cleaned = 0
+
+	// Clean up all non-player mobs
+	for(var/mob/living/mob in GLOB.mob_list)
+		if(mob.z == z_level)
+			// Skip players and player-related entities (they should have been dumped already)
+			if(mob.ckey || mob.client || is_player_related_for_cleanup(mob))
+				continue
+			// Delete hostile/npc mobs
+			qdel(mob)
+			mobs_cleaned++
+
+	// Clean up non-essential objects
+	for(var/obj/object in world)
+		if(object.z == z_level)
+			// Skip important structures and player items
+			if(should_preserve_object(object))
+				continue
+			qdel(object)
+			objects_cleaned++
+
+	log_dungeon("Cleanup: Cleaned up [mobs_cleaned] mobs and [objects_cleaned] objects from Z-level [z_level]")
+
+/// Check if an object should be preserved during cleanup
+/datum/portal_destination/veilbreak/proc/should_preserve_object(obj/object)
+	// Preserve important structures
+	if(istype(object, /obj/structure))
+		return TRUE
+	if(istype(object, /obj/machinery))
+		return TRUE
+	if(istype(object, /obj/item))
+		return TRUE
+	// Preserve anything that might be player-owned
+	if(object.resistance_flags & INDESTRUCTIBLE)
+		return TRUE
+	return FALSE
+
+/// Check if a mob is player-related for cleanup purposes
+/datum/portal_destination/veilbreak/proc/is_player_related_for_cleanup(mob/living/mob)
+	// Players with active connections
+	if(mob.client)
+		return TRUE
+	// Players with ckeys (SSD)
+	if(mob.ckey)
+		return TRUE
+	// Player corpses with minds
+	if(mob.stat == DEAD && mob.mind)
+		return TRUE
+	// Cyborgs with players
+	if(iscyborg(mob) && (mob.ckey || mob.mind))
+		return TRUE
+	return FALSE
 
 /datum/portal_destination/veilbreak/proc/get_dungeon_stats()
 	if(!last_generation_data || !last_generation_data["metadata"])
@@ -998,10 +1127,10 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 
 /datum/portal_destination/veilbreak/proc/validate_state()
 	if(generating && generated)
-		log_dungeon("Dungeon Generator: WARNING - Portal in invalid state (both generating and generated)")
+		log_dungeon("State: WARNING - Portal in invalid state (both generating and generated)")
 		return FALSE
 	if(dungeon_z_level > world.maxz)
-		log_dungeon("Dungeon Generator: WARNING - Dungeon Z-level [dungeon_z_level] exceeds world maxz [world.maxz]")
+		log_dungeon("State: WARNING - Dungeon Z-level [dungeon_z_level] exceeds world maxz [world.maxz]")
 		return FALSE
 	return TRUE
 
@@ -1083,61 +1212,3 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 		if(GLOB.portal_destinations[key] == src)
 			return key
 	return null
-
-
-/datum/portal_destination/veilbreak/proc/cleanup_z_level_contents(z_level)
-	log_dungeon("Dungeon Generator: Cleaning up contents of Z-level [z_level]")
-
-	var/mobs_cleaned = 0
-	var/objects_cleaned = 0
-
-	// Clean up all non-player mobs
-	for(var/mob/living/mob in GLOB.mob_list)
-		if(mob.z == z_level)
-			// Skip players and player-related entities (they should have been dumped already)
-			if(mob.ckey || mob.client || is_player_related_for_cleanup(mob))
-				continue
-			// Delete hostile/npc mobs
-			qdel(mob)
-			mobs_cleaned++
-
-	// Clean up non-essential objects
-	for(var/obj/object in world)
-		if(object.z == z_level)
-			// Skip important structures and player items
-			if(should_preserve_object(object))
-				continue
-			qdel(object)
-			objects_cleaned++
-
-	log_dungeon("Dungeon Generator: Cleaned up [mobs_cleaned] mobs and [objects_cleaned] objects from Z-level [z_level]")
-
-/// Check if an object should be preserved during cleanup
-/datum/portal_destination/veilbreak/proc/should_preserve_object(obj/object)
-	// Preserve important structures
-	if(istype(object, /obj/structure))
-		return TRUE
-	if(istype(object, /obj/machinery))
-		return TRUE
-	if(istype(object, /obj/item))
-		return TRUE
-	// Preserve anything that might be player-owned
-	if(object.resistance_flags & INDESTRUCTIBLE)
-		return TRUE
-	return FALSE
-
-/// Check if a mob is player-related for cleanup purposes
-/datum/portal_destination/veilbreak/proc/is_player_related_for_cleanup(mob/living/mob)
-	// Players with active connections
-	if(mob.client)
-		return TRUE
-	// Players with ckeys (SSD)
-	if(mob.ckey)
-		return TRUE
-	// Player corpses with minds
-	if(mob.stat == DEAD && mob.mind)
-		return TRUE
-	// Cyborgs with players
-	if(iscyborg(mob) && (mob.ckey || mob.mind))
-		return TRUE
-	return FALSE

@@ -19,7 +19,7 @@
 
 // Helper proc for portal control logging
 /proc/log_portal_control(text)
-	log_game(text, list(), LOG_GAME)
+	log_game("DUNGEON: CONTROL: [text]", list(), LOG_GAME)
 
 /obj/machinery/computer/portal_control/Initialize(mapload, obj/item/circuitboard/C)
 	. = ..()
@@ -32,7 +32,7 @@
 		ui = new(user, src, "PortalControl", name)
 		ui.open()
 
-	log_portal_control("Portal Control: [key_name(user)] opened UI at [AREACOORD(src)]")
+	log_portal_control("UI: [key_name(user)] opened UI at [AREACOORD(src)]")
 	return TRUE
 
 /obj/machinery/computer/portal_control/ui_data(mob/user)
@@ -193,16 +193,16 @@
 
 	switch(action)
 		if("linkup")
-			log_portal_control("Portal Control: [key_name(user)] attempted linkup at [AREACOORD(src)]")
+			log_portal_control("UI: [key_name(user)] attempted linkup at [AREACOORD(src)]")
 			try_to_linkup()
 			if(linked_portal)
-				log_portal_control("Portal Control: Successfully linked to portal at [AREACOORD(linked_portal)]")
+				log_portal_control("UI: Successfully linked to portal at [AREACOORD(linked_portal)]")
 			// Force UI update after linkup
 			force_ui_update()
 			. = TRUE
 		if("deactivate")
 			if(linked_portal?.target)
-				log_portal_control("Portal Control: [key_name(user)] deactivating portal from [linked_portal.target.name] at [AREACOORD(src)]")
+				log_portal_control("UI: [key_name(user)] deactivating portal from [linked_portal.target.name] at [AREACOORD(src)]")
 				if(istype(linked_portal.target, /datum/portal_destination/veilbreak))
 					var/datum/portal_destination/veilbreak/veil_dest = linked_portal.target
 					cleanup_portal_simple(veil_dest)
@@ -217,12 +217,12 @@
 				// Enhanced checks to prevent generation conflicts
 				if(generation_in_progress)
 					to_chat(user, span_warning("Portal stabilization is already in progress!"))
-					log_portal_control("Portal Control: Generation blocked - already in progress (local)")
+					log_portal_control("Generation: Blocked - already in progress (local)")
 					return TRUE
 
 				if(veil_dest.generating)
 					to_chat(user, span_warning("Portal stabilization is already in progress!"))
-					log_portal_control("Portal Control: Generation blocked - already in progress (destination)")
+					log_portal_control("Generation: Blocked - already in progress (destination)")
 					return TRUE
 
 				if(linked_portal.transport_active)
@@ -233,7 +233,7 @@
 					to_chat(user, span_warning("Please wait [round((next_generate_attempt - world.time) / 10)] seconds before generating another portal."))
 					return TRUE
 
-				log_portal_control("Portal Control: [key_name(user)] initiating new portal generation at [AREACOORD(src)]")
+				log_portal_control("Generation: [key_name(user)] initiating new portal generation at [AREACOORD(src)]")
 
 				// Set states BEFORE starting generation
 				generation_in_progress = TRUE
@@ -248,7 +248,7 @@
 					veil_dest.start_generation()
 					start_success = TRUE
 				catch(var/exception/e)
-					log_portal_control("Portal Control: Exception during generation start: [e]")
+					log_portal_control("Generation: Exception during start: [e]")
 					generation_in_progress = FALSE
 					next_generate_attempt = 0
 					stop_generation_monitoring()
@@ -263,15 +263,15 @@
 					stop_generation_monitoring()
 					force_ui_update()
 					to_chat(user, span_warning("Portal stabilization failed to start."))
-					log_portal_control("Portal Control: Generation failed to start properly")
+					log_portal_control("Generation: Failed to start properly")
 				else
 					linked_portal.say("Initiating new portal stabilization...")
-					log_portal_control("Portal Control: Portal generation started successfully")
+					log_portal_control("Generation: Started successfully")
 
 					// Register for generation completion callbacks
 					register_generation_callbacks(veil_dest)
 			else
-				log_portal_control("Portal Control: [key_name(user)] attempted generation without valid portal destination")
+				log_portal_control("Generation: [key_name(user)] attempted without valid portal destination")
 				to_chat(user, span_warning("No valid portal destination configured!"))
 			. = TRUE
 
@@ -282,32 +282,46 @@
 
 /// SIMPLIFIED CLEANUP - Eject all mobs except hostile or void faction
 /obj/machinery/computer/portal_control/proc/cleanup_portal_simple(datum/portal_destination/veilbreak/veil_dest)
-	if(!veil_dest.dungeon_z_level)
-		log_portal_control("Portal Control: No portal Z-level to clean up")
+	if(!veil_dest || QDELETED(veil_dest))
+		log_portal_control("Cleanup: Invalid destination")
 		return
 
-	log_portal_control("Portal Control: Starting SIMPLIFIED cleanup of portal Z-level [veil_dest.dungeon_z_level]")
+	if(!veil_dest.dungeon_z_level)
+		log_portal_control("Cleanup: No portal Z-level to clean up")
+		return
+
+	log_portal_control("Cleanup: Starting SIMPLIFIED cleanup of portal Z-level [veil_dest.dungeon_z_level]")
+
+	// Set a flag to prevent re-entrancy
+	if(veil_dest.cleanup_in_progress)
+		log_portal_control("Cleanup: Already in progress, skipping")
+		return
+
+	veil_dest.cleanup_in_progress = TRUE
 
 	// Use the new simple dumping
 	dump_mobs_simple(veil_dest.dungeon_z_level)
 
-	// Now call the destination's own cleanup proc
+	// Now call the destination's own cleanup proc with safety
 	veil_dest.cleanup_dungeon()
 
-	// We don't remove the destination from global list anymore since we're reusing it
+	// Clear the flag after a delay to ensure cleanup completes
+	addtimer(CALLBACK(veil_dest, /datum/portal_destination/veilbreak/proc/enable_processing), 5 SECONDS)
 
 // ===== SIMPLIFIED DUMPING SYSTEM =====
 
 /// Dump only mobs - players, corpses, everything except hostile/void
 /obj/machinery/computer/portal_control/proc/dump_mobs_simple(dungeon_z)
-	if(!linked_portal)
+	if(!linked_portal || QDELETED(linked_portal))
+		log_portal_control("Dump: No linked portal")
 		return
 
 	var/turf/portal_turf = get_turf(linked_portal)
 	if(!portal_turf)
+		log_portal_control("Dump: No portal turf")
 		return
 
-	log_portal_control("Portal Control: Starting MOB-ONLY dump from Z-level [dungeon_z]")
+	log_portal_control("Dump: Starting MOB-ONLY dump from Z-level [dungeon_z]")
 
 	var/dumped_count = 0
 	var/skipped_count = 0
@@ -323,7 +337,7 @@
 	// Fallback if no turfs found
 	if(!length(dump_turfs))
 		dump_turfs += get_step(portal_turf, pick(NORTH, SOUTH, EAST, WEST))
-		log_portal_control("Portal Control: Using fallback dump location")
+		log_portal_control("Dump: Using fallback dump location")
 
 	// Only process mobs
 	for(var/mob/living/mob in GLOB.mob_living_list)
@@ -352,9 +366,9 @@
 			dumped_count++
 
 	var/feedback_msg = "Portal collapse: [dumped_count] mobs returned. [skipped_count] hostiles removed."
-	if(linked_portal)
+	if(linked_portal && !QDELETED(linked_portal))
 		linked_portal.say(feedback_msg)
-	log_portal_control("Portal Control: MOB DUMP COMPLETE - [feedback_msg]")
+	log_portal_control("Dump: COMPLETE - [feedback_msg]")
 
 /// Simple check: TRUE if hostile or void faction, FALSE otherwise (safe to eject)
 /obj/machinery/computer/portal_control/proc/is_hostile_or_void(mob/living/mob)
@@ -387,25 +401,65 @@
 /// Called when generation completes successfully
 /obj/machinery/computer/portal_control/proc/on_generation_completed()
 	generation_in_progress = FALSE
-	log_portal_control("Portal Control: Portal generation completed successfully")
+	log_portal_control("Callback: Generation completed successfully")
 
 	// Stop monitoring and force final update
 	stop_generation_monitoring()
 	force_ui_update()
 
 	// Provide user feedback
-	if(linked_portal)
+	if(linked_portal && !QDELETED(linked_portal))
 		linked_portal.say("Portal stabilization complete. Destination secured.")
 
 /// Called when generation fails
 /obj/machinery/computer/portal_control/proc/on_generation_failed(reason)
 	generation_in_progress = FALSE
-	log_portal_control("Portal Control: Portal generation failed - [reason]")
+	log_portal_control("Callback: Generation failed - [reason]")
 
 	// Stop monitoring and force final update
 	stop_generation_monitoring()
 	force_ui_update()
 
 	// Provide user feedback
-	if(linked_portal)
+	if(linked_portal && !QDELETED(linked_portal))
 		linked_portal.say("Portal stabilization failed: [reason]")
+
+// ===== DEBUG VERBS =====
+/obj/machinery/computer/portal_control/verb/debug_cleanup_state()
+	set name = "Debug Cleanup State"
+	set category = "Debug"
+	set src in view(1)
+
+	usr << "=== CLEANUP STATE DEBUG ==="
+	if(linked_portal?.destination)
+		var/datum/portal_destination/veilbreak/veil_dest = linked_portal.destination
+		usr << "Destination State:"
+		usr << "- Generated: [veil_dest.generated]"
+		usr << "- Generating: [veil_dest.generating]"
+		usr << "- Cleanup In Progress: [veil_dest.cleanup_in_progress]"
+		usr << "- Processing Disabled: [veil_dest.processing_disabled]"
+		usr << "- Dungeon Z: [veil_dest.dungeon_z_level]"
+
+		// Check for active processes
+		usr << "Active Processes:"
+		usr << "- Cleanup: [veil_dest.cleanup_process ? "YES" : "NO"]"
+		usr << "- Init: [veil_dest.init_process ? "YES" : "NO"]"
+		usr << "- Load: [veil_dest.load_process ? "YES" : "NO"]"
+
+		// Check global destinations
+		usr << "Global Destinations: [length(GLOB.portal_destinations)]"
+	else
+		usr << "No linked portal destination"
+
+/obj/machinery/computer/portal_control/verb/force_cleanup()
+	set name = "Force Cleanup"
+	set category = "Debug"
+	set src in view(1)
+
+	usr << "Forcing cleanup..."
+	if(linked_portal?.destination)
+		var/datum/portal_destination/veilbreak/veil_dest = linked_portal.destination
+		cleanup_portal_simple(veil_dest)
+		usr << "Cleanup initiated"
+	else
+		usr << "No destination to clean up"

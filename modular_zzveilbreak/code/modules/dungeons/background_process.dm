@@ -23,11 +23,21 @@
 	log_dungeon("Background Process: Stopped [process_name]")
 
 /datum/background_process/proc/execute()
-	if(!active || !process_callback)
+	if(!active || QDELETED(src))
 		stop()
 		return
 
-	var/result = process_callback.Invoke()
+	if(!process_callback || QDELETED(process_callback))
+		stop()
+		return
+
+	var/result = BG_PROCESSING_FINISHED
+	try
+		result = process_callback.Invoke()
+	catch(var/exception/e)
+		log_dungeon("Background Process: ERROR in [process_name]: [e]")
+		stop()
+		return
 
 	switch(result)
 		if(BG_PROCESSING_FINISHED)
@@ -37,12 +47,13 @@
 			return
 		else
 			// Assume finished on invalid response
+			log_dungeon("Background Process: WARNING - Invalid result [result] from [process_name], stopping")
 			stop()
 
 // Background processing subsystem
 SUBSYSTEM_DEF(background)
 	name = "Background"
-	priority = FIRE_PRIORITY_DEFAULT // Use the correct constant from subsystem base
+	priority = FIRE_PRIORITY_DEFAULT
 	wait = 1 // Process every tick if possible
 	flags = SS_BACKGROUND | SS_NO_INIT
 
@@ -54,4 +65,19 @@ SUBSYSTEM_DEF(background)
 	for(var/datum/background_process/process as anything in current_processing)
 		if(MC_TICK_CHECK) // Respect tick budget
 			return
-		process.execute()
+
+		// Safety checks
+		if(QDELETED(process))
+			processing -= process
+			continue
+
+		if(!process.active)
+			processing -= process
+			continue
+
+		// Execute with error handling
+		try
+			process.execute()
+		catch(var/exception/e)
+			log_dungeon("Background Process: ERROR in [process.process_name]: [e]")
+			process.stop()
