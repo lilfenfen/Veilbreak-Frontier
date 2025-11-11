@@ -204,7 +204,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 		GLOB.dungeon_generator = new /datum/http_dungeon_generator()
 
 	log_dungeon("Dungeon Generator: Starting generation for portal destination [name]")
-	current_request_id = GLOB.dungeon_generator.generate_dungeon(src, 50, 50) // Reduced size for safety
+	current_request_id = GLOB.dungeon_generator.generate_dungeon(src, 100, 100) // Reduced size for safety
 
 	if(!current_request_id)
 		generation_failed("Failed to start generation request")
