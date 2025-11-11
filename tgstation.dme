@@ -10543,6 +10543,7 @@
 #include "modular_zzveilbreak\code\modules\tattoo\tattoo_defines.dm"
 #include "modular_zzveilbreak\code\modules\tattoo\tattoo_datums.dm"
 #include "modular_zzveilbreak\code\modules\tattoo\tattoo_bodyparts.dm"
+#include "modular_zzveilbreak\code\modules\tattoo\tattoo_login.dm"
 #include "modular_zzveilbreak\code\modules\tattoo\tattoo_mob_helpers.dm"
 #include "modular_zzveilbreak\code\modules\tattoo\tattoo_persistence.dm"
 #include "modular_zzveilbreak\code\modules\tattoo\tattoo_prefs.dm"
