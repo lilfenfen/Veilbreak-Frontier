@@ -20,7 +20,8 @@
 				"date_applied" = T.date_applied,
 				"layer" = T.layer,
 				"is_signature" = T.is_signature,
-				"font" = T.font
+				"font" = T.font,
+				"flair" = T.flair // NEW: Save flair
 			))
 
 	// Store in features which gets saved automatically with preferences
@@ -48,6 +49,7 @@
 		var/date_applied = tattoo_info["date_applied"]
 		var/is_signature = tattoo_info["is_signature"]
 		var/font = tattoo_info["font"]
+		var/flair = tattoo_info["flair"] // NEW: Load flair
 
 		if(!body_part)
 			continue
@@ -61,8 +63,9 @@
 		var/final_layer = sanitize_integer(layer, CUSTOM_TATTOO_LAYER_UNDER, CUSTOM_TATTOO_LAYER_OVER, CUSTOM_TATTOO_LAYER_NORMAL)
 		var/final_is_signature = is_signature ? TRUE : FALSE
 		var/final_font = (font && (font in GLOB.custom_tattoo_fonts)) ? font : PEN_FONT
+		var/final_flair = (flair && (flair in GLOB.custom_tattoo_flairs)) ? flair : null // NEW: Validate flair
 
-		var/datum/custom_tattoo/T = new(final_artist, final_design, body_part, final_color, final_layer, final_is_signature, final_font)
+		var/datum/custom_tattoo/T = new(final_artist, final_design, body_part, final_color, final_layer, final_is_signature, final_font, final_flair)
 		if(date_applied)
 			T.date_applied = sanitize_text(date_applied)
 
@@ -89,7 +92,7 @@
 	for(var/datum/custom_tattoo/T as anything in saved_tattoos)
 		if(istype(T) && !QDELETED(T))
 			// Create a fresh copy to avoid reference issues
-			var/datum/custom_tattoo/new_tattoo = new(T.artist, T.design, T.body_part, T.color, T.layer, T.is_signature, T.font)
+			var/datum/custom_tattoo/new_tattoo = new(T.artist, T.design, T.body_part, T.color, T.layer, T.is_signature, T.font, T.flair)
 			if(T.date_applied)
 				new_tattoo.date_applied = T.date_applied
 			H.add_custom_tattoo(new_tattoo)

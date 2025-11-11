@@ -120,7 +120,7 @@
 
 	var/list/tattoo_text = list()
 	for(var/datum/custom_tattoo/tattoo as anything in visible_tattoos)
-		var/examine_text = tattoo.get_simple_examine_text(viewer, src)
+		var/examine_text = tattoo.get_examine_text(viewer, src)
 		if(examine_text)
 			tattoo_text += examine_text
 

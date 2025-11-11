@@ -7,6 +7,7 @@
 	var/tattoo_design = ""
 	var/selected_layer = CUSTOM_TATTOO_LAYER_NORMAL
 	var/selected_font = PEN_FONT
+	var/selected_flair = null // Added: stores selected flair
 	var/ink_color = "#000000"
 	var/design_mode = FALSE
 	var/debug_mode = FALSE
@@ -16,6 +17,20 @@
 		"PRINTER_FONT" = "Printer",
 		"CHARCOAL_FONT" = "Charcoal",
 		"CRAYON_FONT" = "Crayon"
+	)
+	// Added: flair options with user-friendly names
+	var/static/list/flair_options = list(
+		null = "No Flair",
+		"flair_1" = "Pink Flair",
+		"flair_2" = "Love Flair",
+		"flair_3" = "Brown Flair",
+		"flair_4" = "Cyan Flair",
+		"flair_5" = "Orange Flair",
+		"flair_6" = "Yellow Flair",
+		"flair_7" = "Subtle Flair",
+		"flair_8" = "Velvet Flair",
+		"flair_9" = "Velvet Notice",
+		"flair_10" = "Glossy Flair"
 	)
 
 	New(new_zone = "")
@@ -81,6 +96,7 @@
 		debug_html += "Design: '[tattoo_design]' (len: [length(tattoo_design)])<br>"
 		debug_html += "Layer: [selected_layer]<br>"
 		debug_html += "Font: [selected_font]<br>"
+		debug_html += "Flair: [selected_flair]<br>"
 		debug_html += "Color: [ink_color]<br>"
 		debug_html += "Can Apply: [check_can_apply(ink_uses, victim)]"
 		debug_html += "</div></div>"
@@ -131,7 +147,7 @@
 
 		// Preview section
 		design_html += "<div style='margin-bottom: 20px;'>"
-		design_html += generate_preview(victim, viewer)
+		design_html += generate_preview(victim, viewer, kit)
 		design_html += "</div>"
 
 		// Design controls
@@ -163,7 +179,10 @@
 		design_html += "<div style='color: #4CAF50; font-weight: bold; margin-bottom: 5px;'>Tattoo Design</div>"
 		design_html += "<textarea name='tattoo_design' "
 		design_html += "style='width: 100%; height: 80px; padding: 8px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 4px; resize: vertical; margin-bottom: 10px;' "
-		design_html += "placeholder='Describe the tattoo design (supports :emoji: and basic HTML)'>[html_encode(tattoo_design)]</textarea>"
+		design_html += "placeholder='Describe the tattoo design (supports :emoji: shortcodes)'>[html_encode(tattoo_design)]</textarea>"
+		design_html += "<div style='color: #888; font-size: 0.9em;'>"
+		design_html += "Supports emoji shortcodes like :heart: :smile: :star: etc."
+		design_html += "</div>"
 		design_html += "</div>"
 
 		// Update Preview button
@@ -185,6 +204,26 @@
 			design_html += "[font_name]"
 			design_html += "</a>"
 
+		design_html += "</div>"
+		design_html += "</div>"
+
+		// Flair selection (NEW)
+		design_html += "<div style='margin-bottom: 15px;'>"
+		design_html += "<div style='color: #4CAF50; font-weight: bold; margin-bottom: 5px;'>Text Flair</div>"
+		design_html += "<div style='display: flex; gap: 8px; flex-wrap: wrap;'>"
+
+		for(var/flair_key in flair_options)
+			var/flair_name = flair_options[flair_key]
+			var/is_selected = (selected_flair == flair_key)
+			var/button_color = is_selected ? "#4CAF50" : "#444"
+			design_html += "<a href='?src=[REF(kit)];tattoo_set_flair=[flair_key]' "
+			design_html += "style='display: inline-block; background: [button_color]; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 0.9em;'>"
+			design_html += "[flair_name]"
+			design_html += "</a>"
+
+		design_html += "</div>"
+		design_html += "<div style='color: #888; font-size: 0.9em; margin-top: 5px;'>"
+		design_html += "Adds special styling to your tattoo text"
 		design_html += "</div>"
 		design_html += "</div>"
 
@@ -290,7 +329,7 @@
 			return FALSE
 		return TRUE
 
-	proc/generate_preview(mob/living/carbon/human/victim, mob/viewer)
+	proc/generate_preview(mob/living/carbon/human/victim, mob/viewer, obj/item/custom_tattoo_kit/kit)
 		if(!victim || !zone)
 			return "<div style='background: #1a1a1a; padding: 20px; border-radius: 6px; color: #666; text-align: center;'>Select a body part to begin designing</div>"
 
@@ -310,7 +349,7 @@
 				if(QDELETED(T)) continue
 				var/tattoo_html = T.get_examine_text_tgui(viewer, victim)
 				preview_html += "<div style='margin: 5px 0; padding: 5px; background: #151515; border-left: 3px solid [T.color]; border-radius: 2px;'>"
-				preview_html += tattoo_html
+				preview_html += "<span style='color: [T.color];'>[tattoo_html]</span>"
 				preview_html += "</div>"
 
 			preview_html += "</div></div>"
@@ -324,24 +363,28 @@
 			var/display_design = tattoo_design
 			var/display_artist = artist_name
 
-			// Apply font styling to design
-			if(selected_font && selected_font != PEN_FONT)
-				display_design = "<font face='[selected_font]'>[display_design]</font>"
+			// Replace %s with actual artist name for preview
+			if(findtext(display_artist, "%s") && kit && viewer)
+				display_artist = replacetext(display_artist, "%s", viewer.name)
 
-			// Automatically handle signature formatting based on %s
-			if(findtext(display_artist, "%s"))
-				// For preview, just show the format, don't replace with actual name
-				display_artist = "<font face='[FOUNTAIN_PEN_FONT]'>[display_artist]</font>"
+			// Apply text emoji parsing for preview
+			display_design = parse_text_emojis(display_design)
+
+			// Apply safe span for preview if flair is selected
+			if(selected_flair && GLOB.custom_tattoo_flairs[selected_flair])
+				var/flair_type = GLOB.custom_tattoo_flairs[selected_flair]
+				display_design = apply_safe_span(display_design, flair_type)
 
 			// Use the same format as examine text
 			var/body_part_desc = get_custom_tattoo_body_part_description(zone)
 			preview_html += "<div style='color: [ink_color]; font-family: monospace;'>"
-			preview_html += "- [body_part_desc]: \"[display_design]\" (by [display_artist])"
+			preview_html += "- [body_part_desc]: \"[display_design]\" (by [sanitize_text(display_artist)])"
 			preview_html += "</div>"
 
 			preview_html += "<div style='color: #888; font-size: 0.9em; margin-top: 10px;'>"
 			preview_html += "Layer: [selected_layer == 1 ? "Under" : selected_layer == 2 ? "Normal" : "Over"] | "
 			preview_html += "Font: [font_options[selected_font] || selected_font] | "
+			preview_html += "Flair: [flair_options[selected_flair] || "None"] | "
 			preview_html += "Color: <span style='color: [ink_color];'>[ink_color]</span>"
 			preview_html += "</div>"
 			preview_html += "</div>"
@@ -409,6 +452,16 @@
 				kit.ui_interact(user)
 			return TRUE
 
+		// NEW: Handle flair selection
+		if(href_list["tattoo_set_flair"])
+			var/new_flair = href_list["tattoo_set_flair"]
+			if(new_flair in flair_options)
+				selected_flair = (new_flair == "null") ? null : new_flair
+				if(kit.current_target)
+					kit.current_target.set_tattoo_ui_data("global", src)
+				kit.ui_interact(user)
+			return TRUE
+
 		if(href_list["tattoo_set_layer"])
 			var/new_layer = text2num(href_list["tattoo_set_layer"])
 			if(new_layer in list(1, 2, 3))
@@ -442,6 +495,7 @@
 		tattoo_design = ""
 		selected_layer = CUSTOM_TATTOO_LAYER_NORMAL
 		selected_font = PEN_FONT
+		selected_flair = null
 		ink_color = "#000000"
 		design_mode = FALSE
 

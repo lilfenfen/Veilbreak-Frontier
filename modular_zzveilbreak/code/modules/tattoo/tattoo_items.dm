@@ -141,7 +141,7 @@
 	if(is_signature_format)
 		final_artist = replacetext(final_artist, "%s", user.name)
 
-	// Create tattoo with current UI data
+	// Create tattoo with current UI data (including flair)
 	var/datum/custom_tattoo/new_tattoo = new(
 		final_artist,
 		ui_data.tattoo_design,
@@ -149,7 +149,8 @@
 		ui_data.ink_color,
 		ui_data.selected_layer,
 		is_signature_format,
-		ui_data.selected_font
+		ui_data.selected_font,
+		ui_data.selected_flair // NEW: Include flair
 	)
 
 	if(current_target.add_custom_tattoo(new_tattoo))
