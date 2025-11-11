@@ -1,8 +1,11 @@
 /datum/storyteller/chill
-	votable = FALSE
+	votable = TRUE
 
 /datum/storyteller/fragile
-	votable = FALSE
+	votable = TRUE
+
+/datum/storyteller/extended
+	votable = TRUE
 
 //VENUS REMOVAL START: Make default votable
 /*
@@ -12,13 +15,13 @@
 //VENUS REMOVAL END
 
 /datum/storyteller/bomb
-	votable = FALSE
+	votable = TRUE
 
 /datum/storyteller/gamer
-	votable = FALSE
+	votable = TRUE
 
 /datum/storyteller/house
-	votable = FALSE
+	votable = TRUE
 
 /datum/storyteller/enemy
-	votable = FALSE
+	votable = TRUE
