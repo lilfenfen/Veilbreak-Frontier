@@ -46,14 +46,13 @@
 			// Continue next tick
 			return
 		else
-			// Assume finished on invalid response
 			log_dungeon("Background Process: WARNING - Invalid result [result] from [process_name], stopping")
 			stop()
 
 // Background processing subsystem
 SUBSYSTEM_DEF(background)
 	name = "Background"
-	priority = FIRE_PRIORITY_DEFAULT
+	priority = FIRE_PRIORITY_GARBAGE // Use a low priority constant that exists
 	wait = 1 // Process every tick if possible
 	flags = SS_BACKGROUND | SS_NO_INIT
 
@@ -63,19 +62,13 @@ SUBSYSTEM_DEF(background)
 	var/list/current_processing = processing.Copy()
 
 	for(var/datum/background_process/process as anything in current_processing)
-		if(MC_TICK_CHECK) // Respect tick budget
+		if(MC_TICK_CHECK)
 			return
 
-		// Safety checks
-		if(QDELETED(process))
+		if(QDELETED(process) || !process.active)
 			processing -= process
 			continue
 
-		if(!process.active)
-			processing -= process
-			continue
-
-		// Execute with error handling
 		try
 			process.execute()
 		catch(var/exception/e)
