@@ -119,3 +119,41 @@
 		log_dungeon("State: WARNING - Dungeon Z-level [dungeon_z_level] exceeds world maxz [world.maxz]")
 		return FALSE
 	return TRUE
+
+// CRITICAL: Make sure the process proc exists with DEBUG
+/datum/portal_destination/veilbreak/process()
+	log_dungeon("DUNGEON DEBUG: veilbreak/process() called")
+	log_dungeon("DUNGEON DEBUG: State - generating: [generating], disabled: [processing_disabled], request_id: [current_request_id]")
+
+	if(!generating || processing_disabled)
+		log_dungeon("DUNGEON DEBUG: Stopping process - generating=[generating], disabled=[processing_disabled]")
+		STOP_PROCESSING(SSobj, src)
+		return
+
+	// FIXED: Update progress for UI with server protection
+	if(world.time - last_progress_update > 1 SECONDS)
+		generation_progress = min(generation_progress + rand(5, 15), 90)
+		last_progress_update = world.time
+		log_dungeon("DUNGEON DEBUG: Progress updated to [generation_progress]%")
+
+	// FIXED: Check if request is complete EVERY TICK with proper logic
+	if(current_request_id)
+		log_dungeon("DUNGEON DEBUG: Checking request [current_request_id]")
+		var/still_processing = GLOB.dungeon_generator.check_request(current_request_id)
+		log_dungeon("DUNGEON DEBUG: check_request returned: [still_processing]")
+
+		if(still_processing)
+			log_dungeon("DUNGEON DEBUG: Request still processing, continuing")
+			return // Still processing, continue next tick
+		else
+			// Request completed or failed
+			log_dungeon("DUNGEON DEBUG: Request completed or failed, stopping process")
+			STOP_PROCESSING(SSobj, src)
+			generation_progress = 100
+			log_dungeon("DUNGEON DEBUG: Set progress to 100% and stopped processing")
+			return
+
+	// No active request but still generating? This shouldn't happen
+	log_dungeon("DUNGEON DEBUG: WARNING - No active request but still generating")
+	STOP_PROCESSING(SSobj, src)
+	generation_failed("Generation process lost track of request")
