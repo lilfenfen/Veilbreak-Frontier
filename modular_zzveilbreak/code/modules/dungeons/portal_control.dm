@@ -16,6 +16,8 @@
 	var/list/last_ui_data = list()
 	/// Timer for generation progress updates
 	var/generation_progress_timer
+	/// Prevent infinite recursion in interaction checks
+	var/interaction_check_in_progress = FALSE
 
 // Helper proc for portal control logging
 /proc/log_portal_control(text)
@@ -25,8 +27,36 @@
 	. = ..()
 	try_to_linkup()
 
+// CRITICAL FIX: Prevent infinite recursion in CanAllowThrough
+/obj/machinery/computer/portal_control/CanAllowThrough(atom/movable/mover, border_dir)
+	if(interaction_check_in_progress)
+		log_portal_control("SAFETY: Preventing recursion in CanAllowThrough")
+		return TRUE // Default to allowing through to break the cycle
+
+	interaction_check_in_progress = TRUE
+	var/result = ..()
+	interaction_check_in_progress = FALSE
+	return result
+
+// CRITICAL FIX: Override can_interact to prevent recursion
+/obj/machinery/computer/portal_control/can_interact(mob/user)
+	if(interaction_check_in_progress)
+		log_portal_control("SAFETY: Preventing recursion in can_interact")
+		return TRUE // Break the recursion cycle
+
+	interaction_check_in_progress = TRUE
+	var/result = ..()
+	interaction_check_in_progress = FALSE
+	return result
+
 /obj/machinery/computer/portal_control/ui_interact(mob/user, datum/tgui/ui)
 	. = ..()
+
+	// Safety check to prevent UI interaction during recursion
+	if(interaction_check_in_progress)
+		log_portal_control("UI: Blocked interaction due to recursion check")
+		return FALSE
+
 	ui = SStgui.try_update_ui(user, src, ui)
 	if(!ui)
 		ui = new(user, src, "PortalControl", name)
@@ -37,6 +67,11 @@
 
 /obj/machinery/computer/portal_control/ui_data(mob/user)
 	. = list()
+
+	// Safety check
+	if(interaction_check_in_progress)
+		log_portal_control("UI: Blocked ui_data due to recursion check")
+		return list("portal_present" = FALSE, "portal_status" = FALSE, "portal_active" = FALSE)
 
 	// Basic portal info
 	.["portal_present"] = !!linked_portal

@@ -602,7 +602,14 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 			init_process.metadata["current_step"] = current_step
 			return BG_PROCESSING_CONTINUE
 
-		if(7) // Visual updates
+		if(7) // Safe smoothing initialization
+			log_dungeon("Subsystems: Starting safe smoothing initialization")
+			safe_initialize_smoothing(z_level)
+			current_step++
+			init_process.metadata["current_step"] = current_step
+			return BG_PROCESSING_CONTINUE
+
+		if(8) // Visual updates (skip smoothing operations)
 			var/result = force_immediate_visual_updates_incremental(z_level, start_time, max_processing_time)
 			if(result == BG_PROCESSING_CONTINUE)
 				return BG_PROCESSING_CONTINUE
@@ -615,6 +622,59 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 
 	init_process = null
 	return BG_PROCESSING_FINISHED
+
+// NEW: Safe smoothing initialization to prevent runtime errors
+/datum/portal_destination/veilbreak/proc/safe_initialize_smoothing(z_level)
+	log_dungeon("Smoothing: Starting safe smoothing initialization for Z-level [z_level]")
+
+	var/smoothed_count = 0
+	var/skipped_count = 0
+
+	// Process all atoms on the Z-level and safely add them to smoothing queue
+	for(var/atom/A in world)
+		if(A.z != z_level)
+			continue
+
+		// Skip atoms that are likely to cause smoothing errors
+		if(should_skip_smoothing(A))
+			skipped_count++
+			continue
+
+		// Only queue atoms that actually need smoothing
+		if(A.smoothing_flags && !(A.smoothing_flags & SMOOTH_QUEUED))
+			try
+				SSicon_smooth.add_to_queue(A)
+				smoothed_count++
+			catch(var/exception/e)
+				log_dungeon("Smoothing: Failed to queue [A.type] at [AREACOORD(A)]: [e]")
+				skipped_count++
+
+		CHECK_TICK
+
+	log_dungeon("Smoothing: Completed - [smoothed_count] atoms queued, [skipped_count] skipped")
+
+/datum/portal_destination/veilbreak/proc/should_skip_smoothing(atom/A)
+	// Skip objects that are known to cause smoothing runtime errors
+	if(istype(A, /obj/structure/alien/weeds))
+		return TRUE
+
+	// Skip atoms that aren't fully initialized
+	if(!(A.flags_1 & INITIALIZED_1))
+		return TRUE
+
+	// Skip atoms without proper loc or z-level
+	if(!A.loc || !A.z)
+		return TRUE
+
+	// Skip atoms that are queued for deletion
+	if(QDELETED(A))
+		return TRUE
+
+	// Skip if the atom doesn't actually have smoothing flags set
+	if(!A.smoothing_flags)
+		return TRUE
+
+	return FALSE
 
 // Incremental versions of initialization procs with proper tick checking
 /datum/portal_destination/veilbreak/proc/initialize_dungeon_atoms_incremental(z_level, start_time, max_time)
@@ -760,8 +820,10 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 		for(var/y = current_y to world.maxy)
 			var/turf/iter_turf = locate(x, y, z_level)
 			if(!istype(iter_turf, /obj/effect) && !istype(iter_turf, /obj/effect/decal))
+				// Safe visual updates only - no smoothing operations
 				iter_turf.update_icon()
 				iter_turf.update_appearance()
+
 
 			if(world.time - start_time > max_time)
 				init_process.metadata["visual_x"] = x
