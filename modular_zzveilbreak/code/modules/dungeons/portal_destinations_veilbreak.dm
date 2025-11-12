@@ -1,5 +1,3 @@
-// modular_zzveilbreak/code/modules/dungeons/portal_destinations_veilbreak.dm
-
 /datum/portal_destination/veilbreak
 	name = "Veilbreak Dungeon"
 	var/generating = FALSE
@@ -126,33 +124,6 @@
 		log_dungeon("State: WARNING - Dungeon Z-level [dungeon_z_level] exceeds world maxz [world.maxz]")
 		return FALSE
 	return TRUE
-
-/datum/portal_destination/veilbreak/process()
-	if(processing_disabled)
-		STOP_PROCESSING(SSobj, src)
-		return
-
-	if(!generating)
-		STOP_PROCESSING(SSobj, src)
-		return
-
-	// Update progress for UI
-	if(world.time - last_progress_update > 1 SECONDS)
-		generation_progress = min(generation_progress + rand(5, 15), 90)
-		last_progress_update = world.time
-
-	// Check if request is complete
-	if(current_request_id)
-		var/still_processing = GLOB.dungeon_generator.check_request(current_request_id)
-		if(!still_processing)
-			// Request completed or failed
-			STOP_PROCESSING(SSobj, src)
-			generation_progress = 100
-			return
-
-	// Safety timeout - if we're still here but shouldn't be
-	STOP_PROCESSING(SSobj, src)
-	generation_failed("Generation process stuck in invalid state")
 
 /datum/portal_destination/veilbreak/proc/generation_failed(reason)
 	log_dungeon("DUNGEON DEBUG: generation_failed() called with reason: [reason]")

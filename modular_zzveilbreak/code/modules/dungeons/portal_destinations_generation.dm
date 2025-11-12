@@ -1,5 +1,3 @@
-// modular_zzveilbreak/code/modules/dungeons/portal_destinations_generation.dm
-
 /datum/portal_destination/veilbreak/proc/start_generation()
 	log_dungeon("DUNGEON DEBUG: start_generation() called for [name]")
 
@@ -129,13 +127,15 @@
 	var/error_message = "Unknown error"
 
 	try
+		log_dungeon("DUNGEON DEBUG: Attempting to parse DMM file")
 		var/datum/parsed_map/parsed = new(file(temp_filename))
 		if(parsed && parsed.bounds)
 			log_dungeon("DUNGEON DEBUG: Parsed map successfully, bounds: [parsed.bounds]")
+			log_dungeon("DUNGEON DEBUG: Loading map to Z-level [dungeon_z_level]")
 			loaded_successfully = parsed.load(1, 1, dungeon_z_level, no_changeturf = TRUE, place_on_top = FALSE, new_z = FALSE)
 			log_dungeon("DUNGEON DEBUG: Map load result: [loaded_successfully ? "SUCCESS" : "FAILED"]")
 		else
-			error_message = "Failed to parse map file"
+			error_message = "Failed to parse map file - no bounds"
 			log_dungeon("DUNGEON DEBUG: [error_message]")
 			loaded_successfully = FALSE
 	catch(var/exception/e2)
