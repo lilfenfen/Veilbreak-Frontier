@@ -87,6 +87,8 @@
 	var/transport_active = FALSE
 	/// Data about the generated dungeon for UI/feedback
 	var/list/generated_dungeon_data
+	/// Default components for construction
+	var/list/req_components = list(/obj/item/stack/cable_coil = 5, /obj/item/stack/sheet/plasteel = 5)
 
 /obj/machinery/portal/Initialize(mapload)
 	. = ..()
@@ -385,6 +387,23 @@
 		calibrated = TRUE
 
 	return TRUE
+
+/// Handles deconstruction and tool interactions
+/obj/machinery/portal/attackby(obj/item/I, mob/user, params)
+	// Let the parent /obj/machinery/attackby handle screwdrivering to open the panel.
+	if(..())
+		return
+
+	// Handle crowbar deconstruction when the panel is open.
+	if(I.tool_behaviour == TOOL_CROWBAR && panel_open)
+		log_portal("Deconstruction: [key_name(user)] deconstructed portal at [AREACOORD(src)]")
+		to_chat(user, span_notice("You begin to pry the portal frame apart..."))
+		if(I.use_tool(src, user, 40))
+			to_chat(user, span_notice("You successfully deconstruct the portal frame."))
+			deconstruct(TRUE) // Call the built-in deconstruction proc.
+		return TRUE
+
+	return ..()
 
 
 // ===== DEBUG VERBS =====
