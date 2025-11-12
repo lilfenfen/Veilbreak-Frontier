@@ -114,34 +114,6 @@
 	log_dungeon("ZLevel: SUCCESS - Created new reusable portal Z-level [dungeon_z_level]")
 	return TRUE
 
-/// Get dungeon statistics for UI display
-/datum/portal_destination/veilbreak/proc/get_dungeon_stats()
-	if(!last_generation_data || !last_generation_data["metadata"])
-		return null
-
-	var/list/metadata = last_generation_data["metadata"]
-	var/list/stats = list()
-
-	stats["z_level"] = dungeon_z_level
-	stats["name"] = metadata["map_name"]
-	stats["technical_name"] = metadata["technical_name"]
-	stats["seed"] = metadata["seed"]
-	stats["dimensions"] = metadata["dimensions"]
-	stats["statistics"] = metadata["statistics"]
-	stats["generation_info"] = metadata["generation_info"]
-
-	return stats
-
-/// Validate destination state
-/datum/portal_destination/veilbreak/proc/validate_state()
-	if(generating && generated)
-		log_dungeon("State: WARNING - Portal in invalid state (both generating and generated)")
-		return FALSE
-	if(dungeon_z_level > world.maxz)
-		log_dungeon("State: WARNING - Dungeon Z-level [dungeon_z_level] exceeds world maxz [world.maxz]")
-		return FALSE
-	return TRUE
-
 /datum/portal_destination/veilbreak/proc/generation_failed(reason)
 	log_dungeon("DUNGEON DEBUG: generation_failed() called with reason: [reason]")
 	generating = FALSE
@@ -186,7 +158,7 @@
 	// Scan every turf on the Z-level
 	for(var/turf/T in block(locate(1, 1, dungeon_z_level), locate(world.maxx, world.maxy, dungeon_z_level)))
 		var/obj/machinery/portal/found_portal = locate(/obj/machinery/portal) in T
-		if(found_portal)
+		if(found_portal && !QDELETED(found_portal))
 			portals_found++
 			if(!first_portal)
 				first_portal = found_portal
@@ -212,10 +184,17 @@
 	if(!dungeon_portal.bumper)
 		dungeon_portal.generate_bumper()
 
-	// Create return destination
+	// Create return destination that properly points to the station portal
 	var/datum/portal_destination/simple/return_destination = new()
 	return_destination.name = "Return to Station"
-	return_destination.return_portal = connected_portal
+
+	// CRITICAL FIX: Ensure the return_portal is set to the actual station portal
+	if(connected_portal && !QDELETED(connected_portal))
+		return_destination.return_portal = connected_portal
+		log_dungeon("Connection: Return destination points to station portal at [AREACOORD(connected_portal)]")
+	else
+		log_dungeon("Connection: ERROR - No connected portal found for return destination")
+		return FALSE
 
 	// Register return destination
 	var/return_id = "veilbreak_return_[dungeon_z_level]_[world.time]"

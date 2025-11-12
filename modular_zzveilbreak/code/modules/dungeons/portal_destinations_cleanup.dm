@@ -65,21 +65,26 @@
 		connected_portal.update_appearance()
 		log_dungeon("Cleanup: Disconnected station portal")
 
-	// Clean up any dungeon-side portal safely using the new scanning method
-	var/obj/machinery/portal/dungeon_portal = get_any_portal_on_z_level()
-	if(dungeon_portal && !QDELETED(dungeon_portal))
-		// Find and remove the return destination safely
-		if(dungeon_portal.target)
-			for(var/key in GLOB.portal_destinations)
-				var/datum/portal_destination/dest = GLOB.portal_destinations[key]
-				if(dest == dungeon_portal.target)
-					GLOB.portal_destinations -= key
-					log_dungeon("Cleanup: Removed return destination [key]")
-					break
+	// Clean up ALL portals on the dungeon Z-level
+	var/portals_removed = 0
+	for(var/turf/T in block(locate(1, 1, dungeon_z_level), locate(world.maxx, world.maxy, dungeon_z_level)))
+		var/obj/machinery/portal/dungeon_portal = locate(/obj/machinery/portal) in T
+		if(dungeon_portal && !QDELETED(dungeon_portal))
+			// Find and remove the return destination safely
+			if(dungeon_portal.target)
+				for(var/key in GLOB.portal_destinations)
+					var/datum/portal_destination/dest = GLOB.portal_destinations[key]
+					if(dest == dungeon_portal.target)
+						GLOB.portal_destinations -= key
+						log_dungeon("Cleanup: Removed return destination [key]")
+						break
 
-		// Use a timer to safely delete the portal
-		QDEL_NULL(dungeon_portal)
-		log_dungeon("Cleanup: Queued dungeon portal for deletion")
+			// Delete the portal
+			QDEL_NULL(dungeon_portal)
+			portals_removed++
+			log_dungeon("Cleanup: Removed dungeon portal at [AREACOORD(T)]")
+
+	log_dungeon("Cleanup: Removed [portals_removed] portals from Z-level [dungeon_z_level]")
 
 /datum/portal_destination/veilbreak/proc/cleanup_z_level_contents(z_level)
 	log_dungeon("Cleanup: Cleaning up contents of Z-level [z_level]")

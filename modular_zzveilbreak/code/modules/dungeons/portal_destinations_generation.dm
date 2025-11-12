@@ -1,3 +1,5 @@
+// modular_zzveilbreak/code/modules/dungeons/portal_destinations_generation.dm
+
 /datum/portal_destination/veilbreak/proc/start_generation()
 	log_dungeon("DUNGEON DEBUG: start_generation() called for [name]")
 
@@ -91,10 +93,7 @@
 
 	log_dungeon("DUNGEON DEBUG: Using reusable portal Z-level [dungeon_z_level]")
 
-	// Clean the Z-level first
-	cleanup_z_level_completely(dungeon_z_level)
-
-	// Load the DMM with tick balancing
+	// Load the DMM with tick balancing - NO CLEANUP NEEDED for fresh map
 	load_dmm_with_ticks(dmm_content)
 
 /datum/portal_destination/veilbreak/proc/load_dmm_with_ticks(dmm_content)

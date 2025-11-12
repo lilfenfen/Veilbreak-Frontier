@@ -114,21 +114,11 @@ export const PortalControl = (props, context) => {
 
                 {/* Generating Progress - Show when generating */}
                 {showGeneratingProgress && (
-                  <>
-                    <Stack.Item>
-                      <ProgressBar
-                        value={generation_progress / 100}
-                        color="good"
-                      >
-                        Stabilizing Portal... {generation_progress}%
-                      </ProgressBar>
-                    </Stack.Item>
-                    <Stack.Item>
-                      <Button icon="ban" fluid disabled color="grey">
-                        Generation in Progress...
-                      </Button>
-                    </Stack.Item>
-                  </>
+                  <Stack.Item>
+                    <ProgressBar value={generation_progress / 100} color="good">
+                      Stabilizing Portal... {generation_progress}%
+                    </ProgressBar>
+                  </Stack.Item>
                 )}
 
                 {/* Deactivate Button - Only show when portal is active */}

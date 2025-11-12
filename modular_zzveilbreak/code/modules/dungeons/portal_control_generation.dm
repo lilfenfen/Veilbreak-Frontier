@@ -93,6 +93,10 @@
 					var/datum/portal_destination/veilbreak/veil_dest = linked_portal.target
 					cleanup_portal_simple(veil_dest)
 				linked_portal.deactivate()
+
+				// Clear the cached name when deactivating
+				cached_portal_name = null
+
 			force_ui_update()
 			return TRUE
 

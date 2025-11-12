@@ -32,7 +32,7 @@
 	// Can generate check - only when portal is not active and not currently generating
 	data["can_generate"] = !generation_in_progress && data["portal_present"] && linked_portal.destination && !data["portal_active"] && data["portal_status"]
 
-	// Portal name
-	data["portal_name"] = cached_portal_name
+	// Portal name - only show when portal is active
+	data["portal_name"] = data["portal_active"] ? cached_portal_name : null
 
 	return data
