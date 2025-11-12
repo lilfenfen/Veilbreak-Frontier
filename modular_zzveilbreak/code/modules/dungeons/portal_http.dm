@@ -36,14 +36,14 @@
 		active_requests -= "[request_id]"
 		active_requests -= "[request_id]_req"
 		active_requests -= "[request_id]_time"
-		return FALSE
+		return FALSE // Not processing anymore
 
 	var/datum/http_request/request = active_requests["[request_id]_req"]
 	if(!request || QDELETED(request))
 		log_dungeon("HTTP: Request [request_id] - request object missing")
 		active_requests -= "[request_id]"
 		active_requests -= "[request_id]_time"
-		return FALSE
+		return FALSE // Not processing anymore
 
 	if(!request.is_complete())
 		// Check for timeout
@@ -54,7 +54,7 @@
 			active_requests -= "[request_id]"
 			active_requests -= "[request_id]_req"
 			active_requests -= "[request_id]_time"
-			return FALSE
+			return FALSE // Not processing anymore
 		return TRUE // Still processing
 
 	var/datum/http_response/response = request.into_response()
@@ -71,9 +71,9 @@
 			log_dungeon("HTTP: Request [request_id] - API error: [data?["message"] || "Unknown error"]")
 			destination.generation_failed(data?["message"] || "Unknown error from generator")
 
-	// Cleanup
+	// Cleanup - request is complete
 	active_requests -= "[request_id]"
 	active_requests -= "[request_id]_req"
 	active_requests -= "[request_id]_time"
 
-	return FALSE
+	return FALSE // Not processing anymore

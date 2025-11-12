@@ -192,13 +192,10 @@
 
 		// Only queue atoms that actually need smoothing
 		if(A.smoothing_flags && !(A.smoothing_flags & SMOOTH_QUEUED))
-			try
-				// Use the SSicon_smooth subsystem to queue the atom
-				SSicon_smooth.add_to_queue(A)
-				smoothed_count++
-			catch(var/exception/e)
-				log_dungeon("Smoothing: Failed to queue [A.type] at [AREACOORD(A)]: [e]")
-				skipped_count++
+			// FIXED: Remove try-catch since it's not properly structured in DM
+			// Use the SSicon_smooth subsystem to queue the atom
+			SSicon_smooth.add_to_queue(A)
+			smoothed_count++
 
 		CHECK_TICK
 

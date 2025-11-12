@@ -60,15 +60,22 @@
 		last_progress_update = world.time
 		log_dungeon("Generation: Progress updated to [generation_progress]%")
 
-	// Check if request is complete
-	if(current_request_id && GLOB.dungeon_generator.check_request(current_request_id))
-		// Still processing
-		return
+	// FIXED: Check if request is complete EVERY TICK with proper logic
+	if(current_request_id)
+		var/still_processing = GLOB.dungeon_generator.check_request(current_request_id)
+		if(still_processing)
+			return // Still processing, continue next tick
+		else
+			// Request completed or failed
+			log_dungeon("Generation: Request completed, stopping process")
+			STOP_PROCESSING(SSobj, src)
+			generation_progress = 100
+			return
 
-	// Request completed or failed
-	log_dungeon("Generation: Request completed, stopping process")
+	// No active request but still generating? This shouldn't happen
+	log_dungeon("Generation: WARNING - No active request but still generating")
 	STOP_PROCESSING(SSobj, src)
-	generation_progress = 100
+	generation_failed("Generation process lost track of request")
 
 /datum/portal_destination/veilbreak/proc/generation_complete(list/data)
 	log_dungeon("Generation: Complete, processing data")
