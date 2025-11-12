@@ -40,6 +40,12 @@ export const PortalControl = (props, context) => {
     portal_name,
   } = data;
 
+  // Determine which buttons to show based on state
+  const showGenerateButton =
+    portal_present && !portal_active && !generation_in_progress && can_generate;
+  const showGeneratingProgress = portal_present && generation_in_progress;
+  const showDeactivateButton = portal_present && portal_active;
+
   return (
     <Window width={500} height={400}>
       <Window.Content>
@@ -92,28 +98,41 @@ export const PortalControl = (props, context) => {
 
             {portal_present && (
               <>
-                <Stack.Item>
-                  <Button
-                    icon="bolt"
-                    fluid
-                    disabled={!can_generate || generation_in_progress}
-                    onClick={() => act('generate_new')}
-                  >
-                    {generation_in_progress
-                      ? `Generating... ${generation_progress}%`
-                      : 'Generate New Portal'}
-                  </Button>
-                </Stack.Item>
-
-                {generation_in_progress && (
+                {/* Generate Button - Only show when portal is not active and not generating */}
+                {showGenerateButton && (
                   <Stack.Item>
-                    <ProgressBar value={generation_progress / 100} color="good">
-                      Stabilizing... {generation_progress}%
-                    </ProgressBar>
+                    <Button
+                      icon="bolt"
+                      fluid
+                      color="good"
+                      onClick={() => act('generate_new')}
+                    >
+                      Generate New Portal
+                    </Button>
                   </Stack.Item>
                 )}
 
-                {portal_active && (
+                {/* Generating Progress - Show when generating */}
+                {showGeneratingProgress && (
+                  <>
+                    <Stack.Item>
+                      <ProgressBar
+                        value={generation_progress / 100}
+                        color="good"
+                      >
+                        Stabilizing Portal... {generation_progress}%
+                      </ProgressBar>
+                    </Stack.Item>
+                    <Stack.Item>
+                      <Button icon="ban" fluid disabled color="grey">
+                        Generation in Progress...
+                      </Button>
+                    </Stack.Item>
+                  </>
+                )}
+
+                {/* Deactivate Button - Only show when portal is active */}
+                {showDeactivateButton && (
                   <Stack.Item>
                     <Button
                       icon="power-off"
@@ -125,10 +144,46 @@ export const PortalControl = (props, context) => {
                     </Button>
                   </Stack.Item>
                 )}
+
+                {/* Linkup Button - Always available for re-scanning */}
+                <Stack.Item>
+                  <Button icon="sync" fluid onClick={() => act('linkup')}>
+                    Re-scan for Portal
+                  </Button>
+                </Stack.Item>
               </>
             )}
           </Stack>
         </Section>
+
+        {/* Additional information section */}
+        {current_target && (
+          <Section title="Active Connection">
+            <Box>
+              Currently connected to:{' '}
+              <Box as="span" color="blue" bold>
+                {current_target.name}
+              </Box>
+            </Box>
+            {portal_name && (
+              <Box>
+                Dungeon:{' '}
+                <Box as="span" color="green" bold>
+                  {portal_name}
+                </Box>
+              </Box>
+            )}
+          </Section>
+        )}
+
+        {/* Status messages */}
+        {!portal_status && portal_present && (
+          <Section title="Warning">
+            <Box color="bad">
+              Portal is not receiving power. Check power connections.
+            </Box>
+          </Section>
+        )}
       </Window.Content>
     </Window>
   );

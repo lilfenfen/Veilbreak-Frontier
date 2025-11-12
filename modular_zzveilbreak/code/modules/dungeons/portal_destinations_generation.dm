@@ -86,12 +86,12 @@
 		log_dungeon("DUNGEON DEBUG: No DMM content provided")
 		return generation_failed("No DMM content provided")
 
-	// Initialize portal Z-level
+	// Initialize or get the reusable portal Z-level
 	if(!initialize_portal_z_level())
 		log_dungeon("DUNGEON DEBUG: Failed to initialize portal Z-level")
 		return generation_failed("Failed to initialize portal Z-level")
 
-	log_dungeon("DUNGEON DEBUG: Using fixed portal Z-level [dungeon_z_level]")
+	log_dungeon("DUNGEON DEBUG: Using reusable portal Z-level [dungeon_z_level]")
 
 	// Clean the Z-level first
 	cleanup_z_level_completely(dungeon_z_level)
@@ -101,6 +101,12 @@
 
 /datum/portal_destination/veilbreak/proc/load_dmm_with_ticks(dmm_content)
 	log_dungeon("DUNGEON DEBUG: Starting tick-balanced DMM loading")
+
+	// Validate DMM content first
+	if(!dmm_content || length(dmm_content) < 100) // Basic sanity check
+		log_dungeon("DUNGEON DEBUG: Invalid DMM content - too short or empty")
+		generation_failed("Invalid map data received")
+		return
 
 	// Write DMM content to a temporary file
 	var/temp_filename = "data/dungeon_temp_[world.time]_[rand(1000,9999)].dmm"
@@ -120,17 +126,21 @@
 		SSair.StartLoadingMap()
 
 	var/loaded_successfully = FALSE
+	var/error_message = "Unknown error"
+
 	try
 		var/datum/parsed_map/parsed = new(file(temp_filename))
 		if(parsed && parsed.bounds)
 			log_dungeon("DUNGEON DEBUG: Parsed map successfully, bounds: [parsed.bounds]")
-			loaded_successfully = parsed.load(1, 1, dungeon_z_level, no_changeturf = FALSE, place_on_top = FALSE, new_z = FALSE)
+			loaded_successfully = parsed.load(1, 1, dungeon_z_level, no_changeturf = TRUE, place_on_top = FALSE, new_z = FALSE)
 			log_dungeon("DUNGEON DEBUG: Map load result: [loaded_successfully ? "SUCCESS" : "FAILED"]")
 		else
-			log_dungeon("DUNGEON DEBUG: Failed to parse map file")
+			error_message = "Failed to parse map file"
+			log_dungeon("DUNGEON DEBUG: [error_message]")
 			loaded_successfully = FALSE
-	catch(var/exception/e2)  // Changed variable name to avoid duplicate
-		log_dungeon("DUNGEON DEBUG: Exception during map load: [e2]")
+	catch(var/exception/e2)
+		error_message = "Exception during map load: [e2]"
+		log_dungeon("DUNGEON DEBUG: [error_message]")
 		loaded_successfully = FALSE
 
 	if(SSair.initialized)
@@ -142,8 +152,8 @@
 	fdel(temp_filename)
 
 	if(!loaded_successfully)
-		log_dungeon("DUNGEON DEBUG: Map load failed")
-		generation_failed("Failed to load map into world")
+		log_dungeon("DUNGEON DEBUG: Map load failed: [error_message]")
+		generation_failed("Failed to load map: [error_message]")
 		return
 
 	// Initialize subsystems with tick balancing
@@ -219,7 +229,7 @@
 		machine.update_appearance()
 
 		processed++
-		if(processed % 50 == 0) // Check tick every 50 machines
+		if(processed % 50 == 0)
 			CHECK_TICK
 
 	log_dungeon("Subsystems: Initialized [processed] machinery objects")

@@ -3,7 +3,6 @@
 // Configuration for the dungeon generator API
 #define DUNGEON_GENERATOR_URL "http://localhost:8000"
 #define DUNGEON_GENERATOR_TIMEOUT 300 // 30 seconds
-#define DUNGEON_GENERATOR_POLL_INTERVAL 5 // Start with 0.5 seconds
 
 // API Endpoints
 #define DUNGEON_GENERATE_ENDPOINT "/generate_dungeon"
@@ -14,7 +13,7 @@
 #define PORTAL_STATE_READY "ready"
 #define PORTAL_STATE_ERROR "error"
 
-// Background processing constants
+// Background processing constants (for any remaining references)
 #define BG_PROCESSING_CONTINUE 1
 #define BG_PROCESSING_FINISHED 2
 
@@ -32,9 +31,6 @@
 
 // Maximum processing time per tick to prevent server lag
 #define MAX_PROCESSING_TIME_PER_TICK 0.5 SECONDS
-
-// Maximum Z-levels to prevent server overload
-#define MAX_Z_LEVELS 20
 
 // Global instance of dungeon generator
 GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)

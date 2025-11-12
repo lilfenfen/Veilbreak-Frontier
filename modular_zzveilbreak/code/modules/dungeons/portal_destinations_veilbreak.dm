@@ -43,23 +43,26 @@
 
 /// Get the gateway turf from JSON metadata
 /datum/portal_destination/veilbreak/proc/get_gateway_turf_from_metadata()
-	if(!last_generation_data || !last_generation_data["metadata"])
+	if(!last_generation_data || !islist(last_generation_data["metadata"]))
 		log_dungeon("Gateway: No generation data available")
 		return null
 
 	var/list/metadata = last_generation_data["metadata"]
-	var/list/key_positions = metadata["key_positions"]
-
-	if(!key_positions || !key_positions["gateway"])
+	if(!islist(metadata["key_positions"]) || !islist(metadata["key_positions"]["gateway"]))
 		log_dungeon("Gateway: No gateway position in metadata")
 		return null
 
-	var/list/gateway_pos = key_positions["gateway"]
+	var/list/gateway_pos = metadata["key_positions"]["gateway"]
 	var/gateway_x = gateway_pos["x"]
 	var/gateway_y = gateway_pos["y"]
 
-	if(!gateway_x || !gateway_y)
+	// Validate coordinates are numbers
+	if(!isnum(gateway_x) || !isnum(gateway_y))
 		log_dungeon("Gateway: Invalid gateway coordinates: x=[gateway_x], y=[gateway_y]")
+		return null
+
+	if(gateway_x < 1 || gateway_x > world.maxx || gateway_y < 1 || gateway_y > world.maxy)
+		log_dungeon("Gateway: Gateway coordinates out of bounds: [gateway_x],[gateway_y]")
 		return null
 
 	var/turf/gateway_turf = locate(gateway_x, gateway_y, dungeon_z_level)
@@ -70,21 +73,30 @@
 	log_dungeon("Gateway: Using pre-determined gateway location at [AREACOORD(gateway_turf)]")
 	return gateway_turf
 
-/// Initialize the fixed portal Z-level on first use
+/// Initialize or get the reusable portal Z-level
 /datum/portal_destination/veilbreak/proc/initialize_portal_z_level()
 	log_dungeon("DUNGEON DEBUG: initialize_portal_z_level() called - current world.maxz: [world.maxz]")
 
+	// If we already have a reusable Z-level, use it
 	if(GLOB.portal_dungeon_z_level)
 		dungeon_z_level = GLOB.portal_dungeon_z_level
-		log_dungeon("ZLevel: Using existing portal Z-level [dungeon_z_level]")
+		log_dungeon("ZLevel: Using existing reusable portal Z-level [dungeon_z_level]")
 		return TRUE
 
-	// Use the highest existing Z-level (world.maxz) for portal dungeons
-	var/target_z = world.maxz
+	// First time - create a new Z-level
+	log_dungeon("ZLevel: Creating new Z-level for portal dungeons")
 
-	GLOB.portal_dungeon_z_level = target_z
+	// Use SSmapping to add a new Z-level
+	var/datum/space_level/new_level = SSmapping.add_new_zlevel("Portal Dungeon", list(ZTRAIT_AWAY = TRUE))
+	if(!new_level)
+		log_dungeon("ZLevel: ERROR - Failed to create new Z-level")
+		return FALSE
+
+	// Store the new Z-level NUMBER for reuse, not the datum
+	GLOB.portal_dungeon_z_level = new_level.z_value
 	dungeon_z_level = GLOB.portal_dungeon_z_level
-	log_dungeon("ZLevel: Set portal Z-level to world.maxz [dungeon_z_level] for reuse")
+
+	log_dungeon("ZLevel: SUCCESS - Created new reusable portal Z-level [dungeon_z_level]")
 	return TRUE
 
 /// Get dungeon statistics for UI display
@@ -176,7 +188,7 @@
 		log_dungeon("Connection: ERROR - No portal found at gateway location")
 		return FALSE
 
-/// Get portal from the pre-determined gateway location from JSON
+/// Get portal from the pre-determined gateway location from JSON with ±5 tile scanning
 /datum/portal_destination/veilbreak/proc/get_portal_from_gateway_location()
 	if(!last_generation_data || !last_generation_data["metadata"])
 		log_dungeon("Gateway: No generation data available")
@@ -197,18 +209,34 @@
 		log_dungeon("Gateway: Invalid gateway coordinates: x=[gateway_x], y=[gateway_y]")
 		return null
 
-	// Look for portal at the exact gateway location
+	// Look for portal at the exact gateway location first
 	var/turf/gateway_turf = locate(gateway_x, gateway_y, dungeon_z_level)
-	if(!gateway_turf)
-		log_dungeon("Gateway: Invalid gateway turf at [gateway_x],[gateway_y],[dungeon_z_level]")
-		return null
+	if(gateway_turf)
+		var/obj/machinery/portal/found_portal = locate(/obj/machinery/portal) in gateway_turf
+		if(found_portal)
+			log_dungeon("Gateway: Found portal at exact location [AREACOORD(found_portal)]")
+			return found_portal
 
-	var/obj/machinery/portal/found_portal = locate(/obj/machinery/portal) in gateway_turf
-	if(found_portal)
-		log_dungeon("Gateway: Found portal at pre-determined location [AREACOORD(found_portal)]")
-		return found_portal
+	// If not found at exact location, scan ±5 tiles around
+	log_dungeon("Gateway: No portal at exact location, scanning ±5 tiles around [gateway_x],[gateway_y]")
 
-	log_dungeon("Gateway: No portal found at pre-determined gateway location [gateway_x],[gateway_y],[dungeon_z_level]")
+	var/scan_range = 5
+	var/min_x = max(1, gateway_x - scan_range)
+	var/max_x = min(world.maxx, gateway_x + scan_range)
+	var/min_y = max(1, gateway_y - scan_range)
+	var/max_y = min(world.maxy, gateway_y + scan_range)
+
+	for(var/x = min_x to max_x)
+		for(var/y = min_y to max_y)
+			var/turf/check_turf = locate(x, y, dungeon_z_level)
+			if(check_turf)
+				var/obj/machinery/portal/found_portal = locate(/obj/machinery/portal) in check_turf
+				if(found_portal)
+					log_dungeon("Gateway: Found portal at scanned location [AREACOORD(found_portal)] (offset: [x-gateway_x],[y-gateway_y])")
+					return found_portal
+			CHECK_TICK
+
+	log_dungeon("Gateway: No portal found in ±[scan_range] tile area around [gateway_x],[gateway_y],[dungeon_z_level]")
 	return null
 
 /datum/portal_destination/veilbreak/proc/connect_to_existing_portal(obj/machinery/portal/dungeon_portal)

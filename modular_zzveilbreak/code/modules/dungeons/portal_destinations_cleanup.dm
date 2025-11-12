@@ -1,6 +1,16 @@
 // modular_zzveilbreak/code/modules/dungeons/portal_destinations_cleanup.dm
 
 /datum/portal_destination/veilbreak/proc/cleanup_z_level_completely(z_level)
+	// Validate Z-level before proceeding
+	if(!z_level || z_level < 1 || z_level > world.maxz)
+		log_dungeon("Cleanup: ERROR - Invalid Z-level [z_level]")
+		return
+
+	// Prevent re-entrancy
+	if(cleanup_in_progress)
+		log_dungeon("Cleanup: Already in progress, skipping")
+		return
+
 	log_dungeon("Cleanup: Starting cleanup of Z-level [z_level]")
 
 	cleanup_in_progress = TRUE
@@ -20,7 +30,7 @@
 	// Clean up portal connections
 	cleanup_portal_connections()
 
-	// Reset state
+	// Reset state (but keep the Z-level for reuse)
 	generated = FALSE
 	generating = FALSE
 	generation_progress = 0
@@ -30,7 +40,7 @@
 	processing_disabled = FALSE
 	cleanup_in_progress = FALSE
 
-	log_dungeon("Cleanup: Cleanup complete for Z-level [z_level]")
+	log_dungeon("Cleanup: Cleanup complete for reusable Z-level [z_level]")
 
 /datum/portal_destination/veilbreak/proc/reset_z_level_to_space(z_level)
 	log_dungeon("Cleanup: Resetting Z-level [z_level] to space")
@@ -97,7 +107,7 @@
 			if(objects_cleaned % 50 == 0)
 				CHECK_TICK
 
-	log_dungeon("Cleanup: Cleaned up [mobs_cleaned] mobs and [objects_cleaned] objects")
+	log_dungeon("Cleanup: Cleaned up [mobs_cleaned] mobs and [objects_cleaned] objects from Z-level [z_level]")
 
 /datum/portal_destination/veilbreak/proc/should_preserve_object(obj/object)
 	// Preserve important structures

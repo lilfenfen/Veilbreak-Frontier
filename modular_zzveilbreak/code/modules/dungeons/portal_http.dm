@@ -38,6 +38,7 @@
 	var/datum/portal_destination/veilbreak/destination = active_requests["[request_id]"]
 	if(!destination || QDELETED(destination))
 		log_dungeon("DUNGEON DEBUG: Request [request_id] - destination missing or deleted")
+		// Clean up any remaining request data
 		active_requests -= "[request_id]"
 		active_requests -= "[request_id]_req"
 		active_requests -= "[request_id]_time"
@@ -56,6 +57,7 @@
 		if(world.time - start_time > DUNGEON_GENERATOR_TIMEOUT)
 			log_dungeon("DUNGEON DEBUG: Request [request_id] - timeout after [DUNGEON_GENERATOR_TIMEOUT/10] seconds")
 			destination.generation_failed("Request timeout after [DUNGEON_GENERATOR_TIMEOUT/10] seconds")
+			// Clean up the request
 			active_requests -= "[request_id]"
 			active_requests -= "[request_id]_req"
 			active_requests -= "[request_id]_time"

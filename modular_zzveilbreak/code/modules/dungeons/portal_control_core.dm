@@ -48,7 +48,23 @@
 	return TRUE
 
 /obj/machinery/computer/portal_control/proc/try_to_linkup()
-	linked_portal = locate(/obj/machinery/portal) in view(7, get_turf(src))
+	// Scan for portal in a 7-tile radius (improved from view(7))
+	var/turf/center_turf = get_turf(src)
+	linked_portal = null
+
+	// Scan in a 15x15 area (7 tiles in each direction)
+	for(var/turf/T in block(
+		locate(max(1, center_turf.x-7), max(1, center_turf.y-7), center_turf.z),
+		locate(min(world.maxx, center_turf.x+7), min(world.maxy, center_turf.y+7), center_turf.z)
+	))
+		var/obj/machinery/portal/found_portal = locate(/obj/machinery/portal) in T
+		if(found_portal)
+			linked_portal = found_portal
+			log_portal_control("Linkup: Found portal at [AREACOORD(found_portal)]")
+			break
+
+	if(!linked_portal)
+		log_portal_control("Linkup: No portal found in scanning area")
 
 /obj/machinery/computer/portal_control/proc/force_ui_update()
 	if(world.time < last_ui_update + ui_update_cooldown)

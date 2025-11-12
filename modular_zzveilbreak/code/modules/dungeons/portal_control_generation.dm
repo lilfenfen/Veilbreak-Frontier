@@ -34,6 +34,10 @@
 				to_chat(user, span_warning("Deactivate the current portal before generating a new destination!"))
 				return TRUE
 
+			if(!linked_portal.powered())
+				to_chat(user, span_warning("Portal has no power! Check power connections."))
+				return TRUE
+
 			log_portal_control("DUNGEON DEBUG: All checks passed, starting generation process")
 
 			// Clear cached name when starting new generation

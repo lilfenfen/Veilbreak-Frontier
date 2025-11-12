@@ -7,7 +7,7 @@
 // Global list for portal destinations (separate from gateways)
 GLOBAL_LIST_EMPTY(portal_destinations)
 
-// Fixed Z-level for all portal dungeons (will be set to world.maxz)
+// Reusable Z-level for all portal dungeons (set on first generation)
 GLOBAL_VAR(portal_dungeon_z_level)
 
 // Helper proc for dungeon generator logging
