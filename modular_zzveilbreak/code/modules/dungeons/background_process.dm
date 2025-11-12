@@ -49,10 +49,10 @@
 			log_dungeon("Background Process: WARNING - Invalid result [result] from [process_name], stopping")
 			stop()
 
-// Background processing subsystem
+// Background processing subsystem - FIXED: Use existing priority
 SUBSYSTEM_DEF(background)
 	name = "Background"
-	priority = FIRE_PRIORITY_GARBAGE // Use a low priority constant that exists
+	priority = FIRE_PRIORITY_GARBAGE // Use existing garbage priority
 	wait = 1 // Process every tick if possible
 	flags = SS_BACKGROUND | SS_NO_INIT
 

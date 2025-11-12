@@ -15,8 +15,9 @@
 // Portal destinations
 #include "portal_destinations_base.dm"
 #include "portal_destinations_veilbreak.dm"
-#include "portal_destinations_generation.dm"
+// FIXED: Include cleanup BEFORE generation to ensure proc definitions are available
 #include "portal_destinations_cleanup.dm"
+#include "portal_destinations_generation.dm"
 
 // Control systems
 #include "portal_control_core.dm"

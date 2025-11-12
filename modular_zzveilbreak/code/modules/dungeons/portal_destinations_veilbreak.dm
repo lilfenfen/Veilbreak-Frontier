@@ -75,22 +75,22 @@
 	log_dungeon("Gateway: Using pre-determined gateway location at [AREACOORD(gateway_turf)]")
 	return gateway_turf
 
-/// Initialize the fixed portal Z-level on first use
+/// Initialize the fixed portal Z-level on first use - FIXED: Use world.maxz
 /datum/portal_destination/veilbreak/proc/initialize_portal_z_level()
+	log_dungeon("DUNGEON DEBUG: initialize_portal_z_level() called - current world.maxz: [world.maxz]")
+
 	if(GLOB.portal_dungeon_z_level)
 		dungeon_z_level = GLOB.portal_dungeon_z_level
 		log_dungeon("ZLevel: Using existing portal Z-level [dungeon_z_level]")
 		return TRUE
 
-	// Use the highest existing Z-level
-	if(world.maxz > 0)
-		GLOB.portal_dungeon_z_level = world.maxz
-		dungeon_z_level = GLOB.portal_dungeon_z_level
-		log_dungeon("ZLevel: Set new portal Z-level to [dungeon_z_level]")
-		return TRUE
+	// FIXED: Use the highest existing Z-level (world.maxz) for portal dungeons
+	var/target_z = world.maxz
 
-	log_dungeon("ZLevel: ERROR - No Z-levels available for portal dungeons")
-	return FALSE
+	GLOB.portal_dungeon_z_level = target_z
+	dungeon_z_level = GLOB.portal_dungeon_z_level
+	log_dungeon("ZLevel: Set portal Z-level to world.maxz [dungeon_z_level] for reuse")
+	return TRUE
 
 /// Get dungeon statistics for UI display
 /datum/portal_destination/veilbreak/proc/get_dungeon_stats()
@@ -120,40 +120,30 @@
 		return FALSE
 	return TRUE
 
-// CRITICAL: Make sure the process proc exists with DEBUG
+// FIXED: Improved process proc with better state management
 /datum/portal_destination/veilbreak/process()
-	log_dungeon("DUNGEON DEBUG: veilbreak/process() called")
-	log_dungeon("DUNGEON DEBUG: State - generating: [generating], disabled: [processing_disabled], request_id: [current_request_id]")
-
-	if(!generating || processing_disabled)
-		log_dungeon("DUNGEON DEBUG: Stopping process - generating=[generating], disabled=[processing_disabled]")
+	if(processing_disabled)
 		STOP_PROCESSING(SSobj, src)
 		return
 
-	// FIXED: Update progress for UI with server protection
+	if(!generating)
+		STOP_PROCESSING(SSobj, src)
+		return
+
+	// Update progress for UI
 	if(world.time - last_progress_update > 1 SECONDS)
 		generation_progress = min(generation_progress + rand(5, 15), 90)
 		last_progress_update = world.time
-		log_dungeon("DUNGEON DEBUG: Progress updated to [generation_progress]%")
 
-	// FIXED: Check if request is complete EVERY TICK with proper logic
+	// Check if request is complete
 	if(current_request_id)
-		log_dungeon("DUNGEON DEBUG: Checking request [current_request_id]")
 		var/still_processing = GLOB.dungeon_generator.check_request(current_request_id)
-		log_dungeon("DUNGEON DEBUG: check_request returned: [still_processing]")
-
-		if(still_processing)
-			log_dungeon("DUNGEON DEBUG: Request still processing, continuing")
-			return // Still processing, continue next tick
-		else
+		if(!still_processing)
 			// Request completed or failed
-			log_dungeon("DUNGEON DEBUG: Request completed or failed, stopping process")
 			STOP_PROCESSING(SSobj, src)
 			generation_progress = 100
-			log_dungeon("DUNGEON DEBUG: Set progress to 100% and stopped processing")
 			return
 
-	// No active request but still generating? This shouldn't happen
-	log_dungeon("DUNGEON DEBUG: WARNING - No active request but still generating")
+	// Safety timeout - if we're still here but shouldn't be
 	STOP_PROCESSING(SSobj, src)
-	generation_failed("Generation process lost track of request")
+	generation_failed("Generation process stuck in invalid state")

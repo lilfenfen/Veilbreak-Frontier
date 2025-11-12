@@ -78,318 +78,172 @@
 	cleanup_process = null
 	return BG_PROCESSING_FINISHED
 
-// Initialize dungeon subsystems with proper tick checking
-/datum/portal_destination/veilbreak/proc/initialize_dungeon_subsystems(z_level)
-	log_dungeon("Subsystems: Starting background initialization for Z-level [z_level]")
-
-	// Use background processing for initialization
-	init_process = new /datum/background_process(CALLBACK(src, .proc/execute_init_step, z_level), "portal_init_[z_level]")
-	init_process.start()
-
-	return TRUE // Return immediately, initialization happens in background
-
-/datum/portal_destination/veilbreak/proc/execute_init_step(z_level)
-	if(processing_disabled)
-		log_dungeon("Subsystems: Init step aborted - processing disabled")
-		return BG_PROCESSING_FINISHED
-
-	var/start_time = world.time
-	var/max_processing_time = MAX_PROCESSING_TIME_PER_TICK
-	var/current_step = init_process.metadata["current_step"] || 1
-
-	log_dungeon("Subsystems: Executing step [current_step]")
-
-	switch(current_step)
-		if(1) // Initialize atoms
-			var/result = initialize_dungeon_atoms_incremental(z_level, start_time, max_processing_time)
-			if(result == BG_PROCESSING_CONTINUE)
-				return BG_PROCESSING_CONTINUE
-			current_step++
-			init_process.metadata["current_step"] = current_step
-			return BG_PROCESSING_CONTINUE
-
-		if(2) // Initialize areas
-			var/result = initialize_dungeon_areas_incremental(z_level, start_time, max_processing_time)
-			if(result == BG_PROCESSING_CONTINUE)
-				return BG_PROCESSING_CONTINUE
-			current_step++
-			init_process.metadata["current_step"] = current_step
-			return BG_PROCESSING_CONTINUE
-
-		if(3) // Initialize power
-			var/result = initialize_dungeon_power_incremental(z_level, start_time, max_processing_time)
-			if(result == BG_PROCESSING_CONTINUE)
-				return BG_PROCESSING_CONTINUE
-			current_step++
-			init_process.metadata["current_step"] = current_step
-			return BG_PROCESSING_CONTINUE
-
-		if(4) // Initialize lighting
-			var/result = initialize_dungeon_lighting_incremental(z_level, start_time, max_processing_time)
-			if(result == BG_PROCESSING_CONTINUE)
-				return BG_PROCESSING_CONTINUE
-			current_step++
-			init_process.metadata["current_step"] = current_step
-			return BG_PROCESSING_CONTINUE
-
-		if(5) // Initialize atmospherics
-			var/result = initialize_dungeon_atmospherics_incremental(z_level, start_time, max_processing_time)
-			if(result == BG_PROCESSING_CONTINUE)
-				return BG_PROCESSING_CONTINUE
-			current_step++
-			init_process.metadata["current_step"] = current_step
-			return BG_PROCESSING_CONTINUE
-
-		if(6) // Initialize machinery
-			var/result = initialize_dungeon_machinery_incremental(z_level, start_time, max_processing_time)
-			if(result == BG_PROCESSING_CONTINUE)
-				return BG_PROCESSING_CONTINUE
-			current_step++
-			init_process.metadata["current_step"] = current_step
-			return BG_PROCESSING_CONTINUE
-
-		if(7) // Safe smoothing initialization using SSicon_smooth
-			log_dungeon("Subsystems: Starting safe smoothing initialization")
-			safe_initialize_smoothing(z_level)
-			current_step++
-			init_process.metadata["current_step"] = current_step
-			return BG_PROCESSING_CONTINUE
-
-		if(8) // Visual updates (skip smoothing operations)
-			var/result = force_immediate_visual_updates_incremental(z_level, start_time, max_processing_time)
-			if(result == BG_PROCESSING_CONTINUE)
-				return BG_PROCESSING_CONTINUE
-
-	// Initialization complete
-	log_dungeon("Subsystems: INITIALIZATION COMPLETE for Z-level [z_level]")
-
-	// Ensure portal connection now that everything is ready
-	ensure_portal_connection()
-
-	init_process = null
-	return BG_PROCESSING_FINISHED
-
-// NEW: Safe smoothing initialization using SSicon_smooth subsystem
-/datum/portal_destination/veilbreak/proc/safe_initialize_smoothing(z_level)
-	log_dungeon("Smoothing: Starting safe smoothing initialization for Z-level [z_level]")
-
-	if(!SSicon_smooth.initialized)
-		log_dungeon("Smoothing: SSicon_smooth not initialized, skipping")
+// FIXED: Improved cleanup with better mob handling
+/datum/portal_destination/veilbreak/proc/cleanup_dungeon()
+	if(cleanup_in_progress || processing_disabled)
+		log_dungeon("Cleanup: Already in progress or disabled, skipping")
 		return
 
-	var/smoothed_count = 0
-	var/skipped_count = 0
+	cleanup_in_progress = TRUE
+	processing_disabled = TRUE
 
-	// Process all atoms on the Z-level and safely add them to smoothing queue
-	for(var/atom/A in world)
-		if(A.z != z_level)
-			continue
+	if(!dungeon_z_level)
+		log_dungeon("Cleanup: No Z-level to clean up")
+		cleanup_in_progress = FALSE
+		processing_disabled = FALSE
+		return
 
-		// Skip atoms that are likely to cause smoothing errors
-		if(should_skip_smoothing(A))
-			skipped_count++
-			continue
+	log_dungeon("Cleanup: Starting comprehensive cleanup for Z-level [dungeon_z_level]")
 
-		// Only queue atoms that actually need smoothing
-		if(A.smoothing_flags && !(A.smoothing_flags & SMOOTH_QUEUED))
-			// FIXED: Remove try-catch since it's not properly structured in DM
-			// Use the SSicon_smooth subsystem to queue the atom
-			SSicon_smooth.add_to_queue(A)
-			smoothed_count++
+	// Stop any background processing first
+	STOP_PROCESSING(SSobj, src)
+	if(cleanup_process)
+		cleanup_process.stop()
+		cleanup_process = null
+	if(init_process)
+		init_process.stop()
+		init_process = null
+	if(load_process)
+		load_process.stop()
+		load_process = null
 
-		CHECK_TICK
+	// 1. Clean up all mobs and objects on the Z-level
+	cleanup_z_level_contents(dungeon_z_level)
 
-	log_dungeon("Smoothing: Completed - [smoothed_count] atoms queued, [skipped_count] skipped")
+	// 2. Reset all turfs to space
+	reset_z_level_to_space(dungeon_z_level)
 
-	// FIXED: Use proper SSicon_smooth method instead of undefined .wake()
-	if(smoothed_count > 0 && SSicon_smooth.can_fire)
-		log_dungeon("Smoothing: Smoothing subsystem will process queued atoms automatically")
-		// SSicon_smooth will process automatically, no need to manually wake it
+	// 3. Clean up any remaining portal connections with safety checks
+	if(connected_portal && !QDELETED(connected_portal) && connected_portal.target == src)
+		connected_portal.target = null
+		connected_portal.transport_active = FALSE
+		connected_portal.update_appearance()
+		log_dungeon("Cleanup: Disconnected station portal")
 
-/datum/portal_destination/veilbreak/proc/should_skip_smoothing(atom/A)
-	// Skip objects that are known to cause smoothing runtime errors
-	if(istype(A, /obj/structure/alien/weeds))
+	// 4. Clean up any dungeon-side portal safely
+	var/obj/machinery/portal/dungeon_portal = get_portal_from_gateway_location()
+	if(dungeon_portal && !QDELETED(dungeon_portal))
+		// Find and remove the return destination safely
+		if(dungeon_portal.target)
+			for(var/key in GLOB.portal_destinations)
+				var/datum/portal_destination/dest = GLOB.portal_destinations[key]
+				if(dest == dungeon_portal.target)
+					GLOB.portal_destinations -= key
+					log_dungeon("Cleanup: Removed return destination [key]")
+					break
+
+		// Use a timer to safely delete the portal
+		QDEL_NULL(dungeon_portal)
+		log_dungeon("Cleanup: Queued dungeon portal for deletion")
+
+	// 5. Reset state - but keep the Z-level for reuse
+	generated = FALSE
+	generating = FALSE
+	generation_progress = 0
+	current_request_id = 0
+	// Don't clear last_generation_data - we might want it for analytics
+
+	// Re-enable processing after cleanup
+	addtimer(CALLBACK(src, .proc/enable_processing), 2 SECONDS)
+
+	log_dungeon("Cleanup: Cleanup complete for veilbreak destination")
+
+/datum/portal_destination/veilbreak/proc/reset_z_level_to_space(z_level)
+	log_dungeon("Cleanup: Resetting Z-level [z_level] to space")
+
+	var/turfs_processed = 0
+	for(var/turf/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
+		if(!istype(T, /turf/open/space/basic))
+			T.ChangeTurf(/turf/open/space/basic, FALSE, FALSE)
+		turfs_processed++
+		if(turfs_processed % 100 == 0)
+			CHECK_TICK
+
+	log_dungeon("Cleanup: Reset [turfs_processed] turfs to space")
+
+/datum/portal_destination/veilbreak/proc/enable_processing()
+	processing_disabled = FALSE
+	cleanup_in_progress = FALSE
+	log_dungeon("Cleanup: Processing re-enabled")
+
+/datum/portal_destination/veilbreak/proc/cleanup_z_level_contents(z_level)
+	log_dungeon("Cleanup: Cleaning up contents of Z-level [z_level]")
+
+	var/mobs_cleaned = 0
+	var/objects_cleaned = 0
+
+	// Clean up all non-player mobs
+	for(var/mob/living/mob in GLOB.mob_list)
+		if(mob.z == z_level)
+			// Skip players and player-related entities (they should have been dumped already)
+			if(mob.ckey || mob.client || is_player_related_for_cleanup(mob))
+				continue
+			// Delete hostile/npc mobs
+			qdel(mob)
+			mobs_cleaned++
+
+	// Clean up non-essential objects
+	for(var/obj/object in world)
+		if(object.z == z_level)
+			// Skip important structures and player items
+			if(should_preserve_object(object))
+				continue
+			qdel(object)
+			objects_cleaned++
+
+	log_dungeon("Cleanup: Cleaned up [mobs_cleaned] mobs and [objects_cleaned] objects from Z-level [z_level]")
+
+/// Check if an object should be preserved during cleanup
+/datum/portal_destination/veilbreak/proc/should_preserve_object(obj/object)
+	// Preserve important structures
+	if(istype(object, /obj/structure))
+		return TRUE
+	if(istype(object, /obj/machinery))
+		return TRUE
+	if(istype(object, /obj/item))
+		return TRUE
+	// Preserve anything that might be player-owned
+	if(object.resistance_flags & INDESTRUCTIBLE)
+		return TRUE
+	return FALSE
+
+/// Check if a mob is player-related for cleanup purposes
+/datum/portal_destination/veilbreak/proc/is_player_related_for_cleanup(mob/living/mob)
+	// Players with active connections
+	if(mob.client)
+		return TRUE
+	// Players with ckeys (SSD)
+	if(mob.ckey)
+		return TRUE
+	// Player corpses with minds
+	if(mob.stat == DEAD && mob.mind)
+		return TRUE
+	// Cyborgs with players
+	if(iscyborg(mob) && (mob.ckey || mob.mind))
+		return TRUE
+	return FALSE
+
+// Check if an atom should be preserved during Z-level cleanup
+/datum/portal_destination/veilbreak/proc/should_preserve_for_cleanup(atom/movable/AM)
+	// Preserve players and player-related entities
+	if(ismob(AM))
+		var/mob/M = AM
+		if(M.client || M.ckey)
+			return TRUE
+		if(M.mind)
+			return TRUE
+
+	// Preserve important portal infrastructure
+	if(istype(AM, /obj/machinery/portal))
+		return TRUE
+	if(istype(AM, /obj/effect/portal_bumper))
 		return TRUE
 
-	// Skip atoms that aren't fully initialized
-	if(!(A.flags_1 & INITIALIZED_1))
-		return TRUE
-
-	// Skip atoms without proper loc or z-level
-	if(!A.loc || !A.z)
-		return TRUE
-
-	// Skip atoms that are queued for deletion
-	if(QDELETED(A))
-		return TRUE
-
-	// Skip if the atom doesn't actually have smoothing flags set
-	if(!A.smoothing_flags)
-		return TRUE
-
-	// Skip if atom is already in the smoothing queue
-	if(A.smoothing_flags & SMOOTH_QUEUED)
+	// Preserve station-bound items and structures
+	if(AM.resistance_flags & INDESTRUCTIBLE)
 		return TRUE
 
 	return FALSE
-
-// Incremental versions of initialization procs with proper tick checking
-/datum/portal_destination/veilbreak/proc/initialize_dungeon_atoms_incremental(z_level, start_time, max_time)
-	var/current_index = init_process.metadata["atom_index"] || 1
-	var/list/atoms_to_initialize = init_process.metadata["atoms_list"]
-
-	if(!atoms_to_initialize)
-		// First call - build the list
-		atoms_to_initialize = list()
-		for(var/atom/A in world)
-			if(A.z == z_level)
-				atoms_to_initialize += A
-		init_process.metadata["atoms_list"] = atoms_to_initialize
-		init_process.metadata["atom_index"] = 1
-		log_dungeon("Subsystems: Found [length(atoms_to_initialize)] atoms to initialize")
-		return BG_PROCESSING_CONTINUE
-
-	for(var/i = current_index to min(current_index + 50, length(atoms_to_initialize)))
-		var/atom/A = atoms_to_initialize[i]
-		if(!(A.flags_1 & INITIALIZED_1))
-			SSatoms.InitAtom(A, FALSE, list(FALSE))
-
-		if(world.time - start_time > max_time)
-			init_process.metadata["atom_index"] = i + 1
-			log_dungeon("Subsystems: Atom initialization yielding at index [i]")
-			return BG_PROCESSING_CONTINUE
-
-	log_dungeon("Subsystems: Atom initialization completed")
-	return BG_PROCESSING_FINISHED
-
-/datum/portal_destination/veilbreak/proc/initialize_dungeon_areas_incremental(z_level, start_time, max_time)
-	var/current_index = init_process.metadata["area_index"] || 1
-	var/list/areas_to_process = init_process.metadata["areas_list"]
-
-	if(!areas_to_process)
-		areas_to_process = list()
-		for(var/area/area as anything in GLOB.areas)
-			var/has_turfs_on_z = FALSE
-			for(var/turf/T in area.contents)
-				if(T.z == z_level)
-					has_turfs_on_z = TRUE
-					break
-			if(has_turfs_on_z)
-				areas_to_process += area
-		init_process.metadata["areas_list"] = areas_to_process
-		init_process.metadata["area_index"] = 1
-		log_dungeon("Subsystems: Found [length(areas_to_process)] areas to initialize")
-		return BG_PROCESSING_CONTINUE
-
-	for(var/i = current_index to min(current_index + 20, length(areas_to_process)))
-		var/area/area = areas_to_process[i]
-		area.power_equip = initial(area.power_equip)
-		area.power_light = initial(area.power_light)
-		area.power_environ = initial(area.power_environ)
-		area.always_unpowered = initial(area.always_unpowered)
-		area.power_change()
-		area.update_icon()
-
-		if(world.time - start_time > max_time)
-			init_process.metadata["area_index"] = i + 1
-			log_dungeon("Subsystems: Area initialization yielding at index [i]")
-			return BG_PROCESSING_CONTINUE
-
-	log_dungeon("Subsystems: Area initialization completed")
-	return BG_PROCESSING_FINISHED
-
-/datum/portal_destination/veilbreak/proc/initialize_dungeon_power_incremental(z_level, start_time, max_time)
-	var/current_index = init_process.metadata["power_index"] || 1
-
-	// Initialize machinery power states
-	for(var/obj/machinery/machine in world)
-		if(machine.z != z_level)
-			continue
-
-		machine.power_change()
-
-		if(world.time - start_time > max_time)
-			init_process.metadata["power_index"] = current_index + 1
-			log_dungeon("Subsystems: Power initialization yielding")
-			return BG_PROCESSING_CONTINUE
-
-	log_dungeon("Subsystems: Power initialization completed")
-	return BG_PROCESSING_FINISHED
-
-/datum/portal_destination/veilbreak/proc/initialize_dungeon_lighting_incremental(z_level, start_time, max_time)
-	if(!SSlighting || !SSlighting.initialized)
-		log_dungeon("Subsystems: Lighting subsystem not available")
-		return BG_PROCESSING_FINISHED
-
-	var/current_x = init_process.metadata["lighting_x"] || 1
-	var/current_y = init_process.metadata["lighting_y"] || 1
-
-	for(var/x = current_x to world.maxx)
-		for(var/y = current_y to world.maxy)
-			var/turf/iter_turf = locate(x, y, z_level)
-			if(!iter_turf.space_lit && !iter_turf.lighting_object)
-				new /datum/lighting_object(iter_turf)
-
-			if(world.time - start_time > max_time)
-				init_process.metadata["lighting_x"] = x
-				init_process.metadata["lighting_y"] = y + 1
-				log_dungeon("Subsystems: Lighting initialization yielding at [x],[y]")
-				return BG_PROCESSING_CONTINUE
-		current_y = 1
-
-	log_dungeon("Subsystems: Lighting initialization completed")
-	return BG_PROCESSING_FINISHED
-
-/datum/portal_destination/veilbreak/proc/initialize_dungeon_atmospherics_incremental(z_level, start_time, max_time)
-	if(!SSair || !SSair.initialized)
-		log_dungeon("Subsystems: Air subsystem not available")
-		return BG_PROCESSING_FINISHED
-
-	// Atmos machinery will be handled by SSair naturally
-	log_dungeon("Subsystems: Atmospherics initialization completed")
-	return BG_PROCESSING_FINISHED
-
-/datum/portal_destination/veilbreak/proc/initialize_dungeon_machinery_incremental(z_level, start_time, max_time)
-	var/current_index = init_process.metadata["machinery_index"] || 1
-
-	for(var/obj/machinery/machine in world)
-		if(machine.z != z_level)
-			continue
-
-		if(machine.use_power)
-			machine.power_change()
-		machine.update_icon()
-		machine.update_appearance()
-
-		if(world.time - start_time > max_time)
-			init_process.metadata["machinery_index"] = current_index + 1
-			log_dungeon("Subsystems: Machinery initialization yielding")
-			return BG_PROCESSING_CONTINUE
-
-	log_dungeon("Subsystems: Machinery initialization completed")
-	return BG_PROCESSING_FINISHED
-
-/datum/portal_destination/veilbreak/proc/force_immediate_visual_updates_incremental(z_level, start_time, max_time)
-	var/current_x = init_process.metadata["visual_x"] || 1
-	var/current_y = init_process.metadata["visual_y"] || 1
-
-	for(var/x = current_x to world.maxx)
-		for(var/y = current_y to world.maxy)
-			var/turf/iter_turf = locate(x, y, z_level)
-			if(!istype(iter_turf, /obj/effect) && !istype(iter_turf, /obj/effect/decal))
-				// Safe visual updates only - no smoothing operations
-				iter_turf.update_icon()
-				iter_turf.update_appearance()
-
-			if(world.time - start_time > max_time)
-				init_process.metadata["visual_x"] = x
-				init_process.metadata["visual_y"] = y + 1
-				log_dungeon("Subsystems: Visual updates yielding at [x],[y]")
-				return BG_PROCESSING_CONTINUE
-		current_y = 1
-
-	log_dungeon("Subsystems: Visual updates completed")
-	return BG_PROCESSING_FINISHED
 
 // ===== PORTAL CONNECTION SYSTEM =====
 /datum/portal_destination/veilbreak/proc/ensure_portal_connection()
@@ -488,153 +342,4 @@
 		return TRUE
 
 	log_dungeon("Connection: WARNING - No connected portal found for station side")
-	return FALSE
-
-// ===== CLEANUP AND UTILITY PROCS =====
-/datum/portal_destination/veilbreak/proc/cleanup_dungeon()
-	if(cleanup_in_progress || processing_disabled)
-		log_dungeon("Cleanup: Already in progress or disabled, skipping")
-		return
-
-	cleanup_in_progress = TRUE
-	processing_disabled = TRUE
-
-	if(!dungeon_z_level)
-		log_dungeon("Cleanup: No Z-level to clean up")
-		cleanup_in_progress = FALSE
-		processing_disabled = FALSE
-		return
-
-	log_dungeon("Cleanup: Starting comprehensive cleanup for Z-level [dungeon_z_level]")
-
-	// Stop any background processing first
-	STOP_PROCESSING(SSobj, src)
-	if(cleanup_process)
-		cleanup_process.stop()
-		cleanup_process = null
-	if(init_process)
-		init_process.stop()
-		init_process = null
-	if(load_process)
-		load_process.stop()
-		load_process = null
-
-	// 1. Clean up all mobs and objects on the Z-level
-	cleanup_z_level_contents(dungeon_z_level)
-
-	// 2. Clean up any remaining portal connections with safety checks
-	if(connected_portal && !QDELETED(connected_portal) && connected_portal.target == src)
-		connected_portal.target = null
-		connected_portal.transport_active = FALSE
-		connected_portal.update_appearance()
-		log_dungeon("Cleanup: Disconnected station portal")
-
-	// 3. Clean up any dungeon-side portal safely
-	var/obj/machinery/portal/dungeon_portal = get_portal_from_gateway_location()
-	if(dungeon_portal && !QDELETED(dungeon_portal))
-		// Find and remove the return destination safely
-		if(dungeon_portal.target)
-			for(var/key in GLOB.portal_destinations)
-				var/datum/portal_destination/dest = GLOB.portal_destinations[key]
-				if(dest == dungeon_portal.target)
-					GLOB.portal_destinations -= key
-					log_dungeon("Cleanup: Removed return destination [key]")
-					break
-
-		// Use a timer to safely delete the portal
-		QDEL_NULL(dungeon_portal)
-		log_dungeon("Cleanup: Queued dungeon portal for deletion")
-
-	// 4. Reset state - but keep the Z-level for reuse
-	generated = FALSE
-	generating = FALSE
-	// Don't clear last_generation_data - we might want it for analytics
-
-	// Re-enable processing after cleanup
-	addtimer(CALLBACK(src, .proc/enable_processing), 1 SECONDS)
-
-	log_dungeon("Cleanup: Cleanup complete for veilbreak destination")
-
-/datum/portal_destination/veilbreak/proc/enable_processing()
-	processing_disabled = FALSE
-	cleanup_in_progress = FALSE
-	log_dungeon("Cleanup: Processing re-enabled")
-
-/datum/portal_destination/veilbreak/proc/cleanup_z_level_contents(z_level)
-	log_dungeon("Cleanup: Cleaning up contents of Z-level [z_level]")
-
-	var/mobs_cleaned = 0
-	var/objects_cleaned = 0
-
-	// Clean up all non-player mobs
-	for(var/mob/living/mob in GLOB.mob_list)
-		if(mob.z == z_level)
-			// Skip players and player-related entities (they should have been dumped already)
-			if(mob.ckey || mob.client || is_player_related_for_cleanup(mob))
-				continue
-			// Delete hostile/npc mobs
-			qdel(mob)
-			mobs_cleaned++
-
-	// Clean up non-essential objects
-	for(var/obj/object in world)
-		if(object.z == z_level)
-			// Skip important structures and player items
-			if(should_preserve_object(object))
-				continue
-			qdel(object)
-			objects_cleaned++
-
-	log_dungeon("Cleanup: Cleaned up [mobs_cleaned] mobs and [objects_cleaned] objects from Z-level [z_level]")
-
-/// Check if an object should be preserved during cleanup
-/datum/portal_destination/veilbreak/proc/should_preserve_object(obj/object)
-	// Preserve important structures
-	if(istype(object, /obj/structure))
-		return TRUE
-	if(istype(object, /obj/machinery))
-		return TRUE
-	if(istype(object, /obj/item))
-		return TRUE
-	// Preserve anything that might be player-owned
-	if(object.resistance_flags & INDESTRUCTIBLE)
-		return TRUE
-	return FALSE
-
-/// Check if a mob is player-related for cleanup purposes
-/datum/portal_destination/veilbreak/proc/is_player_related_for_cleanup(mob/living/mob)
-	// Players with active connections
-	if(mob.client)
-		return TRUE
-	// Players with ckeys (SSD)
-	if(mob.ckey)
-		return TRUE
-	// Player corpses with minds
-	if(mob.stat == DEAD && mob.mind)
-		return TRUE
-	// Cyborgs with players
-	if(iscyborg(mob) && (mob.ckey || mob.mind))
-		return TRUE
-	return FALSE
-
-// Check if an atom should be preserved during Z-level cleanup
-/datum/portal_destination/veilbreak/proc/should_preserve_for_cleanup(atom/movable/AM)
-	// Preserve players and player-related entities
-	if(ismob(AM))
-		var/mob/M = AM
-		if(M.client || M.ckey)
-			return TRUE
-		if(M.mind)
-			return TRUE
-
-	// Preserve important portal infrastructure
-	if(istype(AM, /obj/machinery/portal))
-		return TRUE
-	if(istype(AM, /obj/effect/portal_bumper))
-		return TRUE
-
-	// Preserve station-bound items and structures
-	if(AM.resistance_flags & INDESTRUCTIBLE)
-		return TRUE
-
 	return FALSE

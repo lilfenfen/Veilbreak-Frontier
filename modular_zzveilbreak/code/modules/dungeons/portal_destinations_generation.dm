@@ -1,8 +1,5 @@
 // modular_zzveilbreak/code/modules/dungeons/portal_destinations_generation.dm
 
-// Add this at the top of the file with other defines
-#define MAX_Z_LEVELS 20 // Reasonable limit to prevent server overload
-
 /datum/portal_destination/veilbreak/proc/start_generation()
 	log_dungeon("DUNGEON DEBUG: start_generation() called for [name]")
 	log_dungeon("DUNGEON DEBUG: Current state - generating: [generating], generated: [generated], progress: [generation_progress]")
@@ -27,12 +24,8 @@
 		generation_failed("Mapping subsystem is already adding a Z-level")
 		return FALSE
 
-	// FIXED: Check if we're already at maximum Z-levels to prevent server overload
-	log_dungeon("DUNGEON DEBUG: Checking Z-level limit - world.maxz: [world.maxz], MAX_Z_LEVELS: [MAX_Z_LEVELS]")
-	if(world.maxz >= MAX_Z_LEVELS - 1) // Leave one Z-level buffer
-		log_dungeon("DUNGEON DEBUG: Generation failed - Z-level limit reached")
-		generation_failed("Maximum Z-level limit reached. Cannot generate new dungeon.")
-		return FALSE
+	// FIXED: Removed MAX_Z_LEVELS check since we're using world.maxz
+	log_dungeon("DUNGEON DEBUG: Using world.maxz [world.maxz] for portal Z-level")
 
 	generating = TRUE
 	generated = FALSE
@@ -70,40 +63,31 @@
 	return TRUE
 
 /datum/portal_destination/veilbreak/process()
-	log_dungeon("DUNGEON DEBUG: process() called - generating: [generating], disabled: [processing_disabled]")
-
-	if(!generating || processing_disabled)
-		log_dungeon("DUNGEON DEBUG: Stopping process - generating=[generating], disabled=[processing_disabled]")
+	if(processing_disabled)
 		STOP_PROCESSING(SSobj, src)
 		return
 
-	// FIXED: Update progress for UI with server protection
+	if(!generating)
+		STOP_PROCESSING(SSobj, src)
+		return
+
+	// Update progress for UI
 	if(world.time - last_progress_update > 1 SECONDS)
 		generation_progress = min(generation_progress + rand(5, 15), 90)
 		last_progress_update = world.time
-		log_dungeon("DUNGEON DEBUG: Progress updated to [generation_progress]%")
 
-	// FIXED: Check if request is complete EVERY TICK with proper logic
+	// Check if request is complete
 	if(current_request_id)
-		log_dungeon("DUNGEON DEBUG: Checking request [current_request_id]")
 		var/still_processing = GLOB.dungeon_generator.check_request(current_request_id)
-		log_dungeon("DUNGEON DEBUG: check_request returned: [still_processing]")
-
-		if(still_processing)
-			log_dungeon("DUNGEON DEBUG: Request still processing, continuing")
-			return // Still processing, continue next tick
-		else
+		if(!still_processing)
 			// Request completed or failed
-			log_dungeon("DUNGEON DEBUG: Request completed or failed, stopping process")
 			STOP_PROCESSING(SSobj, src)
 			generation_progress = 100
-			log_dungeon("DUNGEON DEBUG: Set progress to 100% and stopped processing")
 			return
 
-	// No active request but still generating? This shouldn't happen
-	log_dungeon("DUNGEON DEBUG: WARNING - No active request but still generating")
+	// Safety timeout - if we're still here but shouldn't be
 	STOP_PROCESSING(SSobj, src)
-	generation_failed("Generation process lost track of request")
+	generation_failed("Generation process stuck in invalid state")
 
 /datum/portal_destination/veilbreak/proc/generation_complete(list/data)
 	log_dungeon("DUNGEON DEBUG: generation_complete() called")
@@ -115,12 +99,13 @@
 	// DEBUG: Log the complete data structure we received
 	if(data["metadata"])
 		log_dungeon("DUNGEON DEBUG: Metadata present with map_name: [data["metadata"]["map_name"]]")
+		log_dungeon("DUNGEON DEBUG: Gateway location: [json_encode(data["metadata"]["key_positions"]?["gateway"])]")
 	else
 		log_dungeon("DUNGEON DEBUG: No metadata in response")
 
-	// CRITICAL FIX: Store the complete data structure
+	// CRITICAL FIX: Store the complete data structure IMMEDIATELY
 	last_generation_data = data.Copy()
-	log_dungeon("DUNGEON DEBUG: Stored generation data")
+	log_dungeon("DUNGEON DEBUG: Stored generation data with keys: [json_encode(last_generation_data)]")
 
 	// Access dmm_content from top level
 	if(data["dmm_content"])
@@ -159,6 +144,7 @@
 // Load generated DMM with incremental background processing
 /datum/portal_destination/veilbreak/proc/load_generated_dmm(dmm_content, list/metadata)
 	log_dungeon("DUNGEON DEBUG: load_generated_dmm() called")
+	log_dungeon("DUNGEON DEBUG: Metadata keys: [json_encode(metadata)]")
 
 	if(!dmm_content)
 		log_dungeon("DUNGEON DEBUG: No DMM content provided")
@@ -177,9 +163,12 @@
 	log_dungeon("DUNGEON DEBUG: Starting background cleanup")
 	cleanup_z_level_completely(dungeon_z_level)
 
-	// Store metadata
-	last_generation_data = metadata
-	log_dungeon("DUNGEON DEBUG: Stored metadata")
+	// CRITICAL FIX: Ensure metadata is preserved for portal connection
+	if(metadata)
+		log_dungeon("DUNGEON DEBUG: Preserving metadata for portal connection")
+		last_generation_data = list("metadata" = metadata.Copy())
+	else
+		log_dungeon("DUNGEON DEBUG: WARNING - No metadata to preserve!")
 
 	// Use incremental loading instead of blocking load
 	log_dungeon("DUNGEON DEBUG: Starting incremental DMM loading")
@@ -315,7 +304,7 @@
 				connected_portal.say("Dungeon generation complete. Portal stabilized.")
 				log_dungeon("DUNGEON DEBUG: Notified portal of completion")
 
-			// Start background initialization
+			// FIXED: Call the initialize_dungeon_subsystems proc that we've now defined in this file
 			log_dungeon("DUNGEON DEBUG: Starting dungeon subsystems")
 			initialize_dungeon_subsystems(z_level)
 
@@ -352,3 +341,316 @@
 			break
 
 	log_dungeon("DUNGEON DEBUG: Space initialization completed for [turfs_processed] turfs")
+
+// FIXED: Added the missing initialize_dungeon_subsystems proc and its related procs
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_subsystems(z_level)
+	log_dungeon("Subsystems: Starting background initialization for Z-level [z_level]")
+
+	// Use background processing for initialization
+	init_process = new /datum/background_process(CALLBACK(src, .proc/execute_init_step, z_level), "portal_init_[z_level]")
+	init_process.start()
+
+	return TRUE // Return immediately, initialization happens in background
+
+/datum/portal_destination/veilbreak/proc/execute_init_step(z_level)
+	if(processing_disabled)
+		log_dungeon("Subsystems: Init step aborted - processing disabled")
+		return BG_PROCESSING_FINISHED
+
+	var/start_time = world.time
+	var/max_processing_time = MAX_PROCESSING_TIME_PER_TICK
+	var/current_step = init_process.metadata["current_step"] || 1
+
+	log_dungeon("Subsystems: Executing step [current_step]")
+
+	switch(current_step)
+		if(1) // Initialize atoms
+			var/result = initialize_dungeon_atoms_incremental(z_level, start_time, max_processing_time)
+			if(result == BG_PROCESSING_CONTINUE)
+				return BG_PROCESSING_CONTINUE
+			current_step++
+			init_process.metadata["current_step"] = current_step
+			return BG_PROCESSING_CONTINUE
+
+		if(2) // Initialize areas
+			var/result = initialize_dungeon_areas_incremental(z_level, start_time, max_processing_time)
+			if(result == BG_PROCESSING_CONTINUE)
+				return BG_PROCESSING_CONTINUE
+			current_step++
+			init_process.metadata["current_step"] = current_step
+			return BG_PROCESSING_CONTINUE
+
+		if(3) // Initialize power
+			var/result = initialize_dungeon_power_incremental(z_level, start_time, max_processing_time)
+			if(result == BG_PROCESSING_CONTINUE)
+				return BG_PROCESSING_CONTINUE
+			current_step++
+			init_process.metadata["current_step"] = current_step
+			return BG_PROCESSING_CONTINUE
+
+		if(4) // Initialize lighting
+			var/result = initialize_dungeon_lighting_incremental(z_level, start_time, max_processing_time)
+			if(result == BG_PROCESSING_CONTINUE)
+				return BG_PROCESSING_CONTINUE
+			current_step++
+			init_process.metadata["current_step"] = current_step
+			return BG_PROCESSING_CONTINUE
+
+		if(5) // Initialize atmospherics
+			var/result = initialize_dungeon_atmospherics_incremental(z_level, start_time, max_processing_time)
+			if(result == BG_PROCESSING_CONTINUE)
+				return BG_PROCESSING_CONTINUE
+			current_step++
+			init_process.metadata["current_step"] = current_step
+			return BG_PROCESSING_CONTINUE
+
+		if(6) // Initialize machinery
+			var/result = initialize_dungeon_machinery_incremental(z_level, start_time, max_processing_time)
+			if(result == BG_PROCESSING_CONTINUE)
+				return BG_PROCESSING_CONTINUE
+			current_step++
+			init_process.metadata["current_step"] = current_step
+			return BG_PROCESSING_CONTINUE
+
+		if(7) // Safe smoothing initialization using SSicon_smooth
+			log_dungeon("Subsystems: Starting safe smoothing initialization")
+			safe_initialize_smoothing(z_level)
+			current_step++
+			init_process.metadata["current_step"] = current_step
+			return BG_PROCESSING_CONTINUE
+
+		if(8) // Visual updates (skip smoothing operations)
+			var/result = force_immediate_visual_updates_incremental(z_level, start_time, max_processing_time)
+			if(result == BG_PROCESSING_CONTINUE)
+				return BG_PROCESSING_CONTINUE
+
+	// Initialization complete
+	log_dungeon("Subsystems: INITIALIZATION COMPLETE for Z-level [z_level]")
+
+	// Ensure portal connection now that everything is ready
+	ensure_portal_connection()
+
+	init_process = null
+	return BG_PROCESSING_FINISHED
+
+// NEW: Safe smoothing initialization using SSicon_smooth subsystem
+/datum/portal_destination/veilbreak/proc/safe_initialize_smoothing(z_level)
+	log_dungeon("Smoothing: Starting safe smoothing initialization for Z-level [z_level]")
+
+	if(!SSicon_smooth.initialized)
+		log_dungeon("Smoothing: SSicon_smooth not initialized, skipping")
+		return
+
+	var/smoothed_count = 0
+	var/skipped_count = 0
+
+	// Process all atoms on the Z-level and safely add them to smoothing queue
+	for(var/atom/A in world)
+		if(A.z != z_level)
+			continue
+
+		// Skip atoms that are likely to cause smoothing errors
+		if(should_skip_smoothing(A))
+			skipped_count++
+			continue
+
+		// Only queue atoms that actually need smoothing
+		if(A.smoothing_flags && !(A.smoothing_flags & SMOOTH_QUEUED))
+			// FIXED: Remove try-catch since it's not properly structured in DM
+			// Use the SSicon_smooth subsystem to queue the atom
+			SSicon_smooth.add_to_queue(A)
+			smoothed_count++
+
+		CHECK_TICK
+
+	log_dungeon("Smoothing: Completed - [smoothed_count] atoms queued, [skipped_count] skipped")
+
+	// FIXED: Use proper SSicon_smooth method instead of undefined .wake()
+	if(smoothed_count > 0 && SSicon_smooth.can_fire)
+		log_dungeon("Smoothing: Smoothing subsystem will process queued atoms automatically")
+		// SSicon_smooth will process automatically, no need to manually wake it
+
+/datum/portal_destination/veilbreak/proc/should_skip_smoothing(atom/A)
+	// Skip objects that are known to cause smoothing runtime errors
+	if(istype(A, /obj/structure/alien/weeds))
+		return TRUE
+
+	// Skip atoms that aren't fully initialized
+	if(!(A.flags_1 & INITIALIZED_1))
+		return TRUE
+
+	// Skip atoms without proper loc or z-level
+	if(!A.loc || !A.z)
+		return TRUE
+
+	// Skip atoms that are queued for deletion
+	if(QDELETED(A))
+		return TRUE
+
+	// Skip if the atom doesn't actually have smoothing flags set
+	if(!A.smoothing_flags)
+		return TRUE
+
+	// Skip if atom is already in the smoothing queue
+	if(A.smoothing_flags & SMOOTH_QUEUED)
+		return TRUE
+
+	return FALSE
+
+// Incremental versions of initialization procs with proper tick checking
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_atoms_incremental(z_level, start_time, max_time)
+	var/current_index = init_process.metadata["atom_index"] || 1
+	var/list/atoms_to_initialize = init_process.metadata["atoms_list"]
+
+	if(!atoms_to_initialize)
+		// First call - build the list
+		atoms_to_initialize = list()
+		for(var/atom/A in world)
+			if(A.z == z_level)
+				atoms_to_initialize += A
+		init_process.metadata["atoms_list"] = atoms_to_initialize
+		init_process.metadata["atom_index"] = 1
+		log_dungeon("Subsystems: Found [length(atoms_to_initialize)] atoms to initialize")
+		return BG_PROCESSING_CONTINUE
+
+	for(var/i = current_index to min(current_index + 50, length(atoms_to_initialize)))
+		var/atom/A = atoms_to_initialize[i]
+		if(!(A.flags_1 & INITIALIZED_1))
+			SSatoms.InitAtom(A, FALSE, list(FALSE))
+
+		if(world.time - start_time > max_time)
+			init_process.metadata["atom_index"] = i + 1
+			log_dungeon("Subsystems: Atom initialization yielding at index [i]")
+			return BG_PROCESSING_CONTINUE
+
+	log_dungeon("Subsystems: Atom initialization completed")
+	return BG_PROCESSING_FINISHED
+
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_areas_incremental(z_level, start_time, max_time)
+	var/current_index = init_process.metadata["area_index"] || 1
+	var/list/areas_to_process = init_process.metadata["areas_list"]
+
+	if(!areas_to_process)
+		areas_to_process = list()
+		for(var/area/area as anything in GLOB.areas)
+			var/has_turfs_on_z = FALSE
+			for(var/turf/T in area.contents)
+				if(T.z == z_level)
+					has_turfs_on_z = TRUE
+					break
+			if(has_turfs_on_z)
+				areas_to_process += area
+		init_process.metadata["areas_list"] = areas_to_process
+		init_process.metadata["area_index"] = 1
+		log_dungeon("Subsystems: Found [length(areas_to_process)] areas to initialize")
+		return BG_PROCESSING_CONTINUE
+
+	for(var/i = current_index to min(current_index + 20, length(areas_to_process)))
+		var/area/area = areas_to_process[i]
+		area.power_equip = initial(area.power_equip)
+		area.power_light = initial(area.power_light)
+		area.power_environ = initial(area.power_environ)
+		area.always_unpowered = initial(area.always_unpowered)
+		area.power_change()
+		area.update_icon()
+
+		if(world.time - start_time > max_time)
+			init_process.metadata["area_index"] = i + 1
+			log_dungeon("Subsystems: Area initialization yielding at index [i]")
+			return BG_PROCESSING_CONTINUE
+
+	log_dungeon("Subsystems: Area initialization completed")
+	return BG_PROCESSING_FINISHED
+
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_power_incremental(z_level, start_time, max_time)
+	var/current_index = init_process.metadata["power_index"] || 1
+
+	// Initialize machinery power states
+	for(var/obj/machinery/machine in world)
+		if(machine.z != z_level)
+			continue
+
+		machine.power_change()
+
+		if(world.time - start_time > max_time)
+			init_process.metadata["power_index"] = current_index + 1
+			log_dungeon("Subsystems: Power initialization yielding")
+			return BG_PROCESSING_CONTINUE
+
+	log_dungeon("Subsystems: Power initialization completed")
+	return BG_PROCESSING_FINISHED
+
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_lighting_incremental(z_level, start_time, max_time)
+	if(!SSlighting || !SSlighting.initialized)
+		log_dungeon("Subsystems: Lighting subsystem not available")
+		return BG_PROCESSING_FINISHED
+
+	var/current_x = init_process.metadata["lighting_x"] || 1
+	var/current_y = init_process.metadata["lighting_y"] || 1
+
+	for(var/x = current_x to world.maxx)
+		for(var/y = current_y to world.maxy)
+			var/turf/iter_turf = locate(x, y, z_level)
+			if(!iter_turf.space_lit && !iter_turf.lighting_object)
+				new /datum/lighting_object(iter_turf)
+
+			if(world.time - start_time > max_time)
+				init_process.metadata["lighting_x"] = x
+				init_process.metadata["lighting_y"] = y + 1
+				log_dungeon("Subsystems: Lighting initialization yielding at [x],[y]")
+				return BG_PROCESSING_CONTINUE
+		current_y = 1
+
+	log_dungeon("Subsystems: Lighting initialization completed")
+	return BG_PROCESSING_FINISHED
+
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_atmospherics_incremental(z_level, start_time, max_time)
+	if(!SSair || !SSair.initialized)
+		log_dungeon("Subsystems: Air subsystem not available")
+		return BG_PROCESSING_FINISHED
+
+	// Atmos machinery will be handled by SSair naturally
+	log_dungeon("Subsystems: Atmospherics initialization completed")
+	return BG_PROCESSING_FINISHED
+
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_machinery_incremental(z_level, start_time, max_time)
+	var/current_index = init_process.metadata["machinery_index"] || 1
+
+	for(var/obj/machinery/machine in world)
+		if(machine.z != z_level)
+			continue
+
+		if(machine.use_power)
+			machine.power_change()
+		machine.update_icon()
+		machine.update_appearance()
+
+		if(world.time - start_time > max_time)
+			init_process.metadata["machinery_index"] = current_index + 1
+			log_dungeon("Subsystems: Machinery initialization yielding")
+			return BG_PROCESSING_CONTINUE
+
+	log_dungeon("Subsystems: Machinery initialization completed")
+	return BG_PROCESSING_FINISHED
+
+/datum/portal_destination/veilbreak/proc/force_immediate_visual_updates_incremental(z_level, start_time, max_time)
+	var/current_x = init_process.metadata["visual_x"] || 1
+	var/current_y = init_process.metadata["visual_y"] || 1
+
+	for(var/x = current_x to world.maxx)
+		for(var/y = current_y to world.maxy)
+			var/turf/iter_turf = locate(x, y, z_level)
+			if(!istype(iter_turf, /obj/effect) && !istype(iter_turf, /obj/effect/decal))
+				// Safe visual updates only - no smoothing operations
+				iter_turf.update_icon()
+				iter_turf.update_appearance()
+
+			if(world.time - start_time > max_time)
+				init_process.metadata["visual_x"] = x
+				init_process.metadata["visual_y"] = y + 1
+				log_dungeon("Subsystems: Visual updates yielding at [x],[y]")
+				return BG_PROCESSING_CONTINUE
+		current_y = 1
+
+	log_dungeon("Subsystems: Visual updates completed")
+	return BG_PROCESSING_FINISHED
