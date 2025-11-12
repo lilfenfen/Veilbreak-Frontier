@@ -15,6 +15,8 @@
 	var/cleanup_in_progress = FALSE
 	/// Prevent processing during cleanup
 	var/processing_disabled = FALSE
+	/// Store the actual dungeon portal location for accurate targeting
+	var/turf/actual_dungeon_portal_location = null
 
 /datum/portal_destination/veilbreak/is_available()
 	return ..() && generated && !generating
@@ -31,62 +33,14 @@
 		log_dungeon("TargetTurf: No dungeon Z-level assigned")
 		return null
 
-	// Use the gateway location from JSON metadata
-	var/turf/gateway_turf = get_gateway_turf_from_metadata()
-	if(gateway_turf)
-		log_dungeon("TargetTurf: Using gateway location from JSON at [AREACOORD(gateway_turf)]")
-		return gateway_turf
+	// Use the ACTUAL portal location we found during connection
+	if(actual_dungeon_portal_location && !QDELETED(actual_dungeon_portal_location))
+		log_dungeon("TargetTurf: Using actual portal location at [AREACOORD(actual_dungeon_portal_location)]")
+		return actual_dungeon_portal_location
 
-	// Fallback to center if no gateway found
-	log_dungeon("TargetTurf: No gateway location, using center as fallback")
+	// Fallback to center if no actual location stored
+	log_dungeon("TargetTurf: No actual portal location, using center as fallback")
 	return locate(round(world.maxx/2), round(world.maxy/2), dungeon_z_level)
-
-/// Get the gateway turf from JSON metadata with coordinate scaling
-/datum/portal_destination/veilbreak/proc/get_gateway_turf_from_metadata()
-	if(!last_generation_data || !islist(last_generation_data["metadata"]))
-		log_dungeon("Gateway: No generation data available")
-		return null
-
-	var/list/metadata = last_generation_data["metadata"]
-	if(!islist(metadata["key_positions"]) || !islist(metadata["key_positions"]["gateway"]))
-		log_dungeon("Gateway: No gateway position in metadata")
-		return null
-
-	var/list/gateway_pos = metadata["key_positions"]["gateway"]
-	var/gateway_x = gateway_pos["x"]
-	var/gateway_y = gateway_pos["y"]
-
-	// Validate coordinates are numbers
-	if(!isnum(gateway_x) || !isnum(gateway_y))
-		log_dungeon("Gateway: Invalid gateway coordinates: x=[gateway_x], y=[gateway_y]")
-		return null
-
-	// Scale coordinates from 100x100 map to BYOND's 255x255 coordinate system
-	var/scaled_x = scale_coordinate(gateway_x, world.maxx)
-	var/scaled_y = scale_coordinate(gateway_y, world.maxy)
-
-	log_dungeon("Gateway: Scaled coordinates from [gateway_x],[gateway_y] to [scaled_x],[scaled_y]")
-
-	if(scaled_x < 1 || scaled_x > world.maxx || scaled_y < 1 || scaled_y > world.maxy)
-		log_dungeon("Gateway: Scaled gateway coordinates out of bounds: [scaled_x],[scaled_y]")
-		return null
-
-	var/turf/gateway_turf = locate(scaled_x, scaled_y, dungeon_z_level)
-	if(!gateway_turf)
-		log_dungeon("Gateway: Invalid gateway turf at [scaled_x],[scaled_y],[dungeon_z_level]")
-		return null
-
-	log_dungeon("Gateway: Using scaled gateway location at [AREACOORD(gateway_turf)]")
-	return gateway_turf
-
-/// Scale coordinate from 100x100 map to BYOND's coordinate system
-/datum/portal_destination/veilbreak/proc/scale_coordinate(coord, max_coord)
-	// The map generator uses a 100x100 coordinate system
-	// BYOND uses 255x255 by default
-	// Scale proportionally
-	var/scaled = round((coord / 100) * max_coord)
-	// Ensure we're within bounds
-	return clamp(scaled, 1, max_coord)
 
 /// Initialize or get the reusable portal Z-level
 /datum/portal_destination/veilbreak/proc/initialize_portal_z_level()
@@ -119,6 +73,7 @@
 	generating = FALSE
 	generated = FALSE
 	generation_progress = 0
+	actual_dungeon_portal_location = null
 	log_dungeon("DUNGEON DEBUG: Reset generation state")
 
 	if(connected_portal && !QDELETED(connected_portal))
@@ -143,6 +98,9 @@
 
 	if(found_portal)
 		log_dungeon("Connection: Found portal at [AREACOORD(found_portal)]")
+		// Store the actual portal location for accurate targeting
+		actual_dungeon_portal_location = get_turf(found_portal)
+		log_dungeon("Connection: Stored actual portal location: [AREACOORD(actual_dungeon_portal_location)]")
 		return connect_to_existing_portal(found_portal)
 	else
 		log_dungeon("Connection: ERROR - No portal found on Z-level [dungeon_z_level]")
@@ -215,8 +173,8 @@
 		connected_portal.update_appearance()
 
 		log_dungeon("Connection: SUCCESS - Bidirectional connection established!")
-		log_dungeon("Connection: Station -> Dungeon: [AREACOORD(connected_portal)]")
-		log_dungeon("Connection: Dungeon -> Station: [AREACOORD(dungeon_portal)]")
+		log_dungeon("Connection: Station -> Dungeon: [AREACOORD(connected_portal)] -> [AREACOORD(dungeon_portal)]")
+		log_dungeon("Connection: Dungeon -> Station: [AREACOORD(dungeon_portal)] -> [AREACOORD(connected_portal)]")
 		return TRUE
 
 	log_dungeon("Connection: WARNING - No connected portal found for station side")

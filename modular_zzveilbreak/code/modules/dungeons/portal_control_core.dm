@@ -5,6 +5,11 @@
 	desc = "Used to control dimensional portals and generate new destinations beyond the veil."
 	icon_screen = "gateway"
 	icon_keyboard = "teleport_key"
+
+	// Construction properties
+	circuit = /obj/item/circuitboard/machine/portal_control
+	panel_open = FALSE
+
 	var/obj/machinery/portal/linked_portal
 	/// Track if we're currently generating to prevent double-starts
 	var/generation_in_progress = FALSE
@@ -152,3 +157,69 @@
 
 /obj/machinery/computer/portal_control/proc/generate_fallback_name()
 	return "Veilbreak Dungeon [rand(1000,9999)]"
+
+// Construction and deconstruction
+/obj/machinery/computer/portal_control/on_construction()
+	. = ..()
+	// Computer starts with no linked portal when built
+	linked_portal = null
+
+/obj/machinery/computer/portal_control/on_deconstruction()
+	. = ..()
+	// Clean up any monitoring timers when deconstructed
+	stop_generation_monitoring()
+
+// Tool interactions following established patterns
+/obj/machinery/computer/portal_control/screwdriver_act(mob/living/user, obj/item/tool)
+	if(default_deconstruction_screwdriver(user, icon_state, icon_state, tool))
+		return ITEM_INTERACT_SUCCESS
+	return ITEM_INTERACT_BLOCKING
+
+/obj/machinery/computer/portal_control/crowbar_act(mob/living/user, obj/item/tool)
+	if(panel_open)
+		return default_deconstruction_crowbar(tool) ? ITEM_INTERACT_SUCCESS : ITEM_INTERACT_BLOCKING
+	return ITEM_INTERACT_BLOCKING
+
+/obj/machinery/computer/portal_control/wrench_act(mob/living/user, obj/item/tool)
+	. = ..()
+	if(default_unfasten_wrench(user, tool))
+		return ITEM_INTERACT_SUCCESS
+	return ITEM_INTERACT_BLOCKING
+
+// Add contextual screentips like other machines
+/obj/machinery/computer/portal_control/add_context(atom/source, list/context, obj/item/held_item, mob/user)
+	. = ..()
+
+	if(isnull(held_item))
+		context[SCREENTIP_CONTEXT_LMB] = panel_open ? "Interact with components" : "Open UI"
+		return CONTEXTUAL_SCREENTIP_SET
+
+	if(held_item.tool_behaviour == TOOL_WRENCH)
+		context[SCREENTIP_CONTEXT_LMB] = "[anchored ? "Una" : "A"]nchor"
+		return CONTEXTUAL_SCREENTIP_SET
+	if(held_item.tool_behaviour == TOOL_SCREWDRIVER)
+		context[SCREENTIP_CONTEXT_LMB] = "[panel_open ? "Close" : "Open"] panel"
+		return CONTEXTUAL_SCREENTIP_SET
+	if(held_item.tool_behaviour == TOOL_CROWBAR && panel_open)
+		context[SCREENTIP_CONTEXT_LMB] = "Deconstruct"
+		return CONTEXTUAL_SCREENTIP_SET
+
+// Update examine text to show construction status
+/obj/machinery/computer/portal_control/examine(mob/user)
+	. = ..()
+	if(!linked_portal)
+		. += span_notice("No portal linked. Use the linkup function in the UI.")
+	if(panel_open)
+		. += span_notice("The maintenance panel is open.")
+
+// ===== PORTAL CONTROL CIRCUIT BOARD =====
+/obj/item/circuitboard/machine/portal_control
+	name = "Portal Control Console (Machine Board)"
+	desc = "A circuit board for a portal control console."
+	build_path = /obj/machinery/computer/portal_control
+	req_components = list(
+		/obj/item/stock_parts/scanning_module = 1,
+		/obj/item/stock_parts/micro_laser = 1,
+		/obj/item/stack/cable_coil = 2
+	)
+	needs_anchored = TRUE

@@ -35,6 +35,7 @@
 	generating = FALSE
 	generation_progress = 0
 	current_request_id = 0
+	actual_dungeon_portal_location = null
 
 	// Re-enable processing
 	processing_disabled = FALSE

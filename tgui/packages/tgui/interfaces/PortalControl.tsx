@@ -134,13 +134,6 @@ export const PortalControl = (props, context) => {
                     </Button>
                   </Stack.Item>
                 )}
-
-                {/* Linkup Button - Always available for re-scanning */}
-                <Stack.Item>
-                  <Button icon="sync" fluid onClick={() => act('linkup')}>
-                    Re-scan for Portal
-                  </Button>
-                </Stack.Item>
               </>
             )}
           </Stack>

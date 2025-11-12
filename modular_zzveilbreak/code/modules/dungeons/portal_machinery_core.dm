@@ -56,8 +56,12 @@
 	active_power_usage = PORTAL_ACTIVE_POWER_USAGE
 	idle_power_usage = BASE_MACHINE_IDLE_CONSUMPTION
 
+	// Construction properties
+	circuit = /obj/item/circuitboard/machine/portal
+	panel_open = FALSE
+
 	// Invulnerability
-	resistance_flags = INDESTRUCTIBLE | LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF
+	resistance_flags = LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF
 
 	// Portal state management
 	/// Whether this portal has been calibrated for stable operation
@@ -131,3 +135,106 @@
 
 	bumper = new(get_turf(src), src)
 	log_portal("Bumper: Generated at [AREACOORD(bumper)]")
+
+// Construction and deconstruction
+/obj/machinery/portal/on_construction()
+	. = ..()
+	// Portal starts uncalibrated when built
+	calibrated = FALSE
+
+/obj/machinery/portal/on_deconstruction()
+	. = ..()
+	// Clean up any active connections when deconstructed
+	if(target)
+		deactivate()
+
+/obj/machinery/portal/default_deconstruction_crowbar(obj/item/crowbar)
+	if(!panel_open)
+		return FALSE
+	return ..()
+
+/obj/machinery/portal/RefreshParts()
+	. = ..()
+	// Portal parts could affect power usage or calibration time
+	// For now, just ensure calibration is maintained
+	if(!calibrated)
+		calibrated = TRUE
+		log_portal("RefreshParts: Portal auto-calibrated with new parts")
+
+// Tool interactions following established patterns
+/obj/machinery/portal/screwdriver_act(mob/living/user, obj/item/tool)
+	if(default_deconstruction_screwdriver(user, "portal_frame_open", "portal_frame", tool))
+		return ITEM_INTERACT_SUCCESS
+	return ITEM_INTERACT_BLOCKING
+
+/obj/machinery/portal/crowbar_act(mob/living/user, obj/item/tool)
+	if(panel_open)
+		return default_deconstruction_crowbar(tool) ? ITEM_INTERACT_SUCCESS : ITEM_INTERACT_BLOCKING
+	return ITEM_INTERACT_BLOCKING
+
+/obj/machinery/portal/wrench_act(mob/living/user, obj/item/tool)
+	. = ..()
+	if(default_unfasten_wrench(user, tool))
+		return ITEM_INTERACT_SUCCESS
+	return ITEM_INTERACT_BLOCKING
+
+// Add contextual screentips like other machines
+/obj/machinery/portal/add_context(atom/source, list/context, obj/item/held_item, mob/user)
+	. = ..()
+
+	if(isnull(held_item))
+		context[SCREENTIP_CONTEXT_LMB] = panel_open ? "Interact with components" : "Open UI"
+		return CONTEXTUAL_SCREENTIP_SET
+
+	if(held_item.tool_behaviour == TOOL_WRENCH)
+		context[SCREENTIP_CONTEXT_LMB] = "[anchored ? "Una" : "A"]nchor"
+		return CONTEXTUAL_SCREENTIP_SET
+	if(held_item.tool_behaviour == TOOL_SCREWDRIVER)
+		context[SCREENTIP_CONTEXT_LMB] = "[panel_open ? "Close" : "Open"] panel"
+		return CONTEXTUAL_SCREENTIP_SET
+	if(held_item.tool_behaviour == TOOL_CROWBAR && panel_open)
+		context[SCREENTIP_CONTEXT_LMB] = "Deconstruct"
+		return CONTEXTUAL_SCREENTIP_SET
+	if(istype(held_item, /obj/item/multitool))
+		context[SCREENTIP_CONTEXT_LMB] = "Calibrate portal"
+		return CONTEXTUAL_SCREENTIP_SET
+
+// Update examine text to show construction status
+/obj/machinery/portal/examine(mob/user)
+	. = ..()
+	if(!calibrated)
+		. += span_warning("The portal appears uncalibrated. Use a multitool to calibrate it.")
+	if(panel_open)
+		. += span_notice("The maintenance panel is open.")
+
+// ===== PORTAL CIRCUIT BOARD =====
+/obj/item/circuitboard/machine/portal
+	name = "Dimensional Portal (Machine Board)"
+	desc = "A circuit board for a dimensional portal."
+	build_path = /obj/machinery/portal
+	req_components = list(
+		/obj/item/stock_parts/scanning_module = 2,
+		/obj/item/stock_parts/micro_laser = 2,
+		/obj/item/stock_parts/capacitor = 2,
+		/obj/item/stack/cable_coil = 5
+	)
+	needs_anchored = TRUE
+
+// Protolathe recipe following the same pattern as other machines
+/datum/design/board/portal
+	name = "Machine Design (Dimensional Portal)"
+	desc = "The circuit board for a Dimensional Portal."
+	id = "portal"
+	build_path = /obj/item/circuitboard/machine/portal
+	category = list(RND_CATEGORY_MACHINE)
+	departmental_flags = DEPARTMENT_BITFLAG_ASSISTANT
+
+/obj/item/circuitboard/machine/portal_control
+	name = "Portal Control Console (Machine Board)"
+	desc = "A circuit board for a portal control console."
+	build_path = /obj/machinery/computer/portal_control
+	req_components = list(
+		/obj/item/stock_parts/scanning_module = 1,
+		/obj/item/stock_parts/micro_laser = 1,
+		/obj/item/stack/cable_coil = 2
+	)
