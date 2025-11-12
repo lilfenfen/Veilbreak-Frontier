@@ -65,8 +65,8 @@
 		connected_portal.update_appearance()
 		log_dungeon("Cleanup: Disconnected station portal")
 
-	// Clean up any dungeon-side portal safely
-	var/obj/machinery/portal/dungeon_portal = get_portal_from_gateway_location()
+	// Clean up any dungeon-side portal safely using the new scanning method
+	var/obj/machinery/portal/dungeon_portal = get_any_portal_on_z_level()
 	if(dungeon_portal && !QDELETED(dungeon_portal))
 		// Find and remove the return destination safely
 		if(dungeon_portal.target)
