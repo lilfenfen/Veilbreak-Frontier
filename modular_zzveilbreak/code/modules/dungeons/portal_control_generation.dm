@@ -9,44 +9,29 @@
 
 	switch(action)
 		if("generate_new")
-			// DUNGEON DEBUG: Start comprehensive logging
 			log_portal_control("DUNGEON DEBUG: Generate button pressed by [key_name(user)] at [AREACOORD(src)]")
-			log_portal_control("DUNGEON DEBUG: linked_portal: [linked_portal ? "YES at [AREACOORD(linked_portal)]" : "NO"]")
 
 			if(!linked_portal)
 				to_chat(user, span_warning("No portal linked! Use the linkup button first."))
-				log_portal_control("DUNGEON DEBUG: Generation failed - no linked portal")
 				return TRUE
 
 			if(!linked_portal.destination)
 				to_chat(user, span_warning("Portal has no destination configured!"))
-				log_portal_control("DUNGEON DEBUG: Generation failed - portal has no destination")
 				return TRUE
 
 			var/datum/portal_destination/veilbreak/veil_dest = linked_portal.destination
 
-			// DUNGEON DEBUG: Log current state
-			log_portal_control("DUNGEON DEBUG: Portal destination state:")
-			log_portal_control("DUNGEON DEBUG: - generating: [veil_dest.generating]")
-			log_portal_control("DUNGEON DEBUG: - generated: [veil_dest.generated]")
-			log_portal_control("DUNGEON DEBUG: - progress: [veil_dest.generation_progress]")
-			log_portal_control("DUNGEON DEBUG: - dungeon_z_level: [veil_dest.dungeon_z_level]")
-			log_portal_control("DUNGEON DEBUG: - processing_disabled: [veil_dest.processing_disabled]")
-
 			// Enhanced checks to prevent generation conflicts
 			if(generation_in_progress)
 				to_chat(user, span_warning("Portal stabilization is already in progress!"))
-				log_portal_control("DUNGEON DEBUG: Generation blocked - generation_in_progress is TRUE")
 				return TRUE
 
 			if(veil_dest.generating)
 				to_chat(user, span_warning("Portal stabilization is already in progress!"))
-				log_portal_control("DUNGEON DEBUG: Generation blocked - veil_dest.generating is TRUE")
 				return TRUE
 
 			if(linked_portal.transport_active)
 				to_chat(user, span_warning("Deactivate the current portal before generating a new destination!"))
-				log_portal_control("DUNGEON DEBUG: Generation blocked - portal is active")
 				return TRUE
 
 			log_portal_control("DUNGEON DEBUG: All checks passed, starting generation process")
@@ -54,7 +39,7 @@
 			// Clear cached name when starting new generation
 			cached_portal_name = null
 
-			// FIXED: Set states BEFORE starting generation - disable button immediately
+			// Set states BEFORE starting generation - disable button immediately
 			generation_in_progress = TRUE
 			log_portal_control("DUNGEON DEBUG: Set generation_in_progress = TRUE")
 
@@ -66,16 +51,8 @@
 			force_ui_update()
 			log_portal_control("DUNGEON DEBUG: Forced UI update")
 
-			// DUNGEON DEBUG: Before calling start_generation
-			log_portal_control("DUNGEON DEBUG: Calling veil_dest.start_generation()...")
-
 			// Start generation with proper error handling
 			var/start_success = veil_dest.start_generation()
-
-			// DUNGEON DEBUG: After calling start_generation
-			log_portal_control("DUNGEON DEBUG: start_generation() returned: [start_success]")
-			log_portal_control("DUNGEON DEBUG: veil_dest.generating is now: [veil_dest.generating]")
-			log_portal_control("DUNGEON DEBUG: veil_dest.current_request_id: [veil_dest.current_request_id]")
 
 			if(!start_success)
 				log_portal_control("DUNGEON DEBUG: Generation failed to start - start_success is FALSE")
@@ -101,7 +78,21 @@
 				log_portal_control("DUNGEON DEBUG: Registered generation callbacks")
 			. = TRUE
 
-	return TRUE
+		if("linkup")
+			try_to_linkup()
+			force_ui_update()
+			return TRUE
+
+		if("deactivate")
+			if(linked_portal?.target)
+				if(istype(linked_portal.target, /datum/portal_destination/veilbreak))
+					var/datum/portal_destination/veilbreak/veil_dest = linked_portal.target
+					cleanup_portal_simple(veil_dest)
+				linked_portal.deactivate()
+			force_ui_update()
+			return TRUE
+
+	return FALSE
 
 /// SIMPLIFIED CLEANUP - Eject all mobs except hostile or void faction
 /obj/machinery/computer/portal_control/proc/cleanup_portal_simple(datum/portal_destination/veilbreak/veil_dest)
@@ -130,8 +121,8 @@
 	log_portal_control("DUNGEON DEBUG: Completed mob dumping")
 
 	// Now call the destination's own cleanup proc with safety
-	veil_dest.cleanup_dungeon()
-	log_portal_control("DUNGEON DEBUG: Called veil_dest.cleanup_dungeon()")
+	veil_dest.cleanup_z_level_completely(veil_dest.dungeon_z_level)
+	log_portal_control("DUNGEON DEBUG: Called veil_dest.cleanup_z_level_completely()")
 
 	// Clear the flag after a delay to ensure cleanup completes
 	addtimer(CALLBACK(veil_dest, /datum/portal_destination/veilbreak/proc/enable_processing), 5 SECONDS)

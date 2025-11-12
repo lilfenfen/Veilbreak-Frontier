@@ -93,11 +93,9 @@
 		usr << "- Processing Disabled: [veil_dest.processing_disabled]"
 		usr << "- Dungeon Z: [veil_dest.dungeon_z_level]"
 
-		// Check for active processes
+		// Check for active processes (removed background process references)
 		usr << "Active Processes:"
-		usr << "- Cleanup: [veil_dest.cleanup_process ? "YES" : "NO"]"
-		usr << "- Init: [veil_dest.init_process ? "YES" : "NO"]"
-		usr << "- Load: [veil_dest.load_process ? "YES" : "NO"]"
+		usr << "- Processing via SSobj: [SSobj.processing[veil_dest] ? "YES" : "NO"]"
 
 		// Check global destinations
 		usr << "Global Destinations: [length(GLOB.portal_destinations)]"
