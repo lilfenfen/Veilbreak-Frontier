@@ -3,6 +3,7 @@
 import {
   Box,
   Button,
+  Icon,
   LabeledList,
   ProgressBar,
   Section,
@@ -40,133 +41,205 @@ export const PortalControl = (props, context) => {
     portal_name,
   } = data;
 
-  // Determine which buttons to show based on state
-  const showGenerateButton =
-    portal_present && !portal_active && !generation_in_progress && can_generate;
-  const showGeneratingProgress = portal_present && generation_in_progress;
-  const showDeactivateButton = portal_present && portal_active;
+  // Status indicators with icons
+  const getPortalStatus = () => {
+    if (!portal_present) {
+      return { color: 'bad', icon: 'unlink', text: 'No Portal Linked' };
+    }
+    if (!portal_status) {
+      return { color: 'bad', icon: 'bolt', text: 'No Power' };
+    }
+    if (portal_active) {
+      return { color: 'good', icon: 'portal', text: 'Active' };
+    }
+    if (generation_in_progress) {
+      return { color: 'average', icon: 'cog', text: 'Stabilizing...' };
+    }
+    return { color: 'blue', icon: 'check', text: 'Ready' };
+  };
+
+  const status = getPortalStatus();
 
   return (
-    <Window width={500} height={400}>
+    <Window width={480} height={420}>
       <Window.Content>
-        <Section title="Portal Control System">
-          <LabeledList>
-            <LabeledList.Item label="Portal Status">
-              <Box color={portal_present ? 'good' : 'bad'}>
-                {portal_present ? 'Connected' : 'Not Found'}
-              </Box>
-            </LabeledList.Item>
-            <LabeledList.Item label="Power Status">
-              <Box color={portal_status ? 'good' : 'bad'}>
-                {portal_status ? 'Powered' : 'No Power'}
-              </Box>
-            </LabeledList.Item>
-            <LabeledList.Item label="Portal State">
-              <Box
-                color={
-                  portal_active
-                    ? 'good'
-                    : generation_in_progress
-                      ? 'average'
-                      : 'grey'
-                }
-              >
-                {portal_active
-                  ? 'Active'
-                  : generation_in_progress
-                    ? 'Generating...'
-                    : 'Ready'}
-              </Box>
-            </LabeledList.Item>
-            {portal_name && (
-              <LabeledList.Item label="Destination">
-                <Box color="blue">{portal_name}</Box>
-              </LabeledList.Item>
-            )}
-          </LabeledList>
-        </Section>
-
-        <Section title="Portal Control">
-          <Stack vertical fill>
-            {!portal_present && (
-              <Stack.Item>
-                <Button icon="link" fluid onClick={() => act('linkup')}>
-                  Scan for Portal
+        <Stack vertical fill>
+          {/* Header Status Panel */}
+          <Stack.Item>
+            <Section
+              title="Dimensional Portal Control"
+              buttons={
+                <Button
+                  icon="sync"
+                  tooltip="Rescan for portal"
+                  onClick={() => act('linkup')}
+                >
+                  Rescan
                 </Button>
-              </Stack.Item>
-            )}
+              }
+            >
+              <Stack>
+                <Stack.Item grow>
+                  <LabeledList>
+                    <LabeledList.Item label="System Status">
+                      <Box color={status.color} bold>
+                        <Icon name={status.icon} mr={1} />
+                        {status.text}
+                      </Box>
+                    </LabeledList.Item>
+                    {portal_name && (
+                      <LabeledList.Item label="Destination">
+                        <Box color="violet" bold>
+                          {portal_name}
+                        </Box>
+                      </LabeledList.Item>
+                    )}
+                  </LabeledList>
+                </Stack.Item>
+              </Stack>
+            </Section>
+          </Stack.Item>
 
-            {portal_present && (
-              <>
-                {/* Generate Button - Only show when portal is not active and not generating */}
-                {showGenerateButton && (
+          {/* Main Control Panel */}
+          <Stack.Item grow>
+            <Section
+              title="Portal Operations"
+              fill
+              buttons={
+                portal_active && (
+                  <Button
+                    icon="power-off"
+                    color="bad"
+                    onClick={() => act('deactivate')}
+                  >
+                    Emergency Shutdown
+                  </Button>
+                )
+              }
+            >
+              <Stack vertical fill align="center" justify="center">
+                {/* Generation Progress */}
+                {generation_in_progress && (
+                  <Stack.Item width="100%">
+                    <Box textAlign="center" mb={2}>
+                      <Icon name="cog" spin mr={1} />
+                      <strong>Stabilizing Portal Matrix</strong>
+                    </Box>
+                    <ProgressBar
+                      value={generation_progress / 100}
+                      color="good"
+                      ranges={{
+                        good: [0.75, 1],
+                        average: [0.25, 0.75],
+                        bad: [0, 0.25],
+                      }}
+                    >
+                      {generation_progress}% Complete
+                    </ProgressBar>
+                    <Box textAlign="center" mt={1} color="label">
+                      Please stand by...
+                    </Box>
+                  </Stack.Item>
+                )}
+
+                {/* Generate Button */}
+                {can_generate && !generation_in_progress && (
                   <Stack.Item>
                     <Button
                       icon="bolt"
-                      fluid
+                      fontSize="1.5rem"
+                      height="4rem"
+                      width="16rem"
                       color="good"
                       onClick={() => act('generate_new')}
+                      tooltip="Generate a new Veilbreak dungeon portal"
                     >
-                      Generate New Portal
+                      <Stack align="center">
+                        <Stack.Item>
+                          <Icon name="portal" size={2} mr={1} />
+                        </Stack.Item>
+                        <Stack.Item>
+                          <Box textAlign="center">
+                            <Box bold>ACTIVATE PORTAL</Box>
+                            <Box fontSize="0.8rem" opacity={0.8}>
+                              Initialize New Dimension
+                            </Box>
+                          </Box>
+                        </Stack.Item>
+                      </Stack>
                     </Button>
                   </Stack.Item>
                 )}
 
-                {/* Generating Progress - Show when generating */}
-                {showGeneratingProgress && (
+                {/* Active Portal Display */}
+                {portal_active && !generation_in_progress && (
                   <Stack.Item>
-                    <ProgressBar value={generation_progress / 100} color="good">
-                      Stabilizing Portal... {generation_progress}%
-                    </ProgressBar>
+                    <Box textAlign="center" mb={2}>
+                      <Icon name="portal" size={3} color="good" mb={1} />
+                      <Box bold fontSize="1.2rem" color="good">
+                        PORTAL ACTIVE
+                      </Box>
+                      {portal_name && (
+                        <Box color="violet" bold mt={1}>
+                          Connected to: {portal_name}
+                        </Box>
+                      )}
+                    </Box>
                   </Stack.Item>
                 )}
 
-                {/* Deactivate Button - Only show when portal is active */}
-                {showDeactivateButton && (
+                {/* No Portal Connected */}
+                {!portal_present && (
                   <Stack.Item>
-                    <Button
-                      icon="power-off"
-                      fluid
-                      color="bad"
-                      onClick={() => act('deactivate')}
-                    >
-                      Deactivate Portal
-                    </Button>
+                    <Box textAlign="center" color="average">
+                      <Icon name="exclamation-triangle" size={2} mb={1} />
+                      <Box bold>No Portal Detected</Box>
+                      <Box fontSize="0.9rem" mt={1}>
+                        Use the Rescan button or ensure a portal is within range
+                      </Box>
+                    </Box>
                   </Stack.Item>
                 )}
-              </>
-            )}
-          </Stack>
-        </Section>
 
-        {/* Additional information section */}
-        {current_target && (
-          <Section title="Active Connection">
-            <Box>
-              Currently connected to:{' '}
-              <Box as="span" color="blue" bold>
-                {current_target.name}
-              </Box>
-            </Box>
-            {portal_name && (
-              <Box>
-                Dungeon:{' '}
-                <Box as="span" color="green" bold>
-                  {portal_name}
-                </Box>
-              </Box>
-            )}
-          </Section>
-        )}
+                {/* Portal Present but No Power */}
+                {portal_present && !portal_status && (
+                  <Stack.Item>
+                    <Box textAlign="center" color="bad">
+                      <Icon name="bolt" size={2} mb={1} />
+                      <Box bold>Power Required</Box>
+                      <Box fontSize="0.9rem" mt={1}>
+                        Check portal power connections
+                      </Box>
+                    </Box>
+                  </Stack.Item>
+                )}
+              </Stack>
+            </Section>
+          </Stack.Item>
 
-        {/* Status messages */}
-        {!portal_status && portal_present && (
-          <Section title="Warning">
-            <Box color="bad">
-              Portal is not receiving power. Check power connections.
-            </Box>
-          </Section>
-        )}
+          {/* Information Panel */}
+          <Stack.Item>
+            <Section title="System Information">
+              <LabeledList>
+                <LabeledList.Item label="Portal Hardware">
+                  <Box color={portal_present ? 'good' : 'bad'}>
+                    {portal_present ? 'Detected' : 'Not Found'}
+                  </Box>
+                </LabeledList.Item>
+                <LabeledList.Item label="Power Grid">
+                  <Box color={portal_status ? 'good' : 'bad'}>
+                    {portal_status ? 'Stable' : 'Unstable'}
+                  </Box>
+                </LabeledList.Item>
+                {current_target && (
+                  <LabeledList.Item label="Active Connection">
+                    <Box color="blue">{current_target.name}</Box>
+                  </LabeledList.Item>
+                )}
+              </LabeledList>
+            </Section>
+          </Stack.Item>
+        </Stack>
       </Window.Content>
     </Window>
   );
