@@ -6,17 +6,13 @@
 	desc = "The circuit board for a Dimensional Portal."
 	id = "portal"
 	build_path = /obj/item/circuitboard/machine/portal
-	category = list(
-		RND_CATEGORY_MACHINE + RND_SUBCATEGORY_MACHINE_ENGINEERING
-	)
-	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING
+	category = list(RND_CATEGORY_MACHINE)
+	departmental_flags = DEPARTMENT_ASSISTANT
 
 /datum/design/board/portal_control
-	name = "Machine Design (Portal Control Console)"
+	name = "Computer Design (Portal Control Console)"
 	desc = "The circuit board for a Portal Control Console."
 	id = "portal_control"
-	build_path = /obj/item/circuitboard/machine/portal_control
-	category = list(
-		RND_CATEGORY_MACHINE + RND_SUBCATEGORY_MACHINE_ENGINEERING
-	)
-	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING
+	build_path = /obj/item/circuitboard/computer/portal_control
+	category = list(RND_CATEGORY_COMPUTER)
+	departmental_flags = DEPARTMENT_ASSISTANT

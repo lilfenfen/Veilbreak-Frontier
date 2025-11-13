@@ -6,13 +6,14 @@
 	icon_screen = "gateway"
 	icon_keyboard = "teleport_key"
 
-	// Construction properties
-	circuit = /obj/item/circuitboard/machine/portal_control
-	panel_open = FALSE
+	// Construction properties - standard console, no components needed
+	circuit = /obj/item/circuitboard/computer/portal_control
 
 	var/obj/machinery/portal/linked_portal
 	/// Track if we're currently generating to prevent double-starts
 	var/generation_in_progress = FALSE
+	/// Track if we're currently cleaning up to prevent generation during cleanup
+	var/cleanup_in_progress = FALSE
 	/// Last known UI data state for change detection
 	var/list/last_ui_data = list()
 	/// Timer for generation progress updates
@@ -66,6 +67,16 @@
 		if(found_portal)
 			linked_portal = found_portal
 			log_portal_control("Linkup: Found portal at [AREACOORD(found_portal)]")
+
+			// If portal has an active destination, restore our state
+			if(found_portal.target)
+				var/datum/portal_destination/veilbreak/veil_dest = found_portal.target
+				if(veil_dest.generating)
+					generation_in_progress = TRUE
+					start_generation_monitoring()
+				else if(veil_dest.generated)
+					// Set the cached name from existing portal
+					cached_portal_name = get_portal_name(veil_dest)
 			break
 
 	if(!linked_portal)
@@ -112,6 +123,7 @@
 
 /obj/machinery/computer/portal_control/proc/on_generation_completed()
 	generation_in_progress = FALSE
+	cleanup_in_progress = FALSE
 
 	// Set the portal name once when generation completes
 	if(linked_portal?.destination && !cached_portal_name)
@@ -130,6 +142,7 @@
 
 /obj/machinery/computer/portal_control/proc/on_generation_failed(reason)
 	generation_in_progress = FALSE
+	cleanup_in_progress = FALSE
 	log_portal_control("Callback: Generation failed - [reason]")
 
 	// Stop monitoring and force final update
@@ -139,6 +152,13 @@
 	// Provide user feedback
 	if(linked_portal && !QDELETED(linked_portal))
 		linked_portal.say("Portal stabilization failed: [reason]")
+
+/obj/machinery/computer/portal_control/proc/on_cleanup_completed()
+	cleanup_in_progress = FALSE
+	log_portal_control("Callback: Cleanup completed")
+
+	// Force UI update to re-enable generate button
+	force_ui_update()
 
 /obj/machinery/computer/portal_control/proc/get_portal_name(datum/portal_destination/veilbreak/veil_dest)
 	if(!veil_dest || !veil_dest.generated)
@@ -158,7 +178,7 @@
 /obj/machinery/computer/portal_control/proc/generate_fallback_name()
 	return "Veilbreak Dungeon [rand(1000,9999)]"
 
-// Construction and deconstruction
+// Construction and deconstruction - standard console behavior
 /obj/machinery/computer/portal_control/on_construction()
 	. = ..()
 	// Computer starts with no linked portal when built
@@ -169,57 +189,26 @@
 	// Clean up any monitoring timers when deconstructed
 	stop_generation_monitoring()
 
-// Tool interactions following established patterns
+// Standard console tool interactions
 /obj/machinery/computer/portal_control/screwdriver_act(mob/living/user, obj/item/tool)
 	if(default_deconstruction_screwdriver(user, icon_state, icon_state, tool))
 		return ITEM_INTERACT_SUCCESS
 	return ITEM_INTERACT_BLOCKING
 
 /obj/machinery/computer/portal_control/crowbar_act(mob/living/user, obj/item/tool)
-	if(panel_open)
-		return default_deconstruction_crowbar(tool) ? ITEM_INTERACT_SUCCESS : ITEM_INTERACT_BLOCKING
-	return ITEM_INTERACT_BLOCKING
-
-/obj/machinery/computer/portal_control/wrench_act(mob/living/user, obj/item/tool)
-	. = ..()
-	if(default_unfasten_wrench(user, tool))
-		return ITEM_INTERACT_SUCCESS
-	return ITEM_INTERACT_BLOCKING
-
-// Add contextual screentips like other machines
-/obj/machinery/computer/portal_control/add_context(atom/source, list/context, obj/item/held_item, mob/user)
-	. = ..()
-
-	if(isnull(held_item))
-		context[SCREENTIP_CONTEXT_LMB] = panel_open ? "Interact with components" : "Open UI"
-		return CONTEXTUAL_SCREENTIP_SET
-
-	if(held_item.tool_behaviour == TOOL_WRENCH)
-		context[SCREENTIP_CONTEXT_LMB] = "[anchored ? "Una" : "A"]nchor"
-		return CONTEXTUAL_SCREENTIP_SET
-	if(held_item.tool_behaviour == TOOL_SCREWDRIVER)
-		context[SCREENTIP_CONTEXT_LMB] = "[panel_open ? "Close" : "Open"] panel"
-		return CONTEXTUAL_SCREENTIP_SET
-	if(held_item.tool_behaviour == TOOL_CROWBAR && panel_open)
-		context[SCREENTIP_CONTEXT_LMB] = "Deconstruct"
-		return CONTEXTUAL_SCREENTIP_SET
+	return default_deconstruction_crowbar(tool) ? ITEM_INTERACT_SUCCESS : ITEM_INTERACT_BLOCKING
 
 // Update examine text to show construction status
 /obj/machinery/computer/portal_control/examine(mob/user)
 	. = ..()
 	if(!linked_portal)
 		. += span_notice("No portal linked. Use the linkup function in the UI.")
-	if(panel_open)
-		. += span_notice("The maintenance panel is open.")
+	else if(linked_portal.target)
+		. += span_notice("Linked to active portal destination: [cached_portal_name || linked_portal.target.name]")
 
 // ===== PORTAL CONTROL CIRCUIT BOARD =====
-/obj/item/circuitboard/machine/portal_control
-	name = "Portal Control Console (Machine Board)"
+/obj/item/circuitboard/computer/portal_control
+	name = "Portal Control Console (Computer Board)"
 	desc = "A circuit board for a portal control console."
 	build_path = /obj/machinery/computer/portal_control
-	req_components = list(
-		/obj/item/stock_parts/scanning_module = 1,
-		/obj/item/stock_parts/micro_laser = 1,
-		/obj/item/stack/cable_coil = 2
-	)
-	needs_anchored = TRUE
+	// No components needed - standard console

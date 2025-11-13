@@ -78,6 +78,8 @@
 	var/transport_active = FALSE
 	/// Data about the generated dungeon for UI/feedback
 	var/list/generated_dungeon_data
+	/// Track if we're currently cleaning up to prevent double-starts
+	var/cleanup_in_progress = FALSE
 
 /obj/machinery/portal/Initialize(mapload)
 	. = ..()
@@ -96,6 +98,10 @@
 /obj/machinery/portal/Destroy()
 	log_portal("Destroy: Destroying portal at [AREACOORD(src)]")
 
+	// Trigger cleanup if this portal is active
+	if(target && transport_active)
+		initiate_emergency_cleanup()
+
 	// Clean up destination
 	if(destination)
 		for(var/key in GLOB.portal_destinations)
@@ -113,6 +119,59 @@
 	QDEL_NULL(bumper)
 
 	return ..()
+
+/// Emergency cleanup when portal is destroyed
+/obj/machinery/portal/proc/initiate_emergency_cleanup()
+	if(cleanup_in_progress)
+		return
+
+	cleanup_in_progress = TRUE
+	log_portal("Emergency: Portal destroyed while active, initiating emergency cleanup")
+
+	// If this is a dungeon portal, clean up its Z-level
+	if(destination?.dungeon_z_level)
+		// Use existing cleanup functions
+		destination.cleanup_z_level_completely(destination.dungeon_z_level)
+		log_portal("Emergency: Cleaned up dungeon Z-level [destination.dungeon_z_level]")
+
+	// If this is the station portal and has a target, return mobs to south of this location
+	if(target && istype(target, /datum/portal_destination/veilbreak))
+		var/datum/portal_destination/veilbreak/veil_dest = target
+		return_mobs_to_portal(veil_dest.dungeon_z_level)
+
+/// Return all mobs from dungeon Z-level to south of this portal
+/obj/machinery/portal/proc/return_mobs_to_portal(dungeon_z)
+	if(!dungeon_z)
+		return
+
+	log_portal("Emergency: Returning mobs from Z-level [dungeon_z] to portal location")
+
+	var/turf/return_turf = get_step(src, SOUTH)
+	if(!return_turf)
+		return_turf = get_turf(src)
+
+	var/returned_count = 0
+	for(var/mob/living/mob in GLOB.mob_living_list)
+		if(mob.z == dungeon_z)
+			// Skip hostile mobs and void faction
+			if(is_hostile_or_void(mob))
+				continue
+
+			// Move mob to return location
+			mob.forceMove(return_turf)
+
+			// Stun and message for conscious mobs
+			if(mob.stat == CONSCIOUS)
+				mob.Stun(3 SECONDS)
+				to_chat(mob, span_warning("The portal collapses! You're ejected back to the station."))
+				playsound(mob, 'sound/effects/empulse.ogg', 50, TRUE)
+			else if(mob.stat == DEAD)
+				mob.visible_message(span_notice("[mob] appears from a collapsing portal!"))
+				playsound(mob, 'sound/effects/empulse.ogg', 30, TRUE)
+
+			returned_count++
+
+	log_portal("Emergency: Returned [returned_count] mobs to [AREACOORD(return_turf)]")
 
 /// Check if this portal is located in a dungeon (mining/away Z-level)
 /obj/machinery/portal/proc/is_dungeon_portal()
@@ -213,28 +272,8 @@
 	desc = "A circuit board for a dimensional portal."
 	build_path = /obj/machinery/portal
 	req_components = list(
-		/obj/item/stock_parts/scanning_module = 2,
-		/obj/item/stock_parts/micro_laser = 2,
-		/obj/item/stock_parts/capacitor = 2,
+		/obj/item/stack/ore/bluespace_crystal = 1,
+		/obj/item/stock_parts/servo = 1,
 		/obj/item/stack/cable_coil = 5
 	)
 	needs_anchored = TRUE
-
-// Protolathe recipe following the same pattern as other machines
-/datum/design/board/portal
-	name = "Machine Design (Dimensional Portal)"
-	desc = "The circuit board for a Dimensional Portal."
-	id = "portal"
-	build_path = /obj/item/circuitboard/machine/portal
-	category = list(RND_CATEGORY_MACHINE)
-	departmental_flags = DEPARTMENT_BITFLAG_ASSISTANT
-
-/obj/item/circuitboard/machine/portal_control
-	name = "Portal Control Console (Machine Board)"
-	desc = "A circuit board for a portal control console."
-	build_path = /obj/machinery/computer/portal_control
-	req_components = list(
-		/obj/item/stock_parts/scanning_module = 1,
-		/obj/item/stock_parts/micro_laser = 1,
-		/obj/item/stack/cable_coil = 2
-	)

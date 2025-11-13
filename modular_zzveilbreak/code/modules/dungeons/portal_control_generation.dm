@@ -26,6 +26,10 @@
 				to_chat(user, span_warning("Portal stabilization is already in progress!"))
 				return TRUE
 
+			if(cleanup_in_progress)
+				to_chat(user, span_warning("Portal cleanup is still in progress!"))
+				return TRUE
+
 			if(veil_dest.generating)
 				to_chat(user, span_warning("Portal stabilization is already in progress!"))
 				return TRUE
@@ -102,7 +106,7 @@
 
 	return FALSE
 
-/// SIMPLIFIED CLEANUP - Eject all mobs except hostile or void faction
+/// SIMPLIFIED CLEANUP - Eject all mobs except hostile or void faction to SOUTH of portal
 /obj/machinery/computer/portal_control/proc/cleanup_portal_simple(datum/portal_destination/veilbreak/veil_dest)
 	log_portal_control("DUNGEON DEBUG: cleanup_portal_simple called")
 
@@ -116,31 +120,27 @@
 
 	log_portal_control("DUNGEON DEBUG: Starting SIMPLIFIED cleanup of portal Z-level [veil_dest.dungeon_z_level]")
 
-	// Set a flag to prevent re-entrancy
-	if(veil_dest.cleanup_in_progress)
-		log_portal_control("DUNGEON DEBUG: Cleanup already in progress, skipping")
-		return
+	// Set cleanup in progress flag
+	cleanup_in_progress = TRUE
+	force_ui_update()
 
-	veil_dest.cleanup_in_progress = TRUE
-	log_portal_control("DUNGEON DEBUG: Set cleanup_in_progress = TRUE")
-
-	// Use the new simple dumping
-	dump_mobs_simple(veil_dest.dungeon_z_level)
-	log_portal_control("DUNGEON DEBUG: Completed mob dumping")
+	// Use the new simple dumping to SOUTH of portal
+	dump_mobs_south(veil_dest.dungeon_z_level)
+	log_portal_control("DUNGEON DEBUG: Completed mob dumping to south")
 
 	// Now call the destination's own cleanup proc with safety
 	veil_dest.cleanup_z_level_completely(veil_dest.dungeon_z_level)
 	log_portal_control("DUNGEON DEBUG: Called veil_dest.cleanup_z_level_completely()")
 
-	// Clear the flag after a delay to ensure cleanup completes
-	addtimer(CALLBACK(veil_dest, /datum/portal_destination/veilbreak/proc/enable_processing), 5 SECONDS)
-	log_portal_control("DUNGEON DEBUG: Scheduled enable_processing timer")
+	// Clear the flag after cleanup completes
+	addtimer(CALLBACK(src, .proc/on_cleanup_completed), 5 SECONDS)
+	log_portal_control("DUNGEON DEBUG: Scheduled cleanup completion timer")
 
-// ===== SIMPLIFIED DUMPING SYSTEM =====
+// ===== SOUTH DUMPING SYSTEM =====
 
-/// Dump only mobs - players, corpses, everything except hostile/void
-/obj/machinery/computer/portal_control/proc/dump_mobs_simple(dungeon_z)
-	log_portal_control("DUNGEON DEBUG: dump_mobs_simple called for Z-level [dungeon_z]")
+/// Dump only mobs - players, corpses, everything except hostile/void to SOUTH of portal
+/obj/machinery/computer/portal_control/proc/dump_mobs_south(dungeon_z)
+	log_portal_control("DUNGEON DEBUG: dump_mobs_south called for Z-level [dungeon_z]")
 
 	if(!linked_portal || QDELETED(linked_portal))
 		log_portal_control("DUNGEON DEBUG: Dump failed - no linked portal")
@@ -151,72 +151,41 @@
 		log_portal_control("DUNGEON DEBUG: Dump failed - no portal turf")
 		return
 
-	log_portal_control("DUNGEON DEBUG: Starting MOB-ONLY dump from Z-level [dungeon_z]")
+	// Get turf directly SOUTH of portal
+	var/turf/south_turf = get_step(portal_turf, SOUTH)
+	if(!south_turf)
+		south_turf = portal_turf // Fallback to portal turf if no south available
+
+	log_portal_control("DUNGEON DEBUG: Starting MOB-ONLY dump from Z-level [dungeon_z] to [AREACOORD(south_turf)]")
 
 	var/dumped_count = 0
 	var/skipped_count = 0
-
-	// Get area around portal for dumping - simple 3x3 area
-	var/list/dump_turfs = list()
-	for(var/turf/T in range(1, portal_turf))
-		if(T == portal_turf)
-			continue
-		if(istype(T, /turf/open))
-			dump_turfs += T
-
-	// Fallback if no turfs found
-	if(!length(dump_turfs))
-		dump_turfs += get_step(portal_turf, pick(NORTH, SOUTH, EAST, WEST))
-		log_portal_control("DUNGEON DEBUG: Using fallback dump location")
 
 	// Only process mobs
 	for(var/mob/living/mob in GLOB.mob_living_list)
 		if(mob.z != dungeon_z)
 			continue
 
-		// SIMPLE CHECK: Skip only hostile mobs or void faction
+		// Use the global proc to check if mob is hostile
 		if(is_hostile_or_void(mob))
 			skipped_count++
 			continue
 
-		// All other mobs get dumped - players, corpses, animals, etc.
-		var/turf/dump_turf = length(dump_turfs) ? pick(dump_turfs) : portal_turf
-		if(dump_turf)
-			mob.forceMove(dump_turf)
+		// All other mobs get dumped to SOUTH of portal
+		mob.forceMove(south_turf)
 
-			// Stun and message for conscious mobs
-			if(mob.stat == CONSCIOUS)
-				mob.Stun(3 SECONDS)
-				to_chat(mob, span_warning("The portal collapses! You're ejected back to the station."))
-				playsound(mob, 'sound/effects/empulse.ogg', 50, TRUE)
-			else if(mob.stat == DEAD)
-				mob.visible_message(span_notice("[mob] appears from a collapsing portal!"))
-				playsound(mob, 'sound/effects/empulse.ogg', 30, TRUE)
+		// Stun and message for conscious mobs
+		if(mob.stat == CONSCIOUS)
+			mob.Stun(3 SECONDS)
+			to_chat(mob, span_warning("The portal collapses! You're ejected back to the station."))
+			playsound(mob, 'sound/effects/empulse.ogg', 50, TRUE)
+		else if(mob.stat == DEAD)
+			mob.visible_message(span_notice("[mob] appears from a collapsing portal!"))
+			playsound(mob, 'sound/effects/empulse.ogg', 30, TRUE)
 
-			dumped_count++
+		dumped_count++
 
-	var/feedback_msg = "Portal collapse: [dumped_count] mobs returned. [skipped_count] hostiles removed."
+	var/feedback_msg = "Portal collapse: [dumped_count] mobs returned to portal location. [skipped_count] hostiles removed."
 	if(linked_portal && !QDELETED(linked_portal))
 		linked_portal.say(feedback_msg)
 	log_portal_control("DUNGEON DEBUG: Dump complete - [feedback_msg]")
-
-/// Simple check: TRUE if hostile or void faction, FALSE otherwise (safe to eject)
-/obj/machinery/computer/portal_control/proc/is_hostile_or_void(mob/living/mob)
-	// Void faction always gets removed
-	if(mob.faction == FACTION_VOID)
-		return TRUE
-
-	// Hostile simple animals
-	if(istype(mob, /mob/living/simple_animal/hostile))
-		return TRUE
-
-	// Xenomorphs
-	if(istype(mob, /mob/living/carbon/alien))
-		return TRUE
-
-	// If it has no client/ckey and is simple animal, assume hostile
-	if(istype(mob, /mob/living/simple_animal) && !mob.ckey)
-		return TRUE
-
-	// Everything else is safe to eject - players, corpses, friendly animals, etc.
-	return FALSE
