@@ -19,8 +19,8 @@
 	// Stop any active processing
 	STOP_PROCESSING(SSobj, src)
 
-	// Handle ALL mobs according to the new rules
-	handle_all_mobs(z_level, ejection_turf)
+	// Handle ALL mobs according to the new rules - USE DIRECT APPROACH
+	handle_all_mobs_direct(z_level, ejection_turf)
 	CHECK_TICK
 
 	// Delete ALL objects and structures (no exceptions)
@@ -47,102 +47,98 @@
 
 	log_dungeon("Cleanup: Complete cleanup finished for portal dungeon Z-level [z_level]")
 
-/// Handle ALL mobs according to the new rules: Delete FACTION_VOID and hostile mobs, eject everything else
-/datum/portal_destination/veilbreak/proc/handle_all_mobs(z_level, turf/ejection_turf)
-	log_dungeon("Cleanup: Handling ALL mobs from portal dungeon Z-level [z_level]")
+/// DIRECT APPROACH: Iterate through every turf on the Z-level and handle mobs
+/datum/portal_destination/veilbreak/proc/handle_all_mobs_direct(z_level, turf/ejection_turf)
+	log_dungeon("Cleanup: DIRECT APPROACH - Handling ALL mobs from portal dungeon Z-level [z_level]")
 
 	var/mobs_deleted = 0
 	var/mobs_ejected = 0
 
-	// Use both mob lists to ensure we catch everything
-	var/list/all_mobs = list()
-	all_mobs += GLOB.mob_list
-	all_mobs += GLOB.mob_living_list
+	// Get all turfs on the Z-level
+	var/list/all_turfs = block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level))
+	log_dungeon("Cleanup: Scanning [length(all_turfs)] turfs on Z-level [z_level]")
 
-	// Remove duplicates
-	var/list/unique_mobs = list()
-	for(var/mob/mob in all_mobs)
-		if(!mob || QDELETED(mob))
-			continue
-		unique_mobs[mob] = TRUE
+	for(var/turf/T in all_turfs)
+		// Get all mobs on this turf
+		var/list/mobs_on_turf = list()
+		for(var/mob/mob in T.contents)
+			if(!QDELETED(mob))
+				mobs_on_turf += mob
 
-	log_dungeon("Cleanup: Found [length(unique_mobs)] total mobs to process on portal dungeon Z-level [z_level]")
-
-	for(var/mob/mob in unique_mobs)
-		if(mob.z != z_level)
+		if(!length(mobs_on_turf))
 			continue
 
-		log_dungeon("Cleanup: Processing mob [mob] at [AREACOORD(mob)] - type: [mob.type], mind: [mob.mind ? "YES" : "NO"], faction: [mob.faction]")
+		log_dungeon("Cleanup: Found [length(mobs_on_turf)] mobs on turf [AREACOORD(T)]")
 
-		// Skip observer mobs (ghosts, AI eyes, etc.) - they can phase through dimensions
-		if(isobserver(mob))
-			log_dungeon("Cleanup: Skipping observer mob [mob] - observers can phase through dimensions")
-			continue
+		for(var/mob/mob in mobs_on_turf)
+			if(QDELETED(mob))
+				continue
 
-		// Check if this mob should be DELETED (FACTION_VOID or hostile)
-		var/should_delete = FALSE
+			log_dungeon("Cleanup: Processing mob [mob] at [AREACOORD(mob)] - type: [mob.type], mind: [mob.mind ? "YES" : "NO"], faction: [mob.faction]")
 
-		// Check for FACTION_VOID (delete regardless of other factors)
-		if(isfaction(mob, FACTION_VOID))
-			log_dungeon("Cleanup: Marking mob [mob] for deletion - FACTION_VOID")
-			should_delete = TRUE
+			// Skip observer mobs (ghosts, AI eyes, etc.)
+			if isobserver(mob)
+				log_dungeon("Cleanup: Skipping observer/camera mob [mob]")
+				continue
 
-		// Check if hostile (using the existing helper proc)
-		else if(is_hostile_or_void(mob))
-			log_dungeon("Cleanup: Marking mob [mob] for deletion - hostile")
-			should_delete = TRUE
+			// Check if this mob should be DELETED (FACTION_VOID or hostile)
+			var/should_delete = FALSE
 
-		// DELETE mobs that match the criteria
-		if(should_delete)
-			log_dungeon("Cleanup: Deleting mob [mob] at [AREACOORD(mob)]")
-			qdel(mob)
-			mobs_deleted++
+			// Check for FACTION_VOID (delete regardless of other factors)
+			if(isliving(mob))
+				var/mob/living/living_mob = mob
+				if(living_mob.faction == FACTION_VOID)
+					log_dungeon("Cleanup: Marking mob [mob] for deletion - FACTION_VOID")
+					should_delete = TRUE
 
-		// EJECT all other mobs (only physical, non-observer mobs)
-		else
-			// If we have an ejection turf, move mob there and throw them
-			if(ejection_turf && !QDELETED(ejection_turf))
-				var/old_loc = AREACOORD(mob)
-				mob.forceMove(ejection_turf)
+			// Check if hostile (using the existing helper proc)
+			if(!should_delete && is_hostile_or_void(mob))
+				log_dungeon("Cleanup: Marking mob [mob] for deletion - hostile")
+				should_delete = TRUE
 
-				// Throw them with force in a random direction from the portal
-				var/throw_target = get_edge_target_turf(ejection_turf, pick(GLOB.cardinals))
-				mob.throw_at(throw_target, 3, 2, spin = TRUE)
-
-				// Only stun and message living mobs
-				if(isliving(mob))
-					var/mob/living/living_mob = mob
-					if(living_mob.stat == CONSCIOUS)
-						living_mob.Stun(12 SECONDS)
-						to_chat(living_mob, span_warning("The portal violently collapses! You're thrown clear!"))
-						playsound(living_mob, 'sound/effects/bang.ogg', 60, TRUE)
-					else
-						living_mob.visible_message(span_notice("[living_mob] is thrown from a collapsing portal!"))
-						playsound(living_mob, 'sound/effects/bang.ogg', 40, TRUE)
-				else
-					// Non-living mobs (shouldn't happen with our filters, but safety)
-					mob.visible_message(span_notice("[mob] is thrown from a collapsing portal!"))
-
-				log_dungeon("Cleanup: Ejected mob [mob] from [old_loc] to [AREACOORD(ejection_turf)]")
-				mobs_ejected++
-			else
-				// No ejection turf, just delete (shouldn't happen but safety)
-				log_dungeon("Cleanup: No ejection turf, deleting mob [mob]")
+			// DELETE mobs that match the criteria
+			if(should_delete)
+				log_dungeon("Cleanup: DELETING mob [mob] at [AREACOORD(mob)]")
 				qdel(mob)
 				mobs_deleted++
+
+			// EJECT all other mobs (only physical, non-observer mobs)
+			else
+				// If we have an ejection turf, move mob there and throw them
+				if(ejection_turf && !QDELETED(ejection_turf))
+					var/old_loc = AREACOORD(mob)
+					mob.forceMove(ejection_turf)
+
+					// Throw them with force in a random direction from the portal
+					var/throw_target = get_edge_target_turf(ejection_turf, pick(GLOB.cardinals))
+					mob.throw_at(throw_target, 3, 2, spin = TRUE)
+
+					// Only stun and message living mobs
+					if(isliving(mob))
+						var/mob/living/living_mob = mob
+						if(living_mob.stat == CONSCIOUS)
+							living_mob.Stun(12 SECONDS)
+							to_chat(living_mob, span_warning("The portal violently collapses! You're thrown clear!"))
+							playsound(living_mob, 'sound/effects/bang.ogg', 60, TRUE)
+						else
+							living_mob.visible_message(span_notice("[living_mob] is thrown from a collapsing portal!"))
+							playsound(living_mob, 'sound/effects/bang.ogg', 40, TRUE)
+					else
+						// Non-living mobs (shouldn't happen with our filters, but safety)
+						mob.visible_message(span_notice("[mob] is thrown from a collapsing portal!"))
+
+					log_dungeon("Cleanup: EJECTED mob [mob] from [old_loc] to [AREACOORD(ejection_turf)]")
+					mobs_ejected++
+				else
+					// No ejection turf, just delete (shouldn't happen but safety)
+					log_dungeon("Cleanup: No ejection turf, DELETING mob [mob]")
+					qdel(mob)
+					mobs_deleted++
 
 		if((mobs_deleted + mobs_ejected) % 10 == 0)
 			CHECK_TICK
 
-	log_dungeon("Cleanup: Deleted [mobs_deleted] mobs and ejected [mobs_ejected] mobs from portal dungeon Z-level [z_level]")
-
-/// Helper proc to check if a mob belongs to a specific faction
-/datum/portal_destination/veilbreak/proc/isfaction(mob/mob, faction_to_check)
-	if(!mob || !isliving(mob))
-		return FALSE
-
-	var/mob/living/living_mob = mob
-	return living_mob.faction == faction_to_check
+	log_dungeon("Cleanup: DIRECT APPROACH - Deleted [mobs_deleted] mobs and ejected [mobs_ejected] mobs from portal dungeon Z-level [z_level]")
 
 /// Delete ALL objects, structures, and items - complete cleanup
 /datum/portal_destination/veilbreak/proc/delete_all_content(z_level)
