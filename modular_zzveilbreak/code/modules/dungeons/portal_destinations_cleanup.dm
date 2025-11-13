@@ -19,12 +19,12 @@
 	// Stop any active processing
 	STOP_PROCESSING(SSobj, src)
 
-	// Eject all non-hostile mobs first with force
-	eject_all_non_hostile_mobs_with_force(z_level, ejection_turf)
+	// Eject all non-hostile mobs and corpses first with force
+	eject_all_non_hostile_mobs_and_corpses_with_force(z_level, ejection_turf)
 	CHECK_TICK
 
-	// Delete everything that isn't space
-	delete_non_space_content(z_level)
+	// Delete ALL objects and structures (no exceptions)
+	delete_all_content(z_level)
 	CHECK_TICK
 
 	// Reset all turfs to space
@@ -47,9 +47,9 @@
 
 	log_dungeon("Cleanup: Complete cleanup finished for reusable Z-level [z_level]")
 
-/// Eject all non-hostile mobs to specified turf with throwing force
-/datum/portal_destination/veilbreak/proc/eject_all_non_hostile_mobs_with_force(z_level, turf/ejection_turf)
-	log_dungeon("Cleanup: Ejecting non-hostile mobs from Z-level [z_level] with force")
+/// Eject all non-hostile mobs AND CORPSES to specified turf with throwing force
+/datum/portal_destination/veilbreak/proc/eject_all_non_hostile_mobs_and_corpses_with_force(z_level, turf/ejection_turf)
+	log_dungeon("Cleanup: Ejecting non-hostile mobs and corpses from Z-level [z_level] with force")
 
 	var/ejected_count = 0
 	var/deleted_count = 0
@@ -58,7 +58,7 @@
 		if(mob.z != z_level)
 			continue
 
-		// Skip hostile mobs and void faction
+		// Skip ONLY living hostile mobs - CORPSES ALWAYS GET EJECTED
 		if(is_hostile_or_void(mob))
 			qdel(mob)
 			deleted_count++
@@ -73,39 +73,40 @@
 			var/throw_target = get_edge_target_turf(ejection_turf, pick(GLOB.cardinals))
 			mob.throw_at(throw_target, 3, 2, spin = TRUE)
 
-			// Stun and message for conscious mobs
+			// Different handling for living vs dead mobs
 			if(mob.stat == CONSCIOUS)
-				mob.Stun(2 SECONDS) // Shorter stun since they're being thrown
+				mob.Stun(12 SECONDS) // Shorter stun since they're being thrown
 				to_chat(mob, span_warning("The portal violently collapses! You're thrown clear!"))
 				playsound(mob, 'sound/effects/bang.ogg', 60, TRUE)
-			else if(mob.stat == DEAD)
+			else if(mob.stat == DEAD || mob.stat == UNCONSCIOUS)
+				// Corpses and unconscious mobs get thrown without stun
 				mob.visible_message(span_notice("[mob] is thrown from a collapsing portal!"))
 				playsound(mob, 'sound/effects/bang.ogg', 40, TRUE)
 
 			ejected_count++
 		else:
-			// No ejection turf, just delete
+			// No ejection turf, just delete (shouldn't happen but safety)
 			qdel(mob)
 			deleted_count++
 
 		if((ejected_count + deleted_count) % 20 == 0)
 			CHECK_TICK
 
-	log_dungeon("Cleanup: Force-ejected [ejected_count] and deleted [deleted_count] mobs from Z-level [z_level]")
+	log_dungeon("Cleanup: Force-ejected [ejected_count] mobs/corpses and deleted [deleted_count] hostile mobs from Z-level [z_level]")
 
-/// Delete all objects, structures, and items that aren't space
-/datum/portal_destination/veilbreak/proc/delete_non_space_content(z_level)
-	log_dungeon("Cleanup: Deleting non-space content from Z-level [z_level]")
+/// Delete ALL objects, structures, and items - complete cleanup
+/datum/portal_destination/veilbreak/proc/delete_all_content(z_level)
+	log_dungeon("Cleanup: Deleting ALL content from Z-level [z_level]")
 
 	var/objects_deleted = 0
 	var/areas_purged = 0
 
-	// Delete all objects
+	// Delete ALL objects - no exceptions for indestructible items
 	for(var/obj/object in world)
 		if(object.z != z_level)
 			continue
 
-		// Skip space and basic space turfs
+		// Skip space and basic space turfs (they'll be handled by turf reset)
 		if(istype(object, /turf/open/space) || istype(object, /turf/open/space/basic))
 			continue
 

@@ -19,6 +19,8 @@
 	active_requests["[request_id]"] = destination
 
 	var/datum/http_request/request = new()
+
+	// Request proper wall types that support smoothing
 	var/url = "[DUNGEON_GENERATOR_URL][DUNGEON_GENERATE_ENDPOINT]?width=[width]&height=[height]&seed=[rand(1,1000000)]"
 
 	log_dungeon("DUNGEON DEBUG: Prepared HTTP request to: [url]")

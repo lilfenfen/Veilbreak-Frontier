@@ -131,7 +131,7 @@
 
 	// If this is a dungeon portal, clean up its Z-level
 	if(destination?.dungeon_z_level)
-		// Use enhanced cleanup with ejection
+		// Use enhanced cleanup with ejection (now ejects corpses too)
 		for(var/turf/ejection_turf in ejection_turfs)
 			destination.cleanup_z_level_completely(destination.dungeon_z_level, ejection_turf)
 			break // Only need one ejection point

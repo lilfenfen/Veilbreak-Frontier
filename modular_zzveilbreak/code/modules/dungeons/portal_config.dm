@@ -32,5 +32,10 @@
 // Maximum processing time per tick to prevent server lag
 #define MAX_PROCESSING_TIME_PER_TICK 0.5 SECONDS
 
+// Smoothing configuration
+#define SMOOTHING_GROUP_CLOSED_TURFS SMOOTH_GROUP_CLOSED_TURFS
+#define SMOOTHING_GROUP_WALLS SMOOTH_GROUP_WALLS
+#define SMOOTHING_GROUP_MINERAL_WALLS SMOOTH_GROUP_MINERAL_WALLS
+
 // Global instance of dungeon generator
 GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
