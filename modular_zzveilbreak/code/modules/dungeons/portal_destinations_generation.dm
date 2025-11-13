@@ -1,101 +1,5 @@
 // modular_zzveilbreak/code/modules/dungeons/portal_destinations_generation.dm
 
-/datum/portal_destination/veilbreak/proc/start_generation()
-	log_dungeon("DUNGEON DEBUG: start_generation() called for [name]")
-
-	if(generating)
-		log_dungeon("DUNGEON DEBUG: Generation blocked - already generating")
-		return FALSE
-
-	// Verify mapping subsystem is ready
-	if(!SSmapping || !SSmapping.initialized)
-		log_dungeon("DUNGEON DEBUG: Generation failed - SSmapping not ready")
-		return FALSE
-
-	generating = TRUE
-	generated = FALSE
-	generation_progress = 0
-	log_dungeon("DUNGEON DEBUG: Set generation state - generating: TRUE, generated: FALSE, progress: 0")
-
-	if(!GLOB.dungeon_generator)
-		GLOB.dungeon_generator = new /datum/http_dungeon_generator()
-
-	log_dungeon("DUNGEON DEBUG: Starting generation for portal destination [name]")
-	current_request_id = GLOB.dungeon_generator.generate_dungeon(src, DUNGEON_WIDTH, DUNGEON_HEIGHT)
-
-	if(!current_request_id)
-		log_dungeon("DUNGEON DEBUG: Generation failed - generate_dungeon returned 0")
-		generating = FALSE
-		generation_failed("Failed to start generation request")
-		return FALSE
-
-	log_dungeon("DUNGEON DEBUG: Generation started successfully with request [current_request_id]")
-	START_PROCESSING(SSobj, src)
-	return TRUE
-
-/datum/portal_destination/veilbreak/process()
-	if(processing_disabled)
-		STOP_PROCESSING(SSobj, src)
-		return
-
-	if(!generating)
-		STOP_PROCESSING(SSobj, src)
-		return
-
-	// Update progress for UI
-	if(world.time - last_progress_update > 1 SECONDS)
-		generation_progress = min(generation_progress + rand(5, 15), 90)
-		last_progress_update = world.time
-
-	// Check if request is complete
-	if(current_request_id)
-		var/still_processing = GLOB.dungeon_generator.check_request(current_request_id)
-		if(!still_processing)
-			STOP_PROCESSING(SSobj, src)
-			generation_progress = 100
-			return
-
-	// Safety timeout
-	STOP_PROCESSING(SSobj, src)
-	generation_failed("Generation process stuck in invalid state")
-
-/datum/portal_destination/veilbreak/proc/generation_complete(list/data)
-	log_dungeon("DUNGEON DEBUG: generation_complete() called")
-	generating = FALSE
-
-	// Store generation data
-	last_generation_data = data.Copy()
-
-	// Access dmm_content from top level
-	if(data["dmm_content"])
-		log_dungeon("DUNGEON DEBUG: DMM content received, starting load process")
-		load_generated_dmm(data["dmm_content"])
-	else
-		log_dungeon("DUNGEON DEBUG: No DMM content in response")
-		generation_failed("No DMM content in response")
-
-	// Notify control computer
-	if(connected_control_computer && !QDELETED(connected_control_computer))
-		connected_control_computer.on_generation_completed()
-		connected_control_computer = null
-
-/datum/portal_destination/veilbreak/proc/load_generated_dmm(dmm_content)
-	log_dungeon("DUNGEON DEBUG: load_generated_dmm() called")
-
-	if(!dmm_content)
-		log_dungeon("DUNGEON DEBUG: No DMM content provided")
-		return generation_failed("No DMM content provided")
-
-	// Initialize or get the reusable portal Z-level
-	if(!initialize_portal_z_level())
-		log_dungeon("DUNGEON DEBUG: Failed to initialize portal Z-level")
-		return generation_failed("Failed to initialize portal Z-level")
-
-	log_dungeon("DUNGEON DEBUG: Using reusable portal Z-level [dungeon_z_level]")
-
-	// Load the DMM with tick balancing - NO CLEANUP NEEDED for fresh map
-	load_dmm_with_ticks(dmm_content)
-
 /datum/portal_destination/veilbreak/proc/load_dmm_with_ticks(dmm_content)
 	log_dungeon("DUNGEON DEBUG: Starting tick-balanced DMM loading")
 
@@ -165,8 +69,8 @@
 	initialize_areas_and_power(z_level)
 	CHECK_TICK
 
-	// Initialize lighting
-	initialize_lighting(z_level)
+	// Initialize lighting - FIXED
+	initialize_enhanced_lighting(z_level)
 	CHECK_TICK
 
 	// Initialize machinery states
@@ -204,19 +108,51 @@
 
 		CHECK_TICK
 
-/datum/portal_destination/veilbreak/proc/initialize_lighting(z_level)
-	log_dungeon("Subsystems: Initializing lighting")
+/// ENHANCED lighting initialization - FIXED SSlighting call
+/datum/portal_destination/veilbreak/proc/initialize_enhanced_lighting(z_level)
+	log_dungeon("Lighting: Starting ENHANCED lighting initialization for Z-level [z_level]")
 
 	if(!SSlighting || !SSlighting.initialized)
-		log_dungeon("Subsystems: Lighting subsystem not available")
+		log_dungeon("Lighting: Lighting subsystem not available")
 		return
 
-	for(var/x = 1 to world.maxx)
-		for(var/y = 1 to world.maxy)
-			var/turf/iter_turf = locate(x, y, z_level)
-			if(!iter_turf.space_lit && !iter_turf.lighting_object)
-				new /datum/lighting_object(iter_turf)
+	var/lights_processed = 0
+	var/light_objects_created = 0
+
+	// First, ensure all turfs have lighting objects
+	for(var/turf/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
+		// CRITICAL: Create lighting object for every turf that needs one
+		if(!T.lighting_object && !T.space_lit)
+			new /datum/lighting_object(T)
+			light_objects_created++
+
+		// Initialize lighting for this turf
+		T.update_light()
+
+		lights_processed++
+
+		if(lights_processed % 100 == 0)
 			CHECK_TICK
+
+	log_dungeon("Lighting: Created [light_objects_created] lighting objects for [lights_processed] turfs")
+
+	// FIXED: Use proper lighting initialization instead of undefined proc
+	force_lighting_update(z_level)
+
+/// Force lighting subsystem to update the entire Z-level - FIXED
+/datum/portal_destination/veilbreak/proc/force_lighting_update(z_level)
+	log_dungeon("Lighting: Forcing lighting update for Z-level [z_level]")
+
+	// FIX: Use proper lighting initialization method
+	// Force lighting to recalculate for the entire Z-level
+	var/list/turfs_to_update = block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level))
+
+	// Update all lights and turfs
+	for(var/turf/T in turfs_to_update)
+		T.update_light()
+		CHECK_TICK
+
+	log_dungeon("Lighting: Completed forced lighting update for Z-level [z_level]")
 
 /datum/portal_destination/veilbreak/proc/initialize_machinery(z_level)
 	log_dungeon("Subsystems: Initializing machinery")
@@ -237,7 +173,7 @@
 
 	log_dungeon("Subsystems: Initialized [processed] machinery objects")
 
-/// ENHANCED smoothing for walls and structures - CRITICAL FIXES
+/// ENHANCED smoothing for walls and structures - FIXED unused variable
 /datum/portal_destination/veilbreak/proc/initialize_enhanced_smoothing(z_level)
 	log_dungeon("Smoothing: Starting ENHANCED wall and structure smoothing for Z-level [z_level]")
 
@@ -245,7 +181,6 @@
 		log_dungeon("Smoothing: Smoothing subsystem not available")
 		return
 
-	var/smoothed_count = 0
 	var/walls_fixed = 0
 
 	// CRITICAL FIX: First, ensure ALL walls have proper base_icon_state and smoothing setup

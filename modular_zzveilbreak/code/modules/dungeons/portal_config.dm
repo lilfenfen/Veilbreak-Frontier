@@ -37,6 +37,10 @@
 #define SMOOTHING_GROUP_WALLS SMOOTH_GROUP_WALLS
 #define SMOOTHING_GROUP_MINERAL_WALLS SMOOTH_GROUP_MINERAL_WALLS
 
+// Lighting configuration
+#define DUNGEON_LIGHTING_ENABLED TRUE
+#define DUNGEON_LIGHTING_UPDATE_DELAY 2 SECONDS
+
 // Wall types for the dungeon generator to use
 #define DUNGEON_WALL_TYPE /turf/closed/wall
 #define DUNGEON_MINERAL_WALL_TYPE /turf/closed/wall/mineral/iron
