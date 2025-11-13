@@ -274,7 +274,7 @@ export const PortalControl = (props, context) => {
                   !generation_in_progress &&
                   !cleanup_in_progress && (
                     <Stack.Item>
-                      <Box textAlign="center" mb={2}>
+                      <Box textAlign="center">
                         <Icon
                           name="portal"
                           size={4}
@@ -353,6 +353,17 @@ export const PortalControl = (props, context) => {
                           Dimensional conduit prepared for breach sequence
                         </Box>
                       </Box>
+                    </Stack.Item>
+                  )}
+
+                {/* EMPTY STATE - This prevents any stray content from appearing */}
+                {!portal_present &&
+                  !portal_active &&
+                  !generation_in_progress &&
+                  !cleanup_in_progress &&
+                  !can_generate && (
+                    <Stack.Item>
+                      {/* Intentionally empty to prevent stray elements */}
                     </Stack.Item>
                   )}
               </Stack>
