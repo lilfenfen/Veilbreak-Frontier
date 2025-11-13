@@ -53,12 +53,15 @@
 
 	var/mobs_deleted = 0
 	var/mobs_ejected = 0
+	var/turfs_processed = 0
 
 	// Get all turfs on the Z-level
 	var/list/all_turfs = block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level))
 	log_dungeon("Cleanup: Scanning [length(all_turfs)] turfs on Z-level [z_level]")
 
 	for(var/turf/T in all_turfs)
+		turfs_processed++
+
 		// Get all mobs on this turf
 		var/list/mobs_on_turf = list()
 		for(var/mob/mob in T.contents)
@@ -66,14 +69,19 @@
 				mobs_on_turf += mob
 
 		if(!length(mobs_on_turf))
+			// Check tick every 100 turfs even if no mobs found
+			if(turfs_processed % 100 == 0)
+				CHECK_TICK
 			continue
 
 		log_dungeon("Cleanup: Found [length(mobs_on_turf)] mobs on turf [AREACOORD(T)]")
 
+		var/mobs_on_this_turf = 0
 		for(var/mob/mob in mobs_on_turf)
 			if(QDELETED(mob))
 				continue
 
+			mobs_on_this_turf++
 			log_dungeon("Cleanup: Processing mob [mob] at [AREACOORD(mob)] - type: [mob.type], mind: [mob.mind ? "YES" : "NO"], faction: [mob.faction]")
 
 			// Skip observer mobs (ghosts, AI eyes, etc.)
@@ -135,7 +143,12 @@
 					qdel(mob)
 					mobs_deleted++
 
-		if((mobs_deleted + mobs_ejected) % 10 == 0)
+			// Check tick every 10 mobs processed on this turf
+			if(mobs_on_this_turf % 10 == 0)
+				CHECK_TICK
+
+		// Check tick every 50 turfs processed (regardless of mob count)
+		if(turfs_processed % 50 == 0)
 			CHECK_TICK
 
 	log_dungeon("Cleanup: DIRECT APPROACH - Deleted [mobs_deleted] mobs and ejected [mobs_ejected] mobs from portal dungeon Z-level [z_level]")
@@ -160,6 +173,7 @@
 		qdel(object)
 		objects_deleted++
 
+		// Check tick every 50 objects deleted
 		if(objects_deleted % 50 == 0)
 			CHECK_TICK
 
@@ -180,7 +194,9 @@
 			area.power_change()
 			areas_purged++
 
-		CHECK_TICK
+		// Check tick every 10 areas processed
+		if(areas_purged % 10 == 0)
+			CHECK_TICK
 
 	log_dungeon("Cleanup: Deleted [objects_deleted] objects and purged [areas_purged] areas from portal dungeon Z-level [z_level]")
 
@@ -192,6 +208,8 @@
 		if(!istype(T, /turf/open/space/basic))
 			T.ChangeTurf(/turf/open/space/basic, FALSE, FALSE)
 		turfs_processed++
+
+		// Check tick every 100 turfs processed
 		if(turfs_processed % 100 == 0)
 			CHECK_TICK
 
@@ -233,7 +251,14 @@
 			// Delete the portal
 			QDEL_NULL(dungeon_portal)
 			portals_removed++
-			log_dungeon("Cleanup: Removed dungeon portal at [AREACOORD(T)]")
+
+			// Check tick every 10 portals removed
+			if(portals_removed % 10 == 0)
+				CHECK_TICK
+
+		// Check tick every 100 turfs scanned for portals
+		if(portals_removed % 100 == 0)
+			CHECK_TICK
 
 	log_dungeon("Cleanup: Removed [portals_removed] portals from portal dungeon Z-level [dungeon_z_level]")
 
