@@ -93,7 +93,11 @@
 
 	log_dungeon("DUNGEON DEBUG: Using reusable portal Z-level [dungeon_z_level]")
 
-	// Load the DMM with tick balancing - NO CLEANUP NEEDED for fresh map
+	// CRITICAL: Clean the Z-level BEFORE loading new content
+	log_dungeon("DUNGEON DEBUG: Pre-cleaning Z-level [dungeon_z_level] before loading new map")
+	reset_z_level_to_space(dungeon_z_level)
+
+	// Load the DMM with tick balancing
 	load_dmm_with_ticks(dmm_content)
 
 /datum/portal_destination/veilbreak/proc/load_dmm_with_ticks(dmm_content)
@@ -131,8 +135,15 @@
 		if(parsed && parsed.bounds)
 			log_dungeon("DUNGEON DEBUG: Parsed map successfully, bounds: [parsed.bounds]")
 			log_dungeon("DUNGEON DEBUG: Loading map to Z-level [dungeon_z_level]")
-			loaded_successfully = parsed.load(1, 1, dungeon_z_level, no_changeturf = TRUE, place_on_top = FALSE, new_z = FALSE)
-			log_dungeon("DUNGEON DEBUG: Map load result: [loaded_successfully ? "SUCCESS" : "FAILED"]")
+
+			// CRITICAL: Use place_on_top = TRUE to ensure content loads properly
+			loaded_successfully = parsed.load(1, 1, dungeon_z_level, no_changeturf = FALSE, place_on_top = TRUE, new_z = FALSE)
+
+			if(loaded_successfully)
+				log_dungeon("DUNGEON DEBUG: Map load SUCCESS - loaded [parsed.bounds[1]]x[parsed.bounds[2]] area")
+			else
+				error_message = "Map loader returned false"
+				log_dungeon("DUNGEON DEBUG: [error_message]")
 		else
 			error_message = "Failed to parse map file - no bounds"
 			log_dungeon("DUNGEON DEBUG: [error_message]")
@@ -161,6 +172,10 @@
 /datum/portal_destination/veilbreak/proc/initialize_dungeon_subsystems(z_level)
 	log_dungeon("Subsystems: Starting subsystem initialization for Z-level [z_level]")
 
+	// CRITICAL: First, scan for and log what was actually loaded
+	log_loaded_content(z_level)
+	CHECK_TICK
+
 	// Initialize areas and power with tick checks
 	initialize_areas_and_power(z_level)
 	CHECK_TICK
@@ -177,12 +192,63 @@
 	initialize_enhanced_smoothing(z_level)
 	CHECK_TICK
 
-	// Finalize portal connection
-	ensure_portal_connection()
+	// CRITICAL: Ensure portal connection and log results
+	var/connection_success = ensure_portal_connection()
+
+	if(!connection_success)
+		log_dungeon("Subsystems: WARNING - Failed to establish portal connection")
+		// Don't fail generation entirely, but log the issue
+	else
+		log_dungeon("Subsystems: Portal connection established successfully")
 
 	// Mark as complete
 	generated = TRUE
 	log_dungeon("Subsystems: INITIALIZATION COMPLETE for Z-level [z_level]")
+
+/// CRITICAL: Log what content was actually loaded
+/datum/portal_destination/veilbreak/proc/log_loaded_content(z_level)
+	log_dungeon("Content Scan: Scanning loaded content on Z-level [z_level]")
+
+	var/turf_count = 0
+	var/obj_count = 0
+	var/mob_count = 0
+	var/area_count = 0
+	var/portal_count = 0
+
+	// Count turfs
+	for(var/turf/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
+		turf_count++
+		if(turf_count % 1000 == 0)
+			CHECK_TICK
+
+	// Count objects and mobs
+	for(var/obj/O in world)
+		if(O.z == z_level)
+			obj_count++
+			if(istype(O, /obj/machinery/portal))
+				portal_count++
+		if(obj_count % 100 == 0)
+			CHECK_TICK
+
+	for(var/mob/M in world)
+		if(M.z == z_level)
+			mob_count++
+		if(mob_count % 100 == 0)
+			CHECK_TICK
+
+	// Count areas
+	for(var/area/A in world)
+		var/has_turfs = FALSE
+		for(var/turf/T in A.contents)
+			if(T.z == z_level)
+				has_turfs = TRUE
+				break
+		if(has_turfs)
+			area_count++
+		if(area_count % 10 == 0)
+			CHECK_TICK
+
+	log_dungeon("Content Scan: Results - Turfs: [turf_count], Objects: [obj_count], Mobs: [mob_count], Areas: [area_count], Portals: [portal_count]")
 
 /datum/portal_destination/veilbreak/proc/initialize_areas_and_power(z_level)
 	log_dungeon("Subsystems: Initializing areas and power")

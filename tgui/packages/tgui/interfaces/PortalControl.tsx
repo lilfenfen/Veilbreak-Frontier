@@ -269,7 +269,7 @@ export const PortalControl = (props, context) => {
             </Section>
           </Stack.Item>
 
-          {/* Main Operations Panel */}
+          {/* Main Operations Panel - Centered content */}
           <Stack.Item grow>
             <Section
               title="VOID SPACE OPERATIONS"
@@ -286,9 +286,12 @@ export const PortalControl = (props, context) => {
                 ) : null
               }
             >
+              {/* Centered container for all content */}
               <Box
                 height="100%"
+                width="100%"
                 display="flex"
+                flexDirection="column"
                 alignItems="center"
                 justifyContent="center"
               >
@@ -297,7 +300,7 @@ export const PortalControl = (props, context) => {
             </Section>
           </Stack.Item>
 
-          {/* Diagnostics Panel - FIXED: No empty items */}
+          {/* Diagnostics Panel */}
           <Stack.Item>
             <Section title="CONDUIT DIAGNOSTICS">
               <LabeledList>

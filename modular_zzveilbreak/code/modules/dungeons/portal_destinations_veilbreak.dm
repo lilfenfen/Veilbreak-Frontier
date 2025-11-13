@@ -103,8 +103,8 @@
 		log_dungeon("Connection: Stored actual portal location: [AREACOORD(actual_dungeon_portal_location)]")
 		return connect_to_existing_portal(found_portal)
 	else
-		log_dungeon("Connection: ERROR - No portal found on Z-level [dungeon_z_level]")
-		return FALSE
+		log_dungeon("Connection: WARNING - No portal found on Z-level [dungeon_z_level], creating fallback portal")
+		return create_fallback_portal()
 
 /// Get any portal on the entire Z-level
 /datum/portal_destination/veilbreak/proc/get_any_portal_on_z_level()
@@ -126,6 +126,27 @@
 
 	log_dungeon("Gateway: Found [portals_found] total portals on Z-level [dungeon_z_level]")
 	return first_portal
+
+/// Create a fallback portal if none exists
+/datum/portal_destination/veilbreak/proc/create_fallback_portal()
+	log_dungeon("Fallback: Creating fallback portal at center of Z-level [dungeon_z_level]")
+
+	// Create portal at the center of the map
+	var/turf/center_turf = locate(round(world.maxx/2), round(world.maxy/2), dungeon_z_level)
+
+	if(!center_turf)
+		log_dungeon("Fallback: ERROR - Could not determine center turf")
+		return FALSE
+
+	var/obj/machinery/portal/fallback_portal = new(center_turf)
+	fallback_portal.use_power = NO_POWER_USE
+	fallback_portal.portal_possible = TRUE
+	fallback_portal.generate_bumper()
+
+	log_dungeon("Fallback: Created fallback portal at [AREACOORD(fallback_portal)]")
+	actual_dungeon_portal_location = center_turf
+
+	return connect_to_existing_portal(fallback_portal)
 
 /datum/portal_destination/veilbreak/proc/connect_to_existing_portal(obj/machinery/portal/dungeon_portal)
 	if(!dungeon_portal || QDELETED(dungeon_portal))

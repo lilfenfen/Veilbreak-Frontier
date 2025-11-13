@@ -11,7 +11,7 @@
 		log_dungeon("Cleanup: ERROR - Z-level [z_level] does not match portal dungeon Z-level [dungeon_z_level]")
 		return
 
-	log_dungeon("Cleanup: Starting complete cleanup of portal dungeon Z-level [z_level]")
+	log_dungeon("Cleanup: Starting OPTIMIZED cleanup of portal dungeon Z-level [z_level]")
 
 	cleanup_in_progress = TRUE
 	processing_disabled = TRUE
@@ -19,12 +19,12 @@
 	// Stop any active processing
 	STOP_PROCESSING(SSobj, src)
 
-	// Handle ALL mobs according to the new rules - USE DIRECT APPROACH
-	handle_all_mobs_direct(z_level, ejection_turf)
+	// OPTIMIZED: Handle mobs first with better performance
+	handle_mobs_optimized(z_level, ejection_turf)
 	CHECK_TICK
 
 	// Delete ALL objects and structures (no exceptions)
-	delete_all_content(z_level)
+	delete_all_content_optimized(z_level)
 	CHECK_TICK
 
 	// Reset all turfs to space
@@ -45,123 +45,88 @@
 	processing_disabled = FALSE
 	cleanup_in_progress = FALSE
 
-	log_dungeon("Cleanup: Complete cleanup finished for portal dungeon Z-level [z_level]")
+	log_dungeon("Cleanup: OPTIMIZED cleanup finished for portal dungeon Z-level [z_level]")
 
-/// DIRECT APPROACH: Iterate through every turf on the Z-level and handle mobs
-/datum/portal_destination/veilbreak/proc/handle_all_mobs_direct(z_level, turf/ejection_turf)
-	log_dungeon("Cleanup: DIRECT APPROACH - Handling ALL mobs from portal dungeon Z-level [z_level]")
+/// OPTIMIZED mob handling
+/datum/portal_destination/veilbreak/proc/handle_mobs_optimized(z_level, turf/ejection_turf)
+	log_dungeon("Cleanup: OPTIMIZED - Handling mobs from portal dungeon Z-level [z_level]")
 
 	var/mobs_deleted = 0
 	var/mobs_ejected = 0
-	var/turfs_processed = 0
+	var/ticks_checked = 0
 
-	// Get all turfs on the Z-level
-	var/list/all_turfs = block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level))
-	log_dungeon("Cleanup: Scanning [length(all_turfs)] turfs on Z-level [z_level]")
-
-	for(var/turf/T in all_turfs)
-		turfs_processed++
-
-		// Get all mobs on this turf
-		var/list/mobs_on_turf = list()
-		for(var/mob/mob in T.contents)
-			if(!QDELETED(mob))
-				mobs_on_turf += mob
-
-		if(!length(mobs_on_turf))
-			// Check tick every 25 turfs even if no mobs found (increased frequency)
-			if(turfs_processed % 25 == 0)
-				CHECK_TICK
-			continue
-
-		log_dungeon("Cleanup: Found [length(mobs_on_turf)] mobs on turf [AREACOORD(T)]")
-
-		var/mobs_on_this_turf = 0
-		for(var/mob/mob in mobs_on_turf)
-			if(QDELETED(mob))
-				continue
-
-			mobs_on_this_turf++
-			log_dungeon("Cleanup: Processing mob [mob] at [AREACOORD(mob)] - type: [mob.type], mind: [mob.mind ? "YES" : "NO"], faction: [mob.faction]")
-
-			// Skip observer mobs (ghosts, AI eyes, etc.)
-			if isobserver(mob)
-				log_dungeon("Cleanup: Skipping observer/camera mob [mob]")
-				continue
-
-			// Check if this mob should be DELETED (FACTION_VOID or hostile)
-			var/should_delete = FALSE
-
-			// Check for FACTION_VOID (delete regardless of other factors)
-			if(isliving(mob))
-				var/mob/living/living_mob = mob
-				if(living_mob.faction == FACTION_VOID)
-					log_dungeon("Cleanup: Marking mob [mob] for deletion - FACTION_VOID")
-					should_delete = TRUE
-
-			// Check if hostile (using the existing helper proc)
-			if(!should_delete && is_hostile_or_void(mob))
-				log_dungeon("Cleanup: Marking mob [mob] for deletion - hostile")
-				should_delete = TRUE
-
-			// DELETE mobs that match the criteria
-			if(should_delete)
-				log_dungeon("Cleanup: DELETING mob [mob] at [AREACOORD(mob)]")
-				qdel(mob)
-				mobs_deleted++
-
-			// EJECT all other mobs (only physical, non-observer mobs)
-			else
-				// If we have an ejection turf, move mob there and throw them
-				if(ejection_turf && !QDELETED(ejection_turf))
-					var/old_loc = AREACOORD(mob)
-					mob.forceMove(ejection_turf)
-
-					// Throw them with force in a random direction from the portal
-					var/throw_target = get_edge_target_turf(ejection_turf, pick(GLOB.cardinals))
-					mob.throw_at(throw_target, 3, 2, spin = TRUE)
-
-					// Only stun and message living mobs
-					if(isliving(mob))
-						var/mob/living/living_mob = mob
-						if(living_mob.stat == CONSCIOUS)
-							living_mob.Stun(12 SECONDS)
-							to_chat(living_mob, span_warning("The portal violently collapses! You're thrown clear!"))
-							playsound(living_mob, 'sound/effects/bang.ogg', 60, TRUE)
-						else
-							living_mob.visible_message(span_notice("[living_mob] is thrown from a collapsing portal!"))
-							playsound(living_mob, 'sound/effects/bang.ogg', 40, TRUE)
-					else
-						// Non-living mobs (shouldn't happen with our filters, but safety)
-						mob.visible_message(span_notice("[mob] is thrown from a collapsing portal!"))
-
-					log_dungeon("Cleanup: EJECTED mob [mob] from [old_loc] to [AREACOORD(ejection_turf)]")
-					mobs_ejected++
-				else
-					// No ejection turf, just delete (shouldn't happen but safety)
-					log_dungeon("Cleanup: No ejection turf, DELETING mob [mob]")
-					qdel(mob)
-					mobs_deleted++
-
-			// Check tick every 5 mobs processed on this turf (increased frequency)
-			if(mobs_on_this_turf % 5 == 0)
-				CHECK_TICK
-
-		// Check tick after processing each turf with mobs (NEW - additional safety)
-		CHECK_TICK
-
-		// Check tick every 20 turfs processed (regardless of mob count) (increased frequency)
-		if(turfs_processed % 20 == 0)
+	// Get all mobs on the Z-level directly (more efficient than scanning turfs)
+	var/list/mobs_to_process = list()
+	for(var/mob/M in world)
+		if(M.z == z_level && !QDELETED(M))
+			mobs_to_process += M
+		ticks_checked++
+		if(ticks_checked % 100 == 0)
 			CHECK_TICK
 
-	log_dungeon("Cleanup: DIRECT APPROACH - Deleted [mobs_deleted] mobs and ejected [mobs_ejected] mobs from portal dungeon Z-level [z_level]")
+	log_dungeon("Cleanup: Found [length(mobs_to_process)] mobs to process on Z-level [z_level]")
 
-/// Delete ALL objects, structures, and items - complete cleanup
-/datum/portal_destination/veilbreak/proc/delete_all_content(z_level)
-	log_dungeon("Cleanup: Deleting ALL content from portal dungeon Z-level [z_level]")
+	for(var/mob/mob in mobs_to_process)
+		if(QDELETED(mob))
+			continue
+
+		// Skip observer mobs (ghosts, AI eyes, etc.)
+		if(isobserver(mob))
+			continue
+
+		var/should_delete = FALSE
+
+		// Check for FACTION_VOID (delete regardless of other factors)
+		if(isliving(mob))
+			var/mob/living/living_mob = mob
+			if(living_mob.faction == FACTION_VOID)
+				should_delete = TRUE
+
+		// Check if hostile
+		if(!should_delete && is_hostile_or_void(mob))
+			should_delete = TRUE
+
+		// DELETE mobs that match the criteria
+		if(should_delete)
+			qdel(mob)
+			mobs_deleted++
+
+		// EJECT all other mobs
+		else if(ejection_turf && !QDELETED(ejection_turf))
+			var/old_loc = AREACOORD(mob)
+			mob.forceMove(ejection_turf)
+
+			// Throw them with force in a random direction from the portal
+			var/throw_target = get_edge_target_turf(ejection_turf, pick(GLOB.cardinals))
+			mob.throw_at(throw_target, 3, 2, spin = TRUE)
+
+			// Only stun and message living mobs
+			if(isliving(mob))
+				var/mob/living/living_mob = mob
+				if(living_mob.stat == CONSCIOUS)
+					living_mob.Stun(12 SECONDS)
+					to_chat(living_mob, span_warning("The portal violently collapses! You're thrown clear!"))
+					playsound(living_mob, 'sound/effects/bang.ogg', 60, TRUE)
+				else
+					living_mob.visible_message(span_notice("[living_mob] is thrown from a collapsing portal!"))
+					playsound(living_mob, 'sound/effects/bang.ogg', 40, TRUE)
+
+			log_dungeon("Cleanup: EJECTED mob [mob] from [old_loc] to [AREACOORD(ejection_turf)]")
+			mobs_ejected++
+
+		// Check tick every 25 mobs processed
+		if((mobs_deleted + mobs_ejected) % 25 == 0)
+			CHECK_TICK
+
+	log_dungeon("Cleanup: OPTIMIZED - Deleted [mobs_deleted] mobs and ejected [mobs_ejected] mobs from portal dungeon Z-level [z_level]")
+
+/// Delete ALL objects and structures - optimized version
+/datum/portal_destination/veilbreak/proc/delete_all_content_optimized(z_level)
+	log_dungeon("Cleanup: OPTIMIZED - Deleting ALL content from portal dungeon Z-level [z_level]")
 
 	var/objects_deleted = 0
 	var/areas_purged = 0
+	var/ticks_checked = 0
 
 	// Delete ALL objects - no exceptions for indestructible items
 	for(var/obj/object in world)
@@ -172,12 +137,12 @@
 		if(istype(object, /turf/open/space) || istype(object, /turf/open/space/basic))
 			continue
 
-		log_dungeon("Cleanup: Deleting object [object] at [AREACOORD(object)]")
 		qdel(object)
 		objects_deleted++
+		ticks_checked++
 
-		// Check tick every 25 objects deleted (increased frequency)
-		if(objects_deleted % 25 == 0)
+		// Check tick every 50 objects deleted
+		if(ticks_checked % 50 == 0)
 			CHECK_TICK
 
 	// Clean up areas
@@ -197,11 +162,11 @@
 			area.power_change()
 			areas_purged++
 
-		// Check tick every 5 areas processed (increased frequency)
-		if(areas_purged % 5 == 0)
+		// Check tick every 10 areas processed
+		if(areas_purged % 10 == 0)
 			CHECK_TICK
 
-	log_dungeon("Cleanup: Deleted [objects_deleted] objects and purged [areas_purged] areas from portal dungeon Z-level [z_level]")
+	log_dungeon("Cleanup: OPTIMIZED - Deleted [objects_deleted] objects and purged [areas_purged] areas from portal dungeon Z-level [z_level]")
 
 /datum/portal_destination/veilbreak/proc/reset_z_level_to_space(z_level)
 	log_dungeon("Cleanup: Resetting portal dungeon Z-level [z_level] to space")
@@ -212,8 +177,8 @@
 			T.ChangeTurf(/turf/open/space/basic, FALSE, FALSE)
 		turfs_processed++
 
-		// Check tick every 50 turfs processed (increased frequency)
-		if(turfs_processed % 50 == 0)
+		// Check tick every 100 turfs processed
+		if(turfs_processed % 100 == 0)
 			CHECK_TICK
 
 	log_dungeon("Cleanup: Reset [turfs_processed] turfs to space on portal dungeon Z-level [z_level]")
@@ -255,12 +220,12 @@
 			QDEL_NULL(dungeon_portal)
 			portals_removed++
 
-			// Check tick every 5 portals removed (increased frequency)
-			if(portals_removed % 5 == 0)
+			// Check tick every 10 portals removed
+			if(portals_removed % 10 == 0)
 				CHECK_TICK
 
-		// Check tick every 50 turfs scanned for portals (increased frequency)
-		if(portals_removed % 50 == 0)
+		// Check tick every 100 turfs scanned for portals
+		if(portals_removed % 100 == 0)
 			CHECK_TICK
 
 	log_dungeon("Cleanup: Removed [portals_removed] portals from portal dungeon Z-level [dungeon_z_level]")
