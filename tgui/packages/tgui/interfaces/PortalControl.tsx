@@ -99,141 +99,135 @@ export const PortalControl = (props, context) => {
   const getMainContent = () => {
     if (cleanup_in_progress) {
       return (
-        <Stack.Item>
-          <Box textAlign="center">
-            <Icon name="exclamation-triangle" size={4} color="yellow" />
-            <Box bold fontSize="1.4rem" color="yellow" mt={1}>
-              CONDUIT COLLAPSE INITIATED
-            </Box>
-            <Box color="yellow" bold mt={1} fontSize="1.1rem">
-              <Icon name="radiation" mr={1} />
-              EMERGENCY DIMENSIONAL COLLAPSE IN PROGRESS
-            </Box>
-            <Box textAlign="center" color="label" fontSize="0.9rem" mt={2}>
-              <Icon name="clock" mr={1} />
-              Stabilizing space-time continuum...
-            </Box>
+        <Box textAlign="center">
+          <Icon name="exclamation-triangle" size={4} color="yellow" />
+          <Box bold fontSize="1.4rem" color="yellow" mt={1}>
+            CONDUIT COLLAPSE INITIATED
           </Box>
-        </Stack.Item>
+          <Box color="yellow" bold mt={1} fontSize="1.1rem">
+            <Icon name="radiation" mr={1} />
+            EMERGENCY DIMENSIONAL COLLAPSE IN PROGRESS
+          </Box>
+          <Box textAlign="center" color="label" fontSize="0.9rem" mt={2}>
+            <Icon name="clock" mr={1} />
+            Stabilizing space-time continuum...
+          </Box>
+        </Box>
       );
     }
 
     if (generation_in_progress) {
       const safeProgress = Math.max(1, generation_progress);
       return (
-        <Stack.Item width="95%">
-          <Box textAlign="center" mb={2}>
-            <Icon name="cog" spin mr={1} size={1.5} />
-            <strong>STABILIZING VOID SPACE MATRIX</strong>
-          </Box>
-          <ProgressBar
-            value={safeProgress / 100}
-            color="blue"
-            ranges={{
-              good: [0.75, 1],
-              average: [0.25, 0.75],
-              bad: [0, 0.25],
-            }}
-          >
-            Dimensional Coherence: {safeProgress}%
-          </ProgressBar>
-          <Box textAlign="center" mt={1} color="label" fontSize="0.9rem">
-            Reality recalibration in progress...
-          </Box>
-        </Stack.Item>
+        <Stack vertical width="95%">
+          <Stack.Item>
+            <Box textAlign="center" mb={2}>
+              <Icon name="cog" spin mr={1} size={1.5} />
+              <strong>STABILIZING VOID SPACE MATRIX</strong>
+            </Box>
+          </Stack.Item>
+          <Stack.Item>
+            <ProgressBar
+              value={safeProgress / 100}
+              color="blue"
+              ranges={{
+                good: [0.75, 1],
+                average: [0.25, 0.75],
+                bad: [0, 0.25],
+              }}
+            >
+              Dimensional Coherence: {safeProgress}%
+            </ProgressBar>
+          </Stack.Item>
+          <Stack.Item>
+            <Box textAlign="center" mt={1} color="label" fontSize="0.9rem">
+              Reality recalibration in progress...
+            </Box>
+          </Stack.Item>
+        </Stack>
       );
     }
 
     if (can_generate) {
       return (
-        <Stack.Item>
-          <Button
-            fontSize="1.4rem"
-            lineHeight="1.2"
-            height="4rem"
-            width="16rem"
-            color="good"
-            onClick={() => act('generate_new')}
-            tooltip="Initiate dimensional breach protocol"
-          >
-            <Stack vertical align="center">
-              <Stack.Item>
-                <Icon name="portal" mr={1} size={1.5} />
-                BREACH VOID SPACE
-              </Stack.Item>
-              <Stack.Item fontSize="0.9rem" opacity={0.8}>
-                Initialize Dimensional Conduit
-              </Stack.Item>
-            </Stack>
-          </Button>
-        </Stack.Item>
+        <Button
+          fontSize="1.4rem"
+          lineHeight="1.2"
+          height="4rem"
+          width="16rem"
+          color="good"
+          onClick={() => act('generate_new')}
+          tooltip="Initiate dimensional breach protocol"
+        >
+          <Stack vertical align="center">
+            <Stack.Item>
+              <Icon name="portal" mr={1} size={1.5} />
+              BREACH VOID SPACE
+            </Stack.Item>
+            <Stack.Item fontSize="0.9rem" opacity={0.8}>
+              Initialize Dimensional Conduit
+            </Stack.Item>
+          </Stack>
+        </Button>
       );
     }
 
     if (portal_active) {
       return (
-        <Stack.Item>
-          <Box textAlign="center">
-            <Icon name="portal" size={4} color="good" />
-            <Box bold fontSize="1.4rem" color="good" mt={1}>
-              VOID SPACE CONDUIT ACTIVE
-            </Box>
-            {portal_name && (
-              <Box color="violet" bold mt={1} fontSize="1.1rem">
-                <Icon name="link" mr={1} />
-                Connected to: {portal_name}
-              </Box>
-            )}
+        <Box textAlign="center">
+          <Icon name="portal" size={4} color="good" />
+          <Box bold fontSize="1.4rem" color="good" mt={1}>
+            VOID SPACE CONDUIT ACTIVE
           </Box>
-        </Stack.Item>
+          {portal_name && (
+            <Box color="violet" bold mt={1} fontSize="1.1rem">
+              <Icon name="link" mr={1} />
+              Connected to: {portal_name}
+            </Box>
+          )}
+        </Box>
       );
     }
 
     if (!portal_present) {
       return (
-        <Stack.Item>
-          <Box textAlign="center" color="average">
-            <Icon name="exclamation-triangle" size={3} />
-            <Box bold fontSize="1.2rem" mt={1}>
-              VOID CONDUIT OFFLINE
-            </Box>
-            <Box fontSize="0.9rem" mt={1}>
-              No dimensional conduit detected in local space-time
-            </Box>
+        <Box textAlign="center" color="average">
+          <Icon name="exclamation-triangle" size={3} />
+          <Box bold fontSize="1.2rem" mt={1}>
+            VOID CONDUIT OFFLINE
           </Box>
-        </Stack.Item>
+          <Box fontSize="0.9rem" mt={1}>
+            No dimensional conduit detected in local space-time
+          </Box>
+        </Box>
       );
     }
 
     if (!portal_status) {
       return (
-        <Stack.Item>
-          <Box textAlign="center" color="yellow">
-            <Icon name="bolt" size={3} />
-            <Box bold fontSize="1.2rem" mt={1}>
-              ENERGY SIGNATURE UNSTABLE
-            </Box>
-            <Box fontSize="0.9rem" mt={1}>
-              Conduit requires stable power source for operation
-            </Box>
+        <Box textAlign="center" color="yellow">
+          <Icon name="bolt" size={3} />
+          <Box bold fontSize="1.2rem" mt={1}>
+            ENERGY SIGNATURE UNSTABLE
           </Box>
-        </Stack.Item>
+          <Box fontSize="0.9rem" mt={1}>
+            Conduit requires stable power source for operation
+          </Box>
+        </Box>
       );
     }
 
     // Ready state - portal present, powered, but not active
     return (
-      <Stack.Item>
-        <Box textAlign="center" color="blue">
-          <Icon name="check-circle" size={3} />
-          <Box bold fontSize="1.2rem" mt={1}>
-            VOID CONDUIT READY
-          </Box>
-          <Box fontSize="0.9rem" mt={1}>
-            Dimensional conduit prepared for breach sequence
-          </Box>
+      <Box textAlign="center" color="blue">
+        <Icon name="check-circle" size={3} />
+        <Box bold fontSize="1.2rem" mt={1}>
+          VOID CONDUIT READY
         </Box>
-      </Stack.Item>
+        <Box fontSize="0.9rem" mt={1}>
+          Dimensional conduit prepared for breach sequence
+        </Box>
+      </Box>
     );
   };
 
@@ -281,7 +275,7 @@ export const PortalControl = (props, context) => {
             </Section>
           </Stack.Item>
 
-          {/* Main Operations Panel - SINGLE STACK ITEM to prevent zeros */}
+          {/* Main Operations Panel */}
           <Stack.Item grow>
             <Section
               title="VOID SPACE OPERATIONS"
@@ -299,7 +293,7 @@ export const PortalControl = (props, context) => {
               }
             >
               <Stack vertical fill align="center" justify="center">
-                {getMainContent()}
+                <Stack.Item>{getMainContent()}</Stack.Item>
               </Stack>
             </Section>
           </Stack.Item>
@@ -320,11 +314,13 @@ export const PortalControl = (props, context) => {
                     {portal_status ? 'QUANTUM STABILIZED' : 'FLUCTUATING'}
                   </Box>
                 </LabeledList.Item>
-                {current_target?.name && !cleanup_in_progress && (
-                  <LabeledList.Item label="DIMENSIONAL ANCHOR">
-                    <Box color="blue">{current_target.name}</Box>
-                  </LabeledList.Item>
-                )}
+                {current_target?.name &&
+                  current_target.name !== '0' &&
+                  !cleanup_in_progress && (
+                    <LabeledList.Item label="DIMENSIONAL ANCHOR">
+                      <Box color="blue">{current_target.name}</Box>
+                    </LabeledList.Item>
+                  )}
                 {cleanup_in_progress && (
                   <LabeledList.Item label="EMERGENCY STATUS">
                     <Box color="yellow" bold>

@@ -251,7 +251,7 @@
 
 // ===== PORTAL CIRCUIT BOARD =====
 /obj/item/circuitboard/machine/portal
-	name = "Dimensional Portal (Machine Board)"
+	name = "Dimensional Portal"
 	desc = "A circuit board for a dimensional portal."
 	build_path = /obj/machinery/portal
 	req_components = list(

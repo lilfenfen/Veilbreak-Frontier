@@ -169,14 +169,16 @@
 		var/list/metadata = veil_dest.last_generation_data["metadata"]
 		if(metadata && metadata["map_name"])
 			var/map_name = metadata["map_name"]
-			log_portal_control("Portal Name: Using map name from JSON: [map_name]")
-			return map_name
+			// Ensure we don't return numbers or empty strings
+			if(map_name && map_name != "0" && map_name != "")
+				log_portal_control("Portal Name: Using map name from JSON: [map_name]")
+				return map_name
 
 	// Fallback if no map name in metadata
 	return generate_fallback_name()
 
 /obj/machinery/computer/portal_control/proc/generate_fallback_name()
-	return "Veilbreak Dungeon [rand(1000,9999)]"
+	return "Dungeon [rand(1000,9999)]" // Always returns a string, never a number
 
 // Construction and deconstruction - standard console behavior
 /obj/machinery/computer/portal_control/on_construction()
@@ -208,7 +210,7 @@
 
 // ===== PORTAL CONTROL CIRCUIT BOARD =====
 /obj/item/circuitboard/computer/portal_control
-	name = "Portal Control Console (Computer Board)"
+	name = "Portal Control Console"
 	desc = "A circuit board for a portal control console."
 	build_path = /obj/machinery/computer/portal_control
 	// No components needed - standard console
