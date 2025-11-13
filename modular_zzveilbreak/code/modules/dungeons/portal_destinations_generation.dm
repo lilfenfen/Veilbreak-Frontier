@@ -237,7 +237,7 @@
 
 	log_dungeon("Subsystems: Initialized [processed] machinery objects")
 
-/// ENHANCED smoothing for walls and structures - using exact patterns from codebase
+/// ENHANCED smoothing for walls and structures - CRITICAL FIXES
 /datum/portal_destination/veilbreak/proc/initialize_enhanced_smoothing(z_level)
 	log_dungeon("Smoothing: Starting ENHANCED wall and structure smoothing for Z-level [z_level]")
 
@@ -248,119 +248,130 @@
 	var/smoothed_count = 0
 	var/walls_fixed = 0
 
-	// First, ensure all walls have proper smoothing flags and groups matching codebase patterns
-	for(var/turf/closed/wall/wall in world)
-		if(wall.z == z_level)
-			// Match exact pattern from ice mineral wall example
-			wall.smoothing_flags = SMOOTH_BITMASK | SMOOTH_BORDER
-			wall.smoothing_groups = list(SMOOTH_GROUP_CLOSED_TURFS, SMOOTH_GROUP_WALLS)
-			wall.canSmoothWith = list(SMOOTH_GROUP_CLOSED_TURFS, SMOOTH_GROUP_WALLS)
-			walls_fixed++
-			CHECK_TICK
-
-	// Also fix mineral walls using same pattern
-	for(var/turf/closed/wall/mineral/mineral_wall in world)
-		if(mineral_wall.z == z_level)
-			mineral_wall.smoothing_flags = SMOOTH_BITMASK | SMOOTH_BORDER
-			mineral_wall.smoothing_groups = list(SMOOTH_GROUP_CLOSED_TURFS, SMOOTH_GROUP_MINERAL_WALLS)
-			mineral_wall.canSmoothWith = list(SMOOTH_GROUP_CLOSED_TURFS, SMOOTH_GROUP_MINERAL_WALLS)
-			walls_fixed++
-			CHECK_TICK
-
-	// Fix reinforced walls with same pattern
-	for(var/turf/closed/wall/r_wall in world)
-		if(r_wall.z == z_level && !istype(r_wall, /turf/closed/wall/mineral))
-			r_wall.smoothing_flags = SMOOTH_BITMASK | SMOOTH_BORDER
-			r_wall.smoothing_groups = list(SMOOTH_GROUP_CLOSED_TURFS, SMOOTH_GROUP_WALLS)
-			r_wall.canSmoothWith = list(SMOOTH_GROUP_CLOSED_TURFS, SMOOTH_GROUP_WALLS)
-			walls_fixed++
-			CHECK_TICK
-
-	log_dungeon("Smoothing: Fixed smoothing flags for [walls_fixed] walls")
-
-	// Now queue everything for smoothing
-	for(var/turf/closed/wall/wall in world)
-		if(wall.z == z_level)
-			QUEUE_SMOOTH(wall)
-			smoothed_count++
-			if(smoothed_count % 50 == 0)
-				CHECK_TICK
-
-	// Queue all mineral walls
-	for(var/turf/closed/wall/mineral/mineral_wall in world)
-		if(mineral_wall.z == z_level)
-			QUEUE_SMOOTH(mineral_wall)
-			smoothed_count++
-			if(smoothed_count % 50 == 0)
-				CHECK_TICK
-
-	// Queue all reinforced walls
-	for(var/turf/closed/wall/r_wall in world)
-		if(r_wall.z == z_level)
-			QUEUE_SMOOTH(r_wall)
-			smoothed_count++
-			if(smoothed_count % 50 == 0)
-				CHECK_TICK
-
-	// Queue structures that support smoothing
-	for(var/obj/structure/structure in world)
-		if(structure.z == z_level && structure.smoothing_flags)
-			QUEUE_SMOOTH(structure)
-			smoothed_count++
-			if(smoothed_count % 50 == 0)
-				CHECK_TICK
-
-	log_dungeon("Smoothing: Queued [smoothed_count] objects for ENHANCED smoothing on Z-level [z_level]")
-
-	// Force an immediate smoothing update for the entire Z-level
-	addtimer(CALLBACK(src, .proc/force_smoothing_update, z_level), 1 SECONDS)
-
-/// Force a complete smoothing update for the Z-level
-/datum/portal_destination/veilbreak/proc/force_smoothing_update(z_level)
-	log_dungeon("Smoothing: Forcing complete smoothing update for Z-level [z_level]")
-
-	// Force smooth all walls on the Z-level
-	for(var/turf/closed/wall/wall in world)
-		if(wall.z == z_level)
-			wall.smooth_icon()
-			CHECK_TICK
-
-	// Force smooth all mineral walls
-	for(var/turf/closed/wall/mineral/mineral_wall in world)
-		if(mineral_wall.z == z_level)
-			mineral_wall.smooth_icon()
-			CHECK_TICK
-
-	log_dungeon("Smoothing: Complete smoothing update finished for Z-level [z_level]")
-
-/// Replace generated walls with proper SS13 wall types (optional fallback)
-/datum/portal_destination/veilbreak/proc/replace_walls_with_proper_types(z_level)
-	log_dungeon("Wall Replacement: Starting wall type replacement for Z-level [z_level]")
-
-	var/walls_replaced = 0
-
+	// CRITICAL FIX: First, ensure ALL walls have proper base_icon_state and smoothing setup
 	for(var/turf/closed/wall/wall in world)
 		if(wall.z != z_level)
 			continue
 
-		// Skip if already a proper wall type
-		if(istype(wall, /turf/closed/wall) && !istype(wall, /turf/closed/wall/mineral))
+		// SET BASE ICON STATE - This is essential for smoothing to work
+		if(!wall.base_icon_state)
+			wall.base_icon_state = "wall"
+			log_dungeon("Smoothing: Set base_icon_state to 'wall' for [wall] at [AREACOORD(wall)]")
+
+		// Set proper smoothing flags - use the exact same pattern as standard walls
+		wall.smoothing_flags = SMOOTH_BITMASK | SMOOTH_BORDER
+		wall.smoothing_groups = list(SMOOTH_GROUP_CLOSED_TURFS, SMOOTH_GROUP_WALLS)
+		wall.canSmoothWith = list(SMOOTH_GROUP_CLOSED_TURFS, SMOOTH_GROUP_WALLS)
+
+		walls_fixed++
+		CHECK_TICK
+
+	// Fix mineral walls
+	for(var/turf/closed/wall/mineral/mineral_wall in world)
+		if(mineral_wall.z != z_level)
 			continue
 
-		var/turf/closed/wall/new_wall
+		if(!mineral_wall.base_icon_state)
+			mineral_wall.base_icon_state = "wall"
+			log_dungeon("Smoothing: Set base_icon_state to 'wall' for mineral wall at [AREACOORD(mineral_wall)]")
 
-		// Determine what type of wall to create based on appearance or other factors
-		if(istype(wall, /turf/closed/wall/mineral))
-			// Keep mineral walls but ensure they're proper types
-			new_wall = wall.ChangeTurf(/turf/closed/wall/mineral/iron) // Default to iron
-		else
-			// Regular wall
-			new_wall = wall.ChangeTurf(/turf/closed/wall)
+		mineral_wall.smoothing_flags = SMOOTH_BITMASK | SMOOTH_BORDER
+		mineral_wall.smoothing_groups = list(SMOOTH_GROUP_CLOSED_TURFS, SMOOTH_GROUP_MINERAL_WALLS)
+		mineral_wall.canSmoothWith = list(SMOOTH_GROUP_CLOSED_TURFS, SMOOTH_GROUP_MINERAL_WALLS)
+		walls_fixed++
+		CHECK_TICK
 
-		if(new_wall)
-			walls_replaced++
+	// Fix reinforced walls
+	for(var/turf/closed/wall/r_wall in world)
+		if(r_wall.z != z_level || istype(r_wall, /turf/closed/wall/mineral))
+			continue
 
-		if(walls_replaced % 25 == 0)
+		if(!r_wall.base_icon_state)
+			r_wall.base_icon_state = "wall"
+			log_dungeon("Smoothing: Set base_icon_state to 'wall' for reinforced wall at [AREACOORD(r_wall)]")
+
+		r_wall.smoothing_flags = SMOOTH_BITMASK | SMOOTH_BORDER
+		r_wall.smoothing_groups = list(SMOOTH_GROUP_CLOSED_TURFS, SMOOTH_GROUP_WALLS)
+		r_wall.canSmoothWith = list(SMOOTH_GROUP_CLOSED_TURFS, SMOOTH_GROUP_WALLS)
+		walls_fixed++
+		CHECK_TICK
+
+	log_dungeon("Smoothing: Fixed [walls_fixed] walls with proper smoothing configuration")
+
+	// Now force immediate smoothing for ALL walls
+	force_immediate_smoothing(z_level)
+
+/// Force immediate smoothing without relying on the queue
+/datum/portal_destination/veilbreak/proc/force_immediate_smoothing(z_level)
+	log_dungeon("Smoothing: Forcing IMMEDIATE smoothing for Z-level [z_level]")
+
+	var/smoothed_count = 0
+
+	// Smooth all walls immediately
+	for(var/turf/closed/wall/wall in world)
+		if(wall.z != z_level)
+			continue
+
+		// Clear any existing smoothing state
+		wall.smoothing_junction = NONE
+		wall.icon_state = wall.base_icon_state
+
+		// Force smooth immediately
+		wall.smooth_icon()
+		smoothed_count++
+
+		if(smoothed_count % 25 == 0)
 			CHECK_TICK
 
-	log_dungeon("Wall Replacement: Replaced [walls_replaced] walls with proper types")
+	// Smooth all mineral walls
+	for(var/turf/closed/wall/mineral/mineral_wall in world)
+		if(mineral_wall.z != z_level)
+			continue
+
+		mineral_wall.smoothing_junction = NONE
+		mineral_wall.icon_state = mineral_wall.base_icon_state
+		mineral_wall.smooth_icon()
+		smoothed_count++
+
+		if(smoothed_count % 25 == 0)
+			CHECK_TICK
+
+	// Smooth all reinforced walls
+	for(var/turf/closed/wall/r_wall in world)
+		if(r_wall.z != z_level)
+			continue
+
+		r_wall.smoothing_junction = NONE
+		r_wall.icon_state = r_wall.base_icon_state
+		r_wall.smooth_icon()
+		smoothed_count++
+
+		if(smoothed_count % 25 == 0)
+			CHECK_TICK
+
+	log_dungeon("Smoothing: IMMEDIATELY smoothed [smoothed_count] walls on Z-level [z_level]")
+
+	// Force a second pass after a brief delay to catch any missed connections
+	addtimer(CALLBACK(src, .proc/final_smoothing_pass, z_level), 2 SECONDS)
+
+/// Final smoothing pass to ensure everything is properly connected
+/datum/portal_destination/veilbreak/proc/final_smoothing_pass(z_level)
+	log_dungeon("Smoothing: Starting FINAL smoothing pass for Z-level [z_level]")
+
+	var/updated_count = 0
+
+	// Do one more pass to ensure all walls are properly smoothed
+	for(var/turf/closed/wall/wall in world)
+		if(wall.z != z_level)
+			continue
+
+		var/old_junction = wall.smoothing_junction
+		wall.smooth_icon()
+
+		if(wall.smoothing_junction != old_junction)
+			updated_count++
+
+		if(updated_count % 50 == 0)
+			CHECK_TICK
+
+	log_dungeon("Smoothing: FINAL pass updated [updated_count] walls on Z-level [z_level]")
