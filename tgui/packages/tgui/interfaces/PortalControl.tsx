@@ -144,23 +144,25 @@ export const PortalControl = (props, context) => {
 
     if (can_generate) {
       return (
-        <Button
-          fontSize="1.4rem"
-          lineHeight="1.2"
-          height="4rem"
-          width="16rem"
-          color="good"
-          onClick={() => act('generate_new')}
-          tooltip="Initiate dimensional breach protocol"
-        >
-          <Box textAlign="center">
-            <Icon name="portal" mr={1} size={1.5} />
-            BREACH VOID SPACE
-            <Box fontSize="0.9rem" opacity={0.8}>
-              Initialize Dimensional Conduit
+        <Box textAlign="center">
+          <Button
+            fontSize="1.4rem"
+            lineHeight="1.2"
+            height="4rem"
+            width="18rem" // Increased from 16rem to 18rem for better text fit
+            color="good"
+            onClick={() => act('generate_new')}
+            tooltip="Initiate dimensional breach protocol"
+          >
+            <Box textAlign="center">
+              <Icon name="portal" mr={1} size={1.5} />
+              BREACH VOID SPACE
+              <Box fontSize="0.9rem" opacity={0.8} mt={0.5}>
+                Initialize Dimensional Conduit
+              </Box>
             </Box>
-          </Box>
-        </Button>
+          </Button>
+        </Box>
       );
     }
 
@@ -223,12 +225,17 @@ export const PortalControl = (props, context) => {
     );
   };
 
+  // Check if we should show the DIMENSIONAL ANCHOR line
+  const showDimensionalAnchor =
+    current_target?.name && current_target.name !== '0' && !cleanup_in_progress;
+
   return (
     <Window width={500} height={460} theme="void">
       <Window.Content>
-        <Stack vertical fill>
+        {/* COMPLETELY REMOVED Stack - using direct structure */}
+        <Box height="100%" display="flex" flexDirection="column">
           {/* Header Status Panel */}
-          <Stack.Item>
+          <Box>
             <Section
               title="VOID SPACE CONDUIT CONTROL"
               buttons={
@@ -265,10 +272,10 @@ export const PortalControl = (props, context) => {
                 )}
               </LabeledList>
             </Section>
-          </Stack.Item>
+          </Box>
 
-          {/* Main Operations Panel - COMPLETELY REMOVED Stack from here */}
-          <Stack.Item grow>
+          {/* Main Operations Panel - Takes remaining space */}
+          <Box flexGrow={1} mt={1}>
             <Section
               title="VOID SPACE OPERATIONS"
               fill
@@ -284,15 +291,20 @@ export const PortalControl = (props, context) => {
                 ) : null
               }
             >
-              {/* Direct content without any Stack wrappers */}
-              <Box height="100%" display="flex" align="center" justify="center">
+              {/* Direct centered content */}
+              <Box
+                height="100%"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+              >
                 {getMainContent()}
               </Box>
             </Section>
-          </Stack.Item>
+          </Box>
 
           {/* Diagnostics Panel */}
-          <Stack.Item>
+          <Box mt={1}>
             <Section title="CONDUIT DIAGNOSTICS">
               <LabeledList>
                 <LabeledList.Item label="CONDUIT HARDWARE">
@@ -307,13 +319,11 @@ export const PortalControl = (props, context) => {
                     {portal_status ? 'QUANTUM STABILIZED' : 'FLUCTUATING'}
                   </Box>
                 </LabeledList.Item>
-                {current_target?.name &&
-                  current_target.name !== '0' &&
-                  !cleanup_in_progress && (
-                    <LabeledList.Item label="DIMENSIONAL ANCHOR">
-                      <Box color="blue">{current_target.name}</Box>
-                    </LabeledList.Item>
-                  )}
+                {showDimensionalAnchor && (
+                  <LabeledList.Item label="DIMENSIONAL ANCHOR">
+                    <Box color="blue">{current_target.name}</Box>
+                  </LabeledList.Item>
+                )}
                 {cleanup_in_progress && (
                   <LabeledList.Item label="EMERGENCY STATUS">
                     <Box color="yellow" bold>
@@ -324,8 +334,8 @@ export const PortalControl = (props, context) => {
                 )}
               </LabeledList>
             </Section>
-          </Stack.Item>
-        </Stack>
+          </Box>
+        </Box>
       </Window.Content>
     </Window>
   );
