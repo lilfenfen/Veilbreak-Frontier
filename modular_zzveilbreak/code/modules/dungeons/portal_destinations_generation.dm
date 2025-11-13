@@ -188,8 +188,12 @@
 	initialize_lighting(z_level)
 	CHECK_TICK
 
-	// CRITICAL: Force all walls to use proper icon file with smoothing states
-	force_wall_icon_compatibility(z_level)
+	// CRITICAL: Debug wall smoothing configuration
+	debug_wall_smoothing_configuration(z_level)
+	CHECK_TICK
+
+	// CRITICAL: Force all walls to have proper smoothing setup
+	force_wall_smoothing_setup(z_level)
 	CHECK_TICK
 
 	// Initialize ENHANCED wall and structure smoothing LAST
@@ -313,33 +317,94 @@
 
 	log_dungeon("Subsystems: Initialized [processed] machinery objects")
 
-/// CRITICAL: Force all walls to use proper icon file with smoothing states
-/datum/portal_destination/veilbreak/proc/force_wall_icon_compatibility(z_level)
-	log_dungeon("Wall Icon: Forcing proper icon file for all walls on Z-level [z_level]")
+/// Debug wall smoothing configuration
+/datum/portal_destination/veilbreak/proc/debug_wall_smoothing_configuration(z_level)
+	log_dungeon("Wall Debug: Checking wall smoothing configuration on Z-level [z_level]")
+
+	var/sample_count = 0
+	var/has_smoothing_flags = 0
+	var/has_smoothing_groups = 0
+	var/has_canSmoothWith = 0
+	var/has_base_icon_state = 0
+
+	// Sample first 10 walls to check their configuration
+	for(var/turf/closed/wall/wall in world)
+		if(wall.z != z_level)
+			continue
+
+		sample_count++
+		if(sample_count > 10)
+			break
+
+		log_dungeon("Wall Debug: Wall [sample_count] at [AREACOORD(wall)]")
+		log_dungeon("Wall Debug:   base_icon_state: '[wall.base_icon_state]'")
+		log_dungeon("Wall Debug:   smoothing_flags: [wall.smoothing_flags]")
+		log_dungeon("Wall Debug:   smoothing_groups: [json_encode(wall.smoothing_groups)]")
+		log_dungeon("Wall Debug:   canSmoothWith: [json_encode(wall.canSmoothWith)]")
+		log_dungeon("Wall Debug:   icon_state: '[wall.icon_state]'")
+		log_dungeon("Wall Debug:   icon: '[wall.icon]'")
+
+		if(wall.smoothing_flags)
+			has_smoothing_flags++
+		if(wall.smoothing_groups)
+			has_smoothing_groups++
+		if(wall.canSmoothWith)
+			has_canSmoothWith++
+		if(wall.base_icon_state)
+			has_base_icon_state++
+
+	log_dungeon("Wall Debug: Sample Results - Smoothing Flags: [has_smoothing_flags]/[sample_count], Smoothing Groups: [has_smoothing_groups]/[sample_count], CanSmoothWith: [has_canSmoothWith]/[sample_count], Base Icon State: [has_base_icon_state]/[sample_count]")
+
+/// Force all walls to have proper smoothing setup
+/datum/portal_destination/veilbreak/proc/force_wall_smoothing_setup(z_level)
+	log_dungeon("Wall Setup: Forcing proper smoothing setup for all walls on Z-level [z_level]")
 
 	var/fixed_count = 0
 
-	// Force ALL walls to use the default wall icon that has proper smoothing states
 	for(var/turf/closed/wall/wall in world)
-		if(wall.z == z_level)
-			// Force the wall to use the default wall icon that has all smoothing states
-			wall.icon = 'icons/turf/walls/wall.dmi'
+		if(wall.z != z_level)
+			continue
 
-			// Ensure base_icon_state is set
-			if(!wall.base_icon_state)
-				wall.base_icon_state = "wall"
+		// CRITICAL: Ensure all smoothing properties are set
 
-			// Reset to base state
-			wall.icon_state = "[wall.base_icon_state]-0"
+		// 1. Ensure base_icon_state is set
+		if(!wall.base_icon_state)
+			wall.base_icon_state = "wall"
+			log_dungeon("Wall Setup: Fixed base_icon_state for wall at [AREACOORD(wall)]")
 
-			// Reset smoothing state
-			wall.smoothing_junction = 0
+		// 2. Ensure smoothing flags are set
+		if(!(wall.smoothing_flags & SMOOTH_BITMASK))
+			wall.smoothing_flags = SMOOTH_BITMASK | SMOOTH_BORDER
+			log_dungeon("Wall Setup: Fixed smoothing_flags for wall at [AREACOORD(wall)]")
 
-			fixed_count++
-			if(fixed_count % 50 == 0)
-				CHECK_TICK
+		// 3. Ensure smoothing groups are set (use proper associative list format)
+		if(!wall.smoothing_groups)
+			wall.smoothing_groups = list(
+				SMOOTH_GROUP_CLOSED_TURFS = TRUE,
+				SMOOTH_GROUP_WALLS = TRUE
+			)
+			log_dungeon("Wall Setup: Fixed smoothing_groups for wall at [AREACOORD(wall)]")
 
-	log_dungeon("Wall Icon: Fixed [fixed_count] walls with proper icon file")
+		// 4. Ensure canSmoothWith is set (use proper associative list format)
+		if(!wall.canSmoothWith)
+			wall.canSmoothWith = list(
+				SMOOTH_GROUP_CLOSED_TURFS = TRUE,
+				SMOOTH_GROUP_WALLS = TRUE
+			)
+			log_dungeon("Wall Setup: Fixed canSmoothWith for wall at [AREACOORD(wall)]")
+
+		// 5. Reset to base state
+		wall.smoothing_junction = 0
+		wall.icon_state = "[wall.base_icon_state]-0"
+
+		// 6. Force proper icon file
+		wall.icon = 'icons/turf/walls/wall.dmi'
+
+		fixed_count++
+		if(fixed_count % 50 == 0)
+			CHECK_TICK
+
+	log_dungeon("Wall Setup: Fixed [fixed_count] walls with proper smoothing configuration")
 
 /// ENHANCED smoothing for walls and structures
 /datum/portal_destination/veilbreak/proc/initialize_enhanced_smoothing(z_level)
@@ -349,42 +414,47 @@
 		log_dungeon("Smoothing: Smoothing subsystem not available")
 		return
 
-	// Wait a tick to ensure all walls have proper icons
+	// Wait a tick to ensure all walls are properly configured
 	sleep(1)
 
-	var/smoothed_count = 0
-
-	// First pass: Direct smooth all walls immediately
-	log_dungeon("Smoothing: Starting DIRECT smoothing pass")
+	// METHOD 1: Direct manual smoothing
+	log_dungeon("Smoothing: METHOD 1 - Direct manual smoothing")
+	var/direct_count = 0
 	for(var/turf/closed/wall/wall in world)
-		if(wall.z == z_level && wall.smoothing_flags)
-			// Direct smooth call - don't queue, do it immediately
+		if(wall.z == z_level)
+			// Call smooth_icon directly
 			wall.smooth_icon()
-			smoothed_count++
-			if(smoothed_count % 100 == 0)
+			direct_count++
+			if(direct_count % 100 == 0)
 				CHECK_TICK
+	log_dungeon("Smoothing: Direct smoothed [direct_count] walls")
 
-	log_dungeon("Smoothing: Direct smoothed [smoothed_count] walls")
+	// METHOD 2: Use the smoothing subsystem
+	log_dungeon("Smoothing: METHOD 2 - Subsystem queued smoothing")
+	// Queue all walls for subsystem smoothing
+	var/queued_count = 0
+	for(var/turf/closed/wall/wall in world)
+		if(wall.z == z_level)
+			QUEUE_SMOOTH(wall)
+			queued_count++
+			if(queued_count % 100 == 0)
+				CHECK_TICK
+	log_dungeon("Smoothing: Queued [queued_count] walls for subsystem smoothing")
 
-	// Force subsystem smoothing
-	addtimer(CALLBACK(src, .proc/force_subsystem_smoothing, z_level), 2 SECONDS)
+	// METHOD 3: Use global smooth_zlevel
+	log_dungeon("Smoothing: METHOD 3 - Global Z-level smoothing")
+	smooth_zlevel(z_level, TRUE) // TRUE = immediate
 
-/// Force subsystem smoothing pass
-/datum/portal_destination/veilbreak/proc/force_subsystem_smoothing(z_level)
-	log_dungeon("Smoothing: Forcing SUBSYSTEM smoothing update for Z-level [z_level]")
+	// Final verification
+	addtimer(CALLBACK(src, .proc/verify_and_finalize_smoothing, z_level), 2 SECONDS)
 
-	// Use the global proc to smooth the entire Z-level (immediate)
-	smooth_zlevel(z_level, TRUE)
+/// Verify and finalize smoothing
+/datum/portal_destination/veilbreak/proc/verify_and_finalize_smoothing(z_level)
+	log_dungeon("Smoothing: Verifying and finalizing smoothing for Z-level [z_level]")
 
-	// Final verification pass
-	addtimer(CALLBACK(src, .proc/verify_smoothing, z_level), 1 SECONDS)
-
-/// Verify smoothing was applied correctly
-/datum/portal_destination/veilbreak/proc/verify_smoothing(z_level)
-	log_dungeon("Smoothing: Verifying smoothing results for Z-level [z_level]")
-
-	var/unsmoothed_count = 0
+	// Count smoothed vs unsmoothed walls
 	var/smoothed_count = 0
+	var/unsmoothed_count = 0
 
 	for(var/turf/closed/wall/wall in world)
 		if(wall.z == z_level)
@@ -393,18 +463,38 @@
 			else
 				smoothed_count++
 
-	log_dungeon("Smoothing: Verification - Smoothed: [smoothed_count], Unsmoothed: [unsmoothed_count]")
+	log_dungeon("Smoothing: Final Results - Smoothed: [smoothed_count], Unsmoothed: [unsmoothed_count]")
 
-	// If there are still unsmoothed walls, try one more direct pass
+	// If there are still unsmoothed walls, try emergency fix
 	if(unsmoothed_count > 0)
-		log_dungeon("Smoothing: Found [unsmoothed_count] unsmoothed walls, forcing final direct smooth")
-		var/final_count = 0
-		for(var/turf/closed/wall/wall in world)
-			if(wall.z == z_level && wall.icon_state == "wall-0")
-				wall.smooth_icon()
-				final_count++
-				if(final_count % 100 == 0)
-					CHECK_TICK
-		log_dungeon("Smoothing: Final direct smoothed [final_count] walls")
+		log_dungeon("Smoothing: EMERGENCY - [unsmoothed_count] walls still not smoothed, attempting emergency fix")
+		emergency_wall_smoothing_fix(z_level)
 
 	log_dungeon("Smoothing: Complete smoothing process finished for Z-level [z_level]")
+
+/// Emergency wall smoothing fix
+/datum/portal_destination/veilbreak/proc/emergency_wall_smoothing_fix(z_level)
+	log_dungeon("Smoothing: EMERGENCY - Applying emergency wall smoothing fix")
+
+	var/fixed_count = 0
+	for(var/turf/closed/wall/wall in world)
+		if(wall.z == z_level && wall.icon_state == "wall-0")
+			// Force manual junction calculation
+			var/new_junction = NONE
+
+			// Check all directions manually
+			for(var/dir in list(NORTH, SOUTH, EAST, WEST))
+				var/turf/neighbor = get_step(wall, dir)
+				if(neighbor && istype(neighbor, /turf/closed/wall))
+					new_junction |= dir
+
+			// Apply the junction
+			if(new_junction != NONE)
+				wall.smoothing_junction = new_junction
+				wall.icon_state = "wall-[new_junction]"
+				fixed_count++
+
+			if(fixed_count % 50 == 0)
+				CHECK_TICK
+
+	log_dungeon("Smoothing: EMERGENCY - Manually fixed [fixed_count] walls")
