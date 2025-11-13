@@ -119,32 +119,26 @@ export const PortalControl = (props, context) => {
     if (generation_in_progress) {
       const safeProgress = Math.max(1, generation_progress);
       return (
-        <Stack vertical width="95%">
-          <Stack.Item>
-            <Box textAlign="center" mb={2}>
-              <Icon name="cog" spin mr={1} size={1.5} />
-              <strong>STABILIZING VOID SPACE MATRIX</strong>
-            </Box>
-          </Stack.Item>
-          <Stack.Item>
-            <ProgressBar
-              value={safeProgress / 100}
-              color="blue"
-              ranges={{
-                good: [0.75, 1],
-                average: [0.25, 0.75],
-                bad: [0, 0.25],
-              }}
-            >
-              Dimensional Coherence: {safeProgress}%
-            </ProgressBar>
-          </Stack.Item>
-          <Stack.Item>
-            <Box textAlign="center" mt={1} color="label" fontSize="0.9rem">
-              Reality recalibration in progress...
-            </Box>
-          </Stack.Item>
-        </Stack>
+        <Box textAlign="center">
+          <Box mb={2}>
+            <Icon name="cog" spin mr={1} size={1.5} />
+            <strong>STABILIZING VOID SPACE MATRIX</strong>
+          </Box>
+          <ProgressBar
+            value={safeProgress / 100}
+            color="blue"
+            ranges={{
+              good: [0.75, 1],
+              average: [0.25, 0.75],
+              bad: [0, 0.25],
+            }}
+          >
+            Dimensional Coherence: {safeProgress}%
+          </ProgressBar>
+          <Box mt={1} color="label" fontSize="0.9rem">
+            Reality recalibration in progress...
+          </Box>
+        </Box>
       );
     }
 
@@ -159,15 +153,13 @@ export const PortalControl = (props, context) => {
           onClick={() => act('generate_new')}
           tooltip="Initiate dimensional breach protocol"
         >
-          <Stack vertical align="center">
-            <Stack.Item>
-              <Icon name="portal" mr={1} size={1.5} />
-              BREACH VOID SPACE
-            </Stack.Item>
-            <Stack.Item fontSize="0.9rem" opacity={0.8}>
+          <Box textAlign="center">
+            <Icon name="portal" mr={1} size={1.5} />
+            BREACH VOID SPACE
+            <Box fontSize="0.9rem" opacity={0.8}>
               Initialize Dimensional Conduit
-            </Stack.Item>
-          </Stack>
+            </Box>
+          </Box>
         </Button>
       );
     }
@@ -275,7 +267,7 @@ export const PortalControl = (props, context) => {
             </Section>
           </Stack.Item>
 
-          {/* Main Operations Panel */}
+          {/* Main Operations Panel - COMPLETELY REMOVED Stack from here */}
           <Stack.Item grow>
             <Section
               title="VOID SPACE OPERATIONS"
@@ -292,9 +284,10 @@ export const PortalControl = (props, context) => {
                 ) : null
               }
             >
-              <Stack vertical fill align="center" justify="center">
-                <Stack.Item>{getMainContent()}</Stack.Item>
-              </Stack>
+              {/* Direct content without any Stack wrappers */}
+              <Box height="100%" display="flex" align="center" justify="center">
+                {getMainContent()}
+              </Box>
             </Section>
           </Stack.Item>
 
