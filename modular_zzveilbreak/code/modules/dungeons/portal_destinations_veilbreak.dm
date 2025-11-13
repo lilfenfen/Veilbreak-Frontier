@@ -86,7 +86,7 @@
 		connected_control_computer.on_generation_failed(reason)
 		connected_control_computer = null
 
-/// ADD MISSING PROC: Start generation process
+// ADD MISSING PROC: Start generation process
 /datum/portal_destination/veilbreak/proc/start_generation()
 	log_dungeon("DUNGEON DEBUG: start_generation() called for [name]")
 
@@ -120,7 +120,7 @@
 	START_PROCESSING(SSobj, src)
 	return TRUE
 
-/// ADD MISSING PROC: Handle generation completion
+// ADD MISSING PROC: Handle generation completion
 /datum/portal_destination/veilbreak/proc/generation_complete(list/data)
 	log_dungeon("DUNGEON DEBUG: generation_complete() called")
 	generating = FALSE
@@ -140,24 +140,6 @@
 	if(connected_control_computer && !QDELETED(connected_control_computer))
 		connected_control_computer.on_generation_completed()
 		connected_control_computer = null
-
-/// ADD MISSING PROC: Load generated DMM content
-/datum/portal_destination/veilbreak/proc/load_generated_dmm(dmm_content)
-	log_dungeon("DUNGEON DEBUG: load_generated_dmm() called")
-
-	if(!dmm_content)
-		log_dungeon("DUNGEON DEBUG: No DMM content provided")
-		return generation_failed("No DMM content provided")
-
-	// Initialize or get the reusable portal Z-level
-	if(!initialize_portal_z_level())
-		log_dungeon("DUNGEON DEBUG: Failed to initialize portal Z-level")
-		return generation_failed("Failed to initialize portal Z-level")
-
-	log_dungeon("DUNGEON DEBUG: Using reusable portal Z-level [dungeon_z_level]")
-
-	// Load the DMM with tick balancing - NO CLEANUP NEEDED for fresh map
-	load_dmm_with_ticks(dmm_content)
 
 /datum/portal_destination/veilbreak/proc/ensure_portal_connection()
 	if(!dungeon_z_level)

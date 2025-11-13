@@ -1,5 +1,22 @@
 // modular_zzveilbreak/code/modules/dungeons/portal_destinations_generation.dm
 
+/datum/portal_destination/veilbreak/proc/load_generated_dmm(dmm_content)
+	log_dungeon("DUNGEON DEBUG: load_generated_dmm() called")
+
+	if(!dmm_content)
+		log_dungeon("DUNGEON DEBUG: No DMM content provided")
+		return generation_failed("No DMM content provided")
+
+	// Initialize or get the reusable portal Z-level
+	if(!initialize_portal_z_level())
+		log_dungeon("DUNGEON DEBUG: Failed to initialize portal Z-level")
+		return generation_failed("Failed to initialize portal Z-level")
+
+	log_dungeon("DUNGEON DEBUG: Using reusable portal Z-level [dungeon_z_level]")
+
+	// Load the DMM with tick balancing - NO CLEANUP NEEDED for fresh map
+	load_dmm_with_ticks(dmm_content)
+
 /datum/portal_destination/veilbreak/proc/load_dmm_with_ticks(dmm_content)
 	log_dungeon("DUNGEON DEBUG: Starting tick-balanced DMM loading")
 
@@ -69,7 +86,7 @@
 	initialize_areas_and_power(z_level)
 	CHECK_TICK
 
-	// Initialize lighting - FIXED
+	// Initialize lighting
 	initialize_enhanced_lighting(z_level)
 	CHECK_TICK
 
@@ -108,7 +125,7 @@
 
 		CHECK_TICK
 
-/// ENHANCED lighting initialization - FIXED SSlighting call
+/// FIXED: Enhanced lighting initialization - removed undefined SSlighting.InitializeTurfs call
 /datum/portal_destination/veilbreak/proc/initialize_enhanced_lighting(z_level)
 	log_dungeon("Lighting: Starting ENHANCED lighting initialization for Z-level [z_level]")
 
@@ -136,14 +153,6 @@
 
 	log_dungeon("Lighting: Created [light_objects_created] lighting objects for [lights_processed] turfs")
 
-	// FIXED: Use proper lighting initialization instead of undefined proc
-	force_lighting_update(z_level)
-
-/// Force lighting subsystem to update the entire Z-level - FIXED
-/datum/portal_destination/veilbreak/proc/force_lighting_update(z_level)
-	log_dungeon("Lighting: Forcing lighting update for Z-level [z_level]")
-
-	// FIX: Use proper lighting initialization method
 	// Force lighting to recalculate for the entire Z-level
 	var/list/turfs_to_update = block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level))
 
@@ -173,7 +182,7 @@
 
 	log_dungeon("Subsystems: Initialized [processed] machinery objects")
 
-/// ENHANCED smoothing for walls and structures - FIXED unused variable
+/// ENHANCED smoothing for walls and structures - FIXED unused variable warning
 /datum/portal_destination/veilbreak/proc/initialize_enhanced_smoothing(z_level)
 	log_dungeon("Smoothing: Starting ENHANCED wall and structure smoothing for Z-level [z_level]")
 
