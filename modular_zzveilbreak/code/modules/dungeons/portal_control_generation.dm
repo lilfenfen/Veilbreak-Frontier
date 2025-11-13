@@ -106,7 +106,7 @@
 
 	return FALSE
 
-/// SIMPLIFIED CLEANUP - Eject all mobs except hostile or void faction to SOUTH of portal
+/// FORCEFUL CLEANUP - Eject all mobs with throwing force in front of portal
 /obj/machinery/computer/portal_control/proc/cleanup_portal_simple(datum/portal_destination/veilbreak/veil_dest)
 	log_portal_control("DUNGEON DEBUG: cleanup_portal_simple called")
 
@@ -118,74 +118,24 @@
 		log_portal_control("DUNGEON DEBUG: Cleanup failed - no portal Z-level")
 		return
 
-	log_portal_control("DUNGEON DEBUG: Starting SIMPLIFIED cleanup of portal Z-level [veil_dest.dungeon_z_level]")
+	log_portal_control("DUNGEON DEBUG: Starting FORCEFUL cleanup of portal Z-level [veil_dest.dungeon_z_level]")
 
 	// Set cleanup in progress flag
 	cleanup_in_progress = TRUE
 	force_ui_update()
 
-	// Use the new simple dumping to SOUTH of portal
-	dump_mobs_south(veil_dest.dungeon_z_level)
-	log_portal_control("DUNGEON DEBUG: Completed mob dumping to south")
+	// Get area in front of portal for ejection
+	var/turf/ejection_turf = null
+	if(linked_portal && !QDELETED(linked_portal))
+		ejection_turf = get_step(linked_portal, SOUTH)
+		if(!ejection_turf)
+			ejection_turf = get_turf(linked_portal)
+		log_portal_control("DUNGEON DEBUG: Using force ejection turf at [AREACOORD(ejection_turf)]")
 
-	// Now call the destination's own cleanup proc with safety
-	veil_dest.cleanup_z_level_completely(veil_dest.dungeon_z_level)
-	log_portal_control("DUNGEON DEBUG: Called veil_dest.cleanup_z_level_completely()")
+	// Use the enhanced cleanup that ejects mobs with force and deletes everything
+	veil_dest.cleanup_z_level_completely(veil_dest.dungeon_z_level, ejection_turf)
+	log_portal_control("DUNGEON DEBUG: Called veil_dest.cleanup_z_level_completely() with force ejection")
 
 	// Clear the flag after cleanup completes
 	addtimer(CALLBACK(src, .proc/on_cleanup_completed), 5 SECONDS)
 	log_portal_control("DUNGEON DEBUG: Scheduled cleanup completion timer")
-
-// ===== SOUTH DUMPING SYSTEM =====
-
-/// Dump only mobs - players, corpses, everything except hostile/void to SOUTH of portal
-/obj/machinery/computer/portal_control/proc/dump_mobs_south(dungeon_z)
-	log_portal_control("DUNGEON DEBUG: dump_mobs_south called for Z-level [dungeon_z]")
-
-	if(!linked_portal || QDELETED(linked_portal))
-		log_portal_control("DUNGEON DEBUG: Dump failed - no linked portal")
-		return
-
-	var/turf/portal_turf = get_turf(linked_portal)
-	if(!portal_turf)
-		log_portal_control("DUNGEON DEBUG: Dump failed - no portal turf")
-		return
-
-	// Get turf directly SOUTH of portal
-	var/turf/south_turf = get_step(portal_turf, SOUTH)
-	if(!south_turf)
-		south_turf = portal_turf // Fallback to portal turf if no south available
-
-	log_portal_control("DUNGEON DEBUG: Starting MOB-ONLY dump from Z-level [dungeon_z] to [AREACOORD(south_turf)]")
-
-	var/dumped_count = 0
-	var/skipped_count = 0
-
-	// Only process mobs
-	for(var/mob/living/mob in GLOB.mob_living_list)
-		if(mob.z != dungeon_z)
-			continue
-
-		// Use the global proc to check if mob is hostile
-		if(is_hostile_or_void(mob))
-			skipped_count++
-			continue
-
-		// All other mobs get dumped to SOUTH of portal
-		mob.forceMove(south_turf)
-
-		// Stun and message for conscious mobs
-		if(mob.stat == CONSCIOUS)
-			mob.Stun(3 SECONDS)
-			to_chat(mob, span_warning("The portal collapses! You're ejected back to the station."))
-			playsound(mob, 'sound/effects/empulse.ogg', 50, TRUE)
-		else if(mob.stat == DEAD)
-			mob.visible_message(span_notice("[mob] appears from a collapsing portal!"))
-			playsound(mob, 'sound/effects/empulse.ogg', 30, TRUE)
-
-		dumped_count++
-
-	var/feedback_msg = "Portal collapse: [dumped_count] mobs returned to portal location. [skipped_count] hostiles removed."
-	if(linked_portal && !QDELETED(linked_portal))
-		linked_portal.say(feedback_msg)
-	log_portal_control("DUNGEON DEBUG: Dump complete - [feedback_msg]")

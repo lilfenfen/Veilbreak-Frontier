@@ -36,7 +36,6 @@
 	usr << "Portal Possible: [portal_possible]"
 	usr << "Transport Active: [transport_active]"
 	usr << "Is Dungeon Portal: [is_dungeon_portal()]"
-	usr << "Calibrated: [calibrated]"
 	usr << "Bumper: [bumper ? "Present at [AREACOORD(bumper)]" : "None"]"
 
 	if(target)

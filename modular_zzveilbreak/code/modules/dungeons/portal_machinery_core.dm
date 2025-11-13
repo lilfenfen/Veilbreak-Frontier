@@ -64,8 +64,6 @@
 	resistance_flags = LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF
 
 	// Portal state management
-	/// Whether this portal has been calibrated for stable operation
-	var/calibrated = TRUE
 	/// The default Veilbreak destination this portal creates
 	var/datum/portal_destination/veilbreak/destination
 	/// The currently active destination for transfers
@@ -128,50 +126,44 @@
 	cleanup_in_progress = TRUE
 	log_portal("Emergency: Portal destroyed while active, initiating emergency cleanup")
 
+	// Get area in front of portal for mob ejection - use multiple turfs for distribution
+	var/list/ejection_turfs = get_ejection_turfs()
+
 	// If this is a dungeon portal, clean up its Z-level
 	if(destination?.dungeon_z_level)
-		// Use existing cleanup functions
-		destination.cleanup_z_level_completely(destination.dungeon_z_level)
+		// Use enhanced cleanup with ejection
+		for(var/turf/ejection_turf in ejection_turfs)
+			destination.cleanup_z_level_completely(destination.dungeon_z_level, ejection_turf)
+			break // Only need one ejection point
 		log_portal("Emergency: Cleaned up dungeon Z-level [destination.dungeon_z_level]")
 
-	// If this is the station portal and has a target, return mobs to south of this location
+	// If this is the station portal and has a target, clean up the target's Z-level too
 	if(target && istype(target, /datum/portal_destination/veilbreak))
 		var/datum/portal_destination/veilbreak/veil_dest = target
-		return_mobs_to_portal(veil_dest.dungeon_z_level)
+		if(veil_dest.dungeon_z_level)
+			for(var/turf/ejection_turf in ejection_turfs)
+				veil_dest.cleanup_z_level_completely(veil_dest.dungeon_z_level, ejection_turf)
+				break // Only need one ejection point
+			log_portal("Emergency: Cleaned up target dungeon Z-level [veil_dest.dungeon_z_level]")
 
-/// Return all mobs from dungeon Z-level to south of this portal
-/obj/machinery/portal/proc/return_mobs_to_portal(dungeon_z)
-	if(!dungeon_z)
-		return
+/// Get turfs in front of portal for ejection
+/obj/machinery/portal/proc/get_ejection_turfs()
+	var/list/turfs = list()
+	var/turf/primary_turf = get_step(src, SOUTH)
 
-	log_portal("Emergency: Returning mobs from Z-level [dungeon_z] to portal location")
+	if(primary_turf)
+		turfs += primary_turf
+		// Add adjacent turfs to spread out ejected mobs
+		for(var/dir in list(EAST, WEST, SOUTHEAST, SOUTHWEST))
+			var/turf/adjacent = get_step(primary_turf, dir)
+			if(adjacent)
+				turfs += adjacent
 
-	var/turf/return_turf = get_step(src, SOUTH)
-	if(!return_turf)
-		return_turf = get_turf(src)
+	// Fallback if no valid turfs found
+	if(!length(turfs))
+		turfs += get_turf(src)
 
-	var/returned_count = 0
-	for(var/mob/living/mob in GLOB.mob_living_list)
-		if(mob.z == dungeon_z)
-			// Skip hostile mobs and void faction
-			if(is_hostile_or_void(mob))
-				continue
-
-			// Move mob to return location
-			mob.forceMove(return_turf)
-
-			// Stun and message for conscious mobs
-			if(mob.stat == CONSCIOUS)
-				mob.Stun(3 SECONDS)
-				to_chat(mob, span_warning("The portal collapses! You're ejected back to the station."))
-				playsound(mob, 'sound/effects/empulse.ogg', 50, TRUE)
-			else if(mob.stat == DEAD)
-				mob.visible_message(span_notice("[mob] appears from a collapsing portal!"))
-				playsound(mob, 'sound/effects/empulse.ogg', 30, TRUE)
-
-			returned_count++
-
-	log_portal("Emergency: Returned [returned_count] mobs to [AREACOORD(return_turf)]")
+	return turfs
 
 /// Check if this portal is located in a dungeon (mining/away Z-level)
 /obj/machinery/portal/proc/is_dungeon_portal()
@@ -198,8 +190,7 @@
 // Construction and deconstruction
 /obj/machinery/portal/on_construction()
 	. = ..()
-	// Portal starts uncalibrated when built
-	calibrated = FALSE
+	// Portal is ready to use when built
 
 /obj/machinery/portal/on_deconstruction()
 	. = ..()
@@ -214,11 +205,8 @@
 
 /obj/machinery/portal/RefreshParts()
 	. = ..()
-	// Portal parts could affect power usage or calibration time
-	// For now, just ensure calibration is maintained
-	if(!calibrated)
-		calibrated = TRUE
-		log_portal("RefreshParts: Portal auto-calibrated with new parts")
+	// Portal parts could affect power usage
+	// No calibration needed
 
 // Tool interactions following established patterns
 /obj/machinery/portal/screwdriver_act(mob/living/user, obj/item/tool)
@@ -254,15 +242,10 @@
 	if(held_item.tool_behaviour == TOOL_CROWBAR && panel_open)
 		context[SCREENTIP_CONTEXT_LMB] = "Deconstruct"
 		return CONTEXTUAL_SCREENTIP_SET
-	if(istype(held_item, /obj/item/multitool))
-		context[SCREENTIP_CONTEXT_LMB] = "Calibrate portal"
-		return CONTEXTUAL_SCREENTIP_SET
 
 // Update examine text to show construction status
 /obj/machinery/portal/examine(mob/user)
 	. = ..()
-	if(!calibrated)
-		. += span_warning("The portal appears uncalibrated. Use a multitool to calibrate it.")
 	if(panel_open)
 		. += span_notice("The maintenance panel is open.")
 

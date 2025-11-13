@@ -158,17 +158,3 @@
 
 	log_portal("Ghost: [key_name(user)] transferring through portal at [AREACOORD(src)]")
 	transfer(user)
-
-/obj/machinery/portal/multitool_act(mob/living/user, obj/item/tool)
-	. = ..()
-	if(.)
-		return TRUE
-
-	if(calibrated)
-		to_chat(user, span_alert("The portal is already calibrated, there is no work for you to do here."))
-	else
-		log_portal("Interaction: [key_name(user)] calibrated portal at [AREACOORD(src)]")
-		to_chat(user, span_boldnotice("Recalibration successful!") + " Portal systems have been fine tuned.")
-		calibrated = TRUE
-
-	return TRUE
