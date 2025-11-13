@@ -173,8 +173,8 @@
 	initialize_machinery(z_level)
 	CHECK_TICK
 
-	// Initialize wall and structure smoothing
-	initialize_smoothing(z_level)
+	// Initialize SIMPLE wall and structure smoothing
+	initialize_simple_smoothing(z_level)
 	CHECK_TICK
 
 	// Finalize portal connection
@@ -237,9 +237,9 @@
 
 	log_dungeon("Subsystems: Initialized [processed] machinery objects")
 
-/// Initialize smoothing for walls and structures
-/datum/portal_destination/veilbreak/proc/initialize_smoothing(z_level)
-	log_dungeon("Smoothing: Starting wall and structure smoothing for Z-level [z_level]")
+/// SIMPLE smoothing for walls and structures - just queue everything and let the subsystem handle it
+/datum/portal_destination/veilbreak/proc/initialize_simple_smoothing(z_level)
+	log_dungeon("Smoothing: Starting SIMPLE wall and structure smoothing for Z-level [z_level]")
 
 	if(!SSicon_smooth || !SSicon_smooth.initialized)
 		log_dungeon("Smoothing: Smoothing subsystem not available")
@@ -247,41 +247,29 @@
 
 	var/smoothed_count = 0
 
-	// Queue all walls and structures for smoothing
-	for(var/turf/closed/wall/wall in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
-		QUEUE_SMOOTH(wall)
-		smoothed_count++
-		if(smoothed_count % 100 == 0)
-			CHECK_TICK
+	// Simply queue ALL walls for smoothing - let SSicon_smooth handle the batching
+	for(var/turf/closed/wall/wall in world)
+		if(wall.z == z_level)
+			QUEUE_SMOOTH(wall)
+			smoothed_count++
 
-	// Also smooth mineral walls and reinforced walls
-	for(var/turf/closed/wall/r_wall in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
-		QUEUE_SMOOTH(r_wall)
-		smoothed_count++
-		if(smoothed_count % 100 == 0)
-			CHECK_TICK
+	// Also queue all mineral walls
+	for(var/turf/closed/wall/mineral/mineral_wall in world)
+		if(mineral_wall.z == z_level)
+			QUEUE_SMOOTH(mineral_wall)
+			smoothed_count++
 
-	for(var/turf/closed/wall/mineral/mineral_wall in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
-		QUEUE_SMOOTH(mineral_wall)
-		smoothed_count++
-		if(smoothed_count % 100 == 0)
-			CHECK_TICK
+	// Queue all reinforced walls
+	for(var/turf/closed/wall/r_wall in world)
+		if(r_wall.z == z_level)
+			QUEUE_SMOOTH(r_wall)
+			smoothed_count++
 
-	// Smooth structures that support it
+	// Queue structures that support smoothing
 	for(var/obj/structure/structure in world)
-		if(structure.z != z_level)
-			continue
-
-		if(structure.smoothing_flags)
+		if(structure.z == z_level && structure.smoothing_flags)
 			QUEUE_SMOOTH(structure)
 			smoothed_count++
 
-		if(smoothed_count % 100 == 0)
-			CHECK_TICK
-
-	log_dungeon("Smoothing: Queued [smoothed_count] objects for smoothing on Z-level [z_level]")
-
-	// Ensure smoothing subsystem processes our queued objects
-	if(SSicon_smooth && !SSicon_smooth.can_fire)
-		SSicon_smooth.can_fire = TRUE
-	log_dungeon("Smoothing: Completed smoothing initialization")
+	log_dungeon("Smoothing: Queued [smoothed_count] objects for SIMPLE smoothing on Z-level [z_level]")
+	log_dungeon("Smoothing: Completed SIMPLE smoothing initialization")
