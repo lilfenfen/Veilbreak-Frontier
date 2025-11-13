@@ -8,9 +8,14 @@
 	data["portal_status"] = data["portal_present"] ? linked_portal.powered() : FALSE
 	data["portal_active"] = data["portal_present"] ? (linked_portal.transport_active ? TRUE : FALSE) : FALSE
 
-	// Current target with safety checks
+	// Current target with safety checks - CRITICAL FIX: Ensure we don't pass invalid data
 	if(data["portal_present"] && linked_portal.target && !QDELETED(linked_portal.target))
-		data["current_target"] = list("name" = linked_portal.target.name)
+		var/target_name = linked_portal.target.name
+		// Validate the name - if it's "0" or empty, set to null so UI doesn't render it
+		if(target_name == "0" || target_name == "")
+			data["current_target"] = null
+		else
+			data["current_target"] = list("name" = target_name)
 	else
 		data["current_target"] = null
 

@@ -149,7 +149,7 @@ export const PortalControl = (props, context) => {
             fontSize="1.4rem"
             lineHeight="1.2"
             height="4rem"
-            width="18rem" // Increased from 16rem to 18rem for better text fit
+            width="20rem"
             color="good"
             onClick={() => act('generate_new')}
             tooltip="Initiate dimensional breach protocol"
@@ -225,17 +225,12 @@ export const PortalControl = (props, context) => {
     );
   };
 
-  // Check if we should show the DIMENSIONAL ANCHOR line
-  const showDimensionalAnchor =
-    current_target?.name && current_target.name !== '0' && !cleanup_in_progress;
-
   return (
     <Window width={500} height={460} theme="void">
       <Window.Content>
-        {/* COMPLETELY REMOVED Stack - using direct structure */}
-        <Box height="100%" display="flex" flexDirection="column">
+        <Stack vertical fill>
           {/* Header Status Panel */}
-          <Box>
+          <Stack.Item>
             <Section
               title="VOID SPACE CONDUIT CONTROL"
               buttons={
@@ -272,10 +267,10 @@ export const PortalControl = (props, context) => {
                 )}
               </LabeledList>
             </Section>
-          </Box>
+          </Stack.Item>
 
-          {/* Main Operations Panel - Takes remaining space */}
-          <Box flexGrow={1} mt={1}>
+          {/* Main Operations Panel */}
+          <Stack.Item grow>
             <Section
               title="VOID SPACE OPERATIONS"
               fill
@@ -291,7 +286,6 @@ export const PortalControl = (props, context) => {
                 ) : null
               }
             >
-              {/* Direct centered content */}
               <Box
                 height="100%"
                 display="flex"
@@ -301,10 +295,10 @@ export const PortalControl = (props, context) => {
                 {getMainContent()}
               </Box>
             </Section>
-          </Box>
+          </Stack.Item>
 
-          {/* Diagnostics Panel */}
-          <Box mt={1}>
+          {/* Diagnostics Panel - FIXED: No empty items */}
+          <Stack.Item>
             <Section title="CONDUIT DIAGNOSTICS">
               <LabeledList>
                 <LabeledList.Item label="CONDUIT HARDWARE">
@@ -319,23 +313,26 @@ export const PortalControl = (props, context) => {
                     {portal_status ? 'QUANTUM STABILIZED' : 'FLUCTUATING'}
                   </Box>
                 </LabeledList.Item>
-                {showDimensionalAnchor && (
+                {/* CRITICAL FIX: Only render DIMENSIONAL ANCHOR if we have a valid target */}
+                {current_target?.name &&
+                current_target.name !== '0' &&
+                !cleanup_in_progress ? (
                   <LabeledList.Item label="DIMENSIONAL ANCHOR">
                     <Box color="blue">{current_target.name}</Box>
                   </LabeledList.Item>
-                )}
-                {cleanup_in_progress && (
+                ) : null}
+                {cleanup_in_progress ? (
                   <LabeledList.Item label="EMERGENCY STATUS">
                     <Box color="yellow" bold>
                       <Icon name="exclamation-triangle" mr={1} />
                       SPACE-TIME COLLAPSE IN PROGRESS
                     </Box>
                   </LabeledList.Item>
-                )}
+                ) : null}
               </LabeledList>
             </Section>
-          </Box>
-        </Box>
+          </Stack.Item>
+        </Stack>
       </Window.Content>
     </Window>
   );
