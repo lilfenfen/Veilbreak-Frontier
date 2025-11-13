@@ -74,6 +74,11 @@
 
 		log_dungeon("Cleanup: Processing mob [mob] at [AREACOORD(mob)] - type: [mob.type], mind: [mob.mind ? "YES" : "NO"], faction: [mob.faction]")
 
+		// Skip observer mobs (ghosts, AI eyes, etc.) - they can phase through dimensions
+		if(isobserver(mob))
+			log_dungeon("Cleanup: Skipping observer mob [mob] - observers can phase through dimensions")
+			continue
+
 		// Check if this mob should be DELETED (FACTION_VOID or hostile)
 		var/should_delete = FALSE
 
@@ -93,7 +98,7 @@
 			qdel(mob)
 			mobs_deleted++
 
-		// EJECT all other mobs
+		// EJECT all other mobs (only physical, non-observer mobs)
 		else
 			// If we have an ejection turf, move mob there and throw them
 			if(ejection_turf && !QDELETED(ejection_turf))
@@ -104,16 +109,19 @@
 				var/throw_target = get_edge_target_turf(ejection_turf, pick(GLOB.cardinals))
 				mob.throw_at(throw_target, 3, 2, spin = TRUE)
 
-				if(mob.stat == CONSCIOUS)
-					// Use proper stun mechanics for living mobs
-					if(isliving(mob))
-						var/mob/living/living_mob = mob
+				// Only stun and message living mobs
+				if(isliving(mob))
+					var/mob/living/living_mob = mob
+					if(living_mob.stat == CONSCIOUS)
 						living_mob.Stun(12 SECONDS)
-					to_chat(mob, span_warning("The portal violently collapses! You're thrown clear!"))
-					playsound(mob, 'sound/effects/bang.ogg', 60, TRUE)
+						to_chat(living_mob, span_warning("The portal violently collapses! You're thrown clear!"))
+						playsound(living_mob, 'sound/effects/bang.ogg', 60, TRUE)
+					else
+						living_mob.visible_message(span_notice("[living_mob] is thrown from a collapsing portal!"))
+						playsound(living_mob, 'sound/effects/bang.ogg', 40, TRUE)
 				else
+					// Non-living mobs (shouldn't happen with our filters, but safety)
 					mob.visible_message(span_notice("[mob] is thrown from a collapsing portal!"))
-					playsound(mob, 'sound/effects/bang.ogg', 40, TRUE)
 
 				log_dungeon("Cleanup: Ejected mob [mob] from [old_loc] to [AREACOORD(ejection_turf)]")
 				mobs_ejected++
