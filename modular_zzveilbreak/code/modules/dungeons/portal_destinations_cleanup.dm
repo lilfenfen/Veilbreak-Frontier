@@ -69,8 +69,8 @@
 				mobs_on_turf += mob
 
 		if(!length(mobs_on_turf))
-			// Check tick every 100 turfs even if no mobs found
-			if(turfs_processed % 100 == 0)
+			// Check tick every 25 turfs even if no mobs found (increased frequency)
+			if(turfs_processed % 25 == 0)
 				CHECK_TICK
 			continue
 
@@ -143,12 +143,15 @@
 					qdel(mob)
 					mobs_deleted++
 
-			// Check tick every 10 mobs processed on this turf
-			if(mobs_on_this_turf % 10 == 0)
+			// Check tick every 5 mobs processed on this turf (increased frequency)
+			if(mobs_on_this_turf % 5 == 0)
 				CHECK_TICK
 
-		// Check tick every 50 turfs processed (regardless of mob count)
-		if(turfs_processed % 50 == 0)
+		// Check tick after processing each turf with mobs (NEW - additional safety)
+		CHECK_TICK
+
+		// Check tick every 20 turfs processed (regardless of mob count) (increased frequency)
+		if(turfs_processed % 20 == 0)
 			CHECK_TICK
 
 	log_dungeon("Cleanup: DIRECT APPROACH - Deleted [mobs_deleted] mobs and ejected [mobs_ejected] mobs from portal dungeon Z-level [z_level]")
@@ -173,8 +176,8 @@
 		qdel(object)
 		objects_deleted++
 
-		// Check tick every 50 objects deleted
-		if(objects_deleted % 50 == 0)
+		// Check tick every 25 objects deleted (increased frequency)
+		if(objects_deleted % 25 == 0)
 			CHECK_TICK
 
 	// Clean up areas
@@ -194,8 +197,8 @@
 			area.power_change()
 			areas_purged++
 
-		// Check tick every 10 areas processed
-		if(areas_purged % 10 == 0)
+		// Check tick every 5 areas processed (increased frequency)
+		if(areas_purged % 5 == 0)
 			CHECK_TICK
 
 	log_dungeon("Cleanup: Deleted [objects_deleted] objects and purged [areas_purged] areas from portal dungeon Z-level [z_level]")
@@ -209,8 +212,8 @@
 			T.ChangeTurf(/turf/open/space/basic, FALSE, FALSE)
 		turfs_processed++
 
-		// Check tick every 100 turfs processed
-		if(turfs_processed % 100 == 0)
+		// Check tick every 50 turfs processed (increased frequency)
+		if(turfs_processed % 50 == 0)
 			CHECK_TICK
 
 	log_dungeon("Cleanup: Reset [turfs_processed] turfs to space on portal dungeon Z-level [z_level]")
@@ -252,12 +255,12 @@
 			QDEL_NULL(dungeon_portal)
 			portals_removed++
 
-			// Check tick every 10 portals removed
-			if(portals_removed % 10 == 0)
+			// Check tick every 5 portals removed (increased frequency)
+			if(portals_removed % 5 == 0)
 				CHECK_TICK
 
-		// Check tick every 100 turfs scanned for portals
-		if(portals_removed % 100 == 0)
+		// Check tick every 50 turfs scanned for portals (increased frequency)
+		if(portals_removed % 50 == 0)
 			CHECK_TICK
 
 	log_dungeon("Cleanup: Removed [portals_removed] portals from portal dungeon Z-level [dungeon_z_level]")
