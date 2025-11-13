@@ -86,61 +86,6 @@
 		connected_control_computer.on_generation_failed(reason)
 		connected_control_computer = null
 
-// ADD MISSING PROC: Start generation process
-/datum/portal_destination/veilbreak/proc/start_generation()
-	log_dungeon("DUNGEON DEBUG: start_generation() called for [name]")
-
-	if(generating)
-		log_dungeon("DUNGEON DEBUG: Generation blocked - already generating")
-		return FALSE
-
-	// Verify mapping subsystem is ready
-	if(!SSmapping || !SSmapping.initialized)
-		log_dungeon("DUNGEON DEBUG: Generation failed - SSmapping not ready")
-		return FALSE
-
-	generating = TRUE
-	generated = FALSE
-	generation_progress = 0
-	log_dungeon("DUNGEON DEBUG: Set generation state - generating: TRUE, generated: FALSE, progress: 0")
-
-	if(!GLOB.dungeon_generator)
-		GLOB.dungeon_generator = new /datum/http_dungeon_generator()
-
-	log_dungeon("DUNGEON DEBUG: Starting generation for portal destination [name]")
-	current_request_id = GLOB.dungeon_generator.generate_dungeon(src, DUNGEON_WIDTH, DUNGEON_HEIGHT)
-
-	if(!current_request_id)
-		log_dungeon("DUNGEON DEBUG: Generation failed - generate_dungeon returned 0")
-		generating = FALSE
-		generation_failed("Failed to start generation request")
-		return FALSE
-
-	log_dungeon("DUNGEON DEBUG: Generation started successfully with request [current_request_id]")
-	START_PROCESSING(SSobj, src)
-	return TRUE
-
-// ADD MISSING PROC: Handle generation completion
-/datum/portal_destination/veilbreak/proc/generation_complete(list/data)
-	log_dungeon("DUNGEON DEBUG: generation_complete() called")
-	generating = FALSE
-
-	// Store generation data
-	last_generation_data = data.Copy()
-
-	// Access dmm_content from top level
-	if(data["dmm_content"])
-		log_dungeon("DUNGEON DEBUG: DMM content received, starting load process")
-		load_generated_dmm(data["dmm_content"])
-	else
-		log_dungeon("DUNGEON DEBUG: No DMM content in response")
-		generation_failed("No DMM content in response")
-
-	// Notify control computer
-	if(connected_control_computer && !QDELETED(connected_control_computer))
-		connected_control_computer.on_generation_completed()
-		connected_control_computer = null
-
 /datum/portal_destination/veilbreak/proc/ensure_portal_connection()
 	if(!dungeon_z_level)
 		log_dungeon("Connection: Cannot ensure connection - no Z-level assigned")

@@ -160,47 +160,6 @@
 	// Force UI update to re-enable generate button
 	force_ui_update()
 
-/// FORCEFUL CLEANUP - Eject all mobs with throwing force in front of portal
-/obj/machinery/computer/portal_control/proc/cleanup_portal_simple(datum/portal_destination/veilbreak/veil_dest)
-	log_portal_control("DUNGEON DEBUG: cleanup_portal_simple called")
-
-	if(!veil_dest || QDELETED(veil_dest))
-		log_portal_control("DUNGEON DEBUG: Cleanup failed - invalid destination")
-		return
-
-	if(!veil_dest.dungeon_z_level)
-		log_portal_control("DUNGEON DEBUG: Cleanup failed - no portal Z-level")
-		return
-
-	log_portal_control("DUNGEON DEBUG: Starting FORCEFUL cleanup of portal Z-level [veil_dest.dungeon_z_level]")
-
-	// Set cleanup in progress flag
-	cleanup_in_progress = TRUE
-	force_ui_update()
-
-	// First, deactivate the portal connection (like normal shutdown)
-	if(linked_portal?.target)
-		linked_portal.deactivate()
-
-	// Get area in front of portal for ejection
-	var/turf/ejection_turf = null
-	if(linked_portal && !QDELETED(linked_portal))
-		ejection_turf = get_step(linked_portal, SOUTH)
-		if(!ejection_turf)
-			ejection_turf = get_turf(linked_portal)
-		log_portal_control("DUNGEON DEBUG: Using force ejection turf at [AREACOORD(ejection_turf)]")
-
-	// Use the enhanced cleanup that ejects mobs with force and deletes everything
-	veil_dest.cleanup_z_level_completely(veil_dest.dungeon_z_level, ejection_turf)
-	log_portal_control("DUNGEON DEBUG: Called veil_dest.cleanup_z_level_completely() with force ejection")
-
-	// Clear our cached data
-	cached_portal_name = null
-
-	// Clear the flag after cleanup completes
-	addtimer(CALLBACK(src, .proc/on_cleanup_completed), 5 SECONDS)
-	log_portal_control("DUNGEON DEBUG: Scheduled cleanup completion timer")
-
 /obj/machinery/computer/portal_control/proc/get_portal_name(datum/portal_destination/veilbreak/veil_dest)
 	if(!veil_dest || !veil_dest.generated)
 		return generate_fallback_name()

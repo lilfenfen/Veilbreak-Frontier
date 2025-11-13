@@ -19,45 +19,29 @@
 	// Stop any active processing
 	STOP_PROCESSING(SSobj, src)
 
-	// STEP 1: Handle ALL mobs according to the new rules - USE DIRECT APPROACH
+	// Handle ALL mobs according to the new rules - USE DIRECT APPROACH
 	handle_all_mobs_direct(z_level, ejection_turf)
 	CHECK_TICK
 
-	// STEP 2: Clean up portal connections FIRST (like normal shutdown)
-	cleanup_portal_connections()
-	CHECK_TICK
-
-	// STEP 3: Delete ALL objects and structures (no exceptions)
+	// Delete ALL objects and structures (no exceptions)
 	delete_all_content(z_level)
 	CHECK_TICK
 
-	// STEP 4: Reset all turfs to space
+	// Reset all turfs to space
 	reset_z_level_to_space(z_level)
 	CHECK_TICK
 
-	// STEP 5: Reset state (but keep the Z-level for reuse)
+	// Clean up portal connections
+	cleanup_portal_connections()
+
+	// Reset state (but keep the Z-level for reuse)
 	generated = FALSE
 	generating = FALSE
 	generation_progress = 0
 	current_request_id = 0
 	actual_dungeon_portal_location = null
 
-	// STEP 6: Clear any connected portal references
-	if(connected_portal && !QDELETED(connected_portal))
-		// If the connected portal is targeting us, deactivate it properly
-		if(connected_portal.target == src)
-			connected_portal.deactivate()
-		connected_portal = null
-
-	// STEP 7: Clear control computer reference
-	if(connected_control_computer && !QDELETED(connected_control_computer))
-		connected_control_computer.cleanup_in_progress = FALSE
-		connected_control_computer.generation_in_progress = FALSE
-		connected_control_computer.cached_portal_name = null
-		connected_control_computer.force_ui_update()
-		connected_control_computer = null
-
-	// STEP 8: Re-enable processing
+	// Re-enable processing
 	processing_disabled = FALSE
 	cleanup_in_progress = FALSE
 
@@ -234,21 +218,19 @@
 
 	log_dungeon("Cleanup: Reset [turfs_processed] turfs to space on portal dungeon Z-level [z_level]")
 
-/// Enhanced portal connection cleanup that matches normal shutdown behavior
 /datum/portal_destination/veilbreak/proc/cleanup_portal_connections()
 	log_dungeon("Cleanup: Cleaning up portal connections for portal dungeon Z-level [dungeon_z_level]")
 
 	// Clean up any remaining portal connections with safety checks
 	if(connected_portal && !QDELETED(connected_portal))
-		// Clear BOTH directions of the connection (like normal deactivate)
+		// Clear BOTH directions of the connection
 		if(connected_portal.target == src)
 			connected_portal.target = null
 			connected_portal.transport_active = FALSE
-			connected_portal.generated_dungeon_data = null
 			connected_portal.update_appearance()
 			log_dungeon("Cleanup: Disconnected station portal from this destination")
 
-		// Also clear the return destination if it exists (like normal cleanup)
+		// Also clear the return destination if it exists
 		for(var/key in GLOB.portal_destinations)
 			var/datum/portal_destination/dest = GLOB.portal_destinations[key]
 			if(istype(dest, /datum/portal_destination/simple))
@@ -267,18 +249,17 @@
 			if(dungeon_portal.target)
 				dungeon_portal.target = null
 				dungeon_portal.transport_active = FALSE
-				dungeon_portal.generated_dungeon_data = null
 				log_dungeon("Cleanup: Cleared target from dungeon portal at [AREACOORD(T)]")
 
-			// Delete the portal (like normal cleanup)
+			// Delete the portal
 			QDEL_NULL(dungeon_portal)
 			portals_removed++
 
-			// Check tick every 5 portals removed
+			// Check tick every 5 portals removed (increased frequency)
 			if(portals_removed % 5 == 0)
 				CHECK_TICK
 
-		// Check tick every 50 turfs scanned for portals
+		// Check tick every 50 turfs scanned for portals (increased frequency)
 		if(portals_removed % 50 == 0)
 			CHECK_TICK
 
