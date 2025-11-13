@@ -41,55 +41,97 @@ export const PortalControl = (props, context) => {
     portal_name,
   } = data;
 
-  // Status indicators with icons
+  // Enhanced status indicators with void-space theme
   const getPortalStatus = () => {
     if (!portal_present) {
-      return { color: 'bad', icon: 'unlink', text: 'No Portal Linked' };
+      return {
+        color: 'violet',
+        icon: 'unlink',
+        text: 'VOID CONDUIT OFFLINE',
+        description: 'No dimensional conduit detected',
+      };
     }
     if (!portal_status) {
-      return { color: 'bad', icon: 'bolt', text: 'No Power' };
+      return {
+        color: 'yellow',
+        icon: 'bolt',
+        text: 'POWER FLUCTUATION',
+        description: 'Insufficient energy signature',
+      };
     }
     if (portal_active) {
-      return { color: 'good', icon: 'portal', text: 'Active' };
+      return {
+        color: 'good',
+        icon: 'portal',
+        text: 'VOID SPACE ACTIVE',
+        description: 'Dimensional bridge stabilized',
+      };
     }
     if (generation_in_progress) {
-      return { color: 'average', icon: 'cog', text: 'Stabilizing...' };
+      return {
+        color: 'blue',
+        icon: 'cog',
+        text: 'REALITY STABILIZATION',
+        description: 'Calibrating dimensional matrix',
+      };
     }
-    return { color: 'blue', icon: 'check', text: 'Ready' };
+    return {
+      color: 'blue',
+      icon: 'check',
+      text: 'VOID CONDUIT READY',
+      description: 'Awaiting dimensional breach',
+    };
   };
 
   const status = getPortalStatus();
 
   return (
-    <Window width={480} height={420}>
-      <Window.Content>
+    <Window width={500} height={460} theme="void">
+      <Window.Content className="VoidSpace">
         <Stack vertical fill>
-          {/* Header Status Panel */}
+          {/* Enhanced Header Status Panel */}
           <Stack.Item>
             <Section
-              title="Void Space Portal Control"
+              title="VOID SPACE CONDUIT CONTROL"
+              className="VoidHeader"
               buttons={
                 <Button
-                  icon="sync"
-                  tooltip="Rescan for portal"
+                  icon="sync-alt"
+                  color="transparent"
+                  tooltip="Rescan for dimensional conduits"
                   onClick={() => act('linkup')}
                 >
-                  Rescan
+                  Rescan Matrix
                 </Button>
               }
             >
-              <Stack>
+              <Stack align="center">
                 <Stack.Item grow>
                   <LabeledList>
-                    <LabeledList.Item label="System Status">
-                      <Box color={status.color} bold>
-                        <Icon name={status.icon} mr={1} />
+                    <LabeledList.Item
+                      label="DIMENSIONAL STATUS"
+                      className="StatusLabel"
+                    >
+                      <Box color={status.color} bold className="StatusDisplay">
+                        <Icon
+                          name={status.icon}
+                          spin={generation_in_progress}
+                          mr={1}
+                          size={1.2}
+                        />
                         {status.text}
+                      </Box>
+                      <Box color="label" fontSize="0.8rem" mt={0.5}>
+                        {status.description}
                       </Box>
                     </LabeledList.Item>
                     {portal_name && (
-                      <LabeledList.Item label="Void Space">
-                        <Box color="violet" bold>
+                      <LabeledList.Item
+                        label="ACTIVE CONNECTION"
+                        className="ConnectionLabel"
+                      >
+                        <Box color="violet" bold className="PortalName">
+                          <Icon name="external-link-alt" mr={1} />
                           {portal_name}
                         </Box>
                       </LabeledList.Item>
@@ -100,81 +142,107 @@ export const PortalControl = (props, context) => {
             </Section>
           </Stack.Item>
 
-          {/* Main Control Panel */}
+          {/* Main Control Panel - Enhanced */}
           <Stack.Item grow>
             <Section
-              title="Void Space Operations"
+              title="VOID SPACE OPERATIONS"
               fill
+              className="VoidOperations"
               buttons={
                 portal_active && (
                   <Button
                     icon="power-off"
                     color="bad"
+                    fontSize="1.1rem"
                     onClick={() => act('deactivate')}
+                    tooltip="Emergency dimensional collapse"
                   >
-                    Shutdown Portal
+                    COLLAPSE CONDUIT
                   </Button>
                 )
               }
             >
               <Stack vertical fill align="center" justify="center">
-                {/* Generation Progress */}
+                {/* Generation Progress - Only during stabilization */}
                 {generation_in_progress && (
                   <Stack.Item width="100%">
                     <Box textAlign="center" mb={2}>
-                      <Icon name="cog" spin mr={1} />
-                      <strong>Stabilizing Void Space Matrix</strong>
+                      <Icon name="cog" spin mr={1} size={1.5} />
+                      <strong>STABILIZING VOID SPACE MATRIX</strong>
                     </Box>
                     <ProgressBar
                       value={generation_progress / 100}
-                      color="good"
+                      color="blue"
                       ranges={{
                         good: [0.75, 1],
                         average: [0.25, 0.75],
                         bad: [0, 0.25],
                       }}
+                      className="VoidProgress"
                     >
-                      {generation_progress}% Complete
+                      Dimensional Coherence: {generation_progress}%
                     </ProgressBar>
-                    <Box textAlign="center" mt={1} color="label">
-                      Please stand by...
+                    <Box
+                      textAlign="center"
+                      mt={1}
+                      color="label"
+                      fontSize="0.9rem"
+                    >
+                      Reality recalibration in progress...
                     </Box>
                   </Stack.Item>
                 )}
 
-                {/* Generate Button */}
+                {/* Generate Button - Only when ready */}
                 {can_generate && !generation_in_progress && (
                   <Stack.Item>
                     <Button
                       icon="bolt"
-                      fontSize="1.2rem"
+                      fontSize="1.4rem"
                       lineHeight="1.2"
-                      height="3.5rem"
-                      width="14rem"
+                      height="4rem"
+                      width="16rem"
                       color="good"
+                      className="GenerateButton"
                       onClick={() => act('generate_new')}
-                      tooltip="Generate a new Void Space portal"
+                      tooltip="Initiate dimensional breach protocol"
                     >
                       <Stack vertical align="center">
                         <Stack.Item>
-                          <Icon name="portal" mr={1} />
-                          ACTIVATE VOID SPACE
+                          <Icon name="portal" mr={1} size={1.5} />
+                          BREACH VOID SPACE
+                        </Stack.Item>
+                        <Stack.Item fontSize="0.9rem" opacity={0.8}>
+                          Initialize Dimensional Conduit
                         </Stack.Item>
                       </Stack>
                     </Button>
                   </Stack.Item>
                 )}
 
-                {/* Active Portal Display */}
+                {/* Active Portal Display - Only when active */}
                 {portal_active && !generation_in_progress && (
                   <Stack.Item>
                     <Box textAlign="center" mb={2}>
-                      <Icon name="portal" size={3} color="good" mb={1} />
-                      <Box bold fontSize="1.2rem" color="good">
-                        VOID SPACE ACTIVE
+                      <Icon
+                        name="portal"
+                        size={4}
+                        color="good"
+                        mb={1}
+                        className="ActivePortalIcon"
+                      />
+                      <Box bold fontSize="1.4rem" color="good">
+                        VOID SPACE CONDUIT ACTIVE
                       </Box>
                       {portal_name && (
-                        <Box color="violet" bold mt={1}>
+                        <Box
+                          color="violet"
+                          bold
+                          mt={1}
+                          fontSize="1.1rem"
+                          className="ActiveConnection"
+                        >
+                          <Icon name="link" mr={1} />
                           Connected to: {portal_name}
                         </Box>
                       )}
@@ -182,51 +250,87 @@ export const PortalControl = (props, context) => {
                   </Stack.Item>
                 )}
 
-                {/* No Portal Connected */}
-                {!portal_present && (
+                {/* No Portal Connected - Only when missing */}
+                {!portal_present && !generation_in_progress && (
                   <Stack.Item>
                     <Box textAlign="center" color="average">
-                      <Icon name="exclamation-triangle" size={2} mb={1} />
-                      <Box bold>No Portal Detected</Box>
+                      <Icon name="exclamation-triangle" size={3} mb={1} />
+                      <Box bold fontSize="1.2rem">
+                        VOID CONDUIT OFFLINE
+                      </Box>
                       <Box fontSize="0.9rem" mt={1}>
-                        Use the Rescan button or ensure a portal is within range
+                        No dimensional conduit detected in local space-time
                       </Box>
                     </Box>
                   </Stack.Item>
                 )}
 
-                {/* Portal Present but No Power */}
-                {portal_present && !portal_status && (
-                  <Stack.Item>
-                    <Box textAlign="center" color="bad">
-                      <Icon name="bolt" size={2} mb={1} />
-                      <Box bold>Power Required</Box>
-                      <Box fontSize="0.9rem" mt={1}>
-                        Check portal power connections
+                {/* Portal Present but No Power - Only when relevant */}
+                {portal_present &&
+                  !portal_status &&
+                  !generation_in_progress && (
+                    <Stack.Item>
+                      <Box textAlign="center" color="yellow">
+                        <Icon name="bolt" size={3} mb={1} />
+                        <Box bold fontSize="1.2rem">
+                          ENERGY SIGNATURE UNSTABLE
+                        </Box>
+                        <Box fontSize="0.9rem" mt={1}>
+                          Conduit requires stable power source for operation
+                        </Box>
                       </Box>
-                    </Box>
-                  </Stack.Item>
-                )}
+                    </Stack.Item>
+                  )}
+
+                {/* Ready State - Only when portal is ready but not active */}
+                {portal_present &&
+                  portal_status &&
+                  !portal_active &&
+                  !can_generate &&
+                  !generation_in_progress && (
+                    <Stack.Item>
+                      <Box textAlign="center" color="blue">
+                        <Icon name="check-circle" size={3} mb={1} />
+                        <Box bold fontSize="1.2rem">
+                          VOID CONDUIT READY
+                        </Box>
+                        <Box fontSize="0.9rem" mt={1}>
+                          Dimensional conduit prepared for breach sequence
+                        </Box>
+                      </Box>
+                    </Stack.Item>
+                  )}
               </Stack>
             </Section>
           </Stack.Item>
 
-          {/* Information Panel */}
+          {/* Enhanced Information Panel */}
           <Stack.Item>
-            <Section title="System Information">
+            <Section title="CONDUIT DIAGNOSTICS" className="VoidDiagnostics">
               <LabeledList>
-                <LabeledList.Item label="Portal Hardware">
-                  <Box color={portal_present ? 'good' : 'bad'}>
-                    {portal_present ? 'Detected' : 'Not Found'}
+                <LabeledList.Item
+                  label="CONDUIT HARDWARE"
+                  className="DiagnosticItem"
+                >
+                  <Box color={portal_present ? 'good' : 'violet'}>
+                    {portal_present
+                      ? 'SPACE-TIME SIGNATURE DETECTED'
+                      : 'NO CONDUIT DETECTED'}
                   </Box>
                 </LabeledList.Item>
-                <LabeledList.Item label="Power Grid">
-                  <Box color={portal_status ? 'good' : 'bad'}>
-                    {portal_status ? 'Stable' : 'Unstable'}
+                <LabeledList.Item
+                  label="ENERGY MATRIX"
+                  className="DiagnosticItem"
+                >
+                  <Box color={portal_status ? 'good' : 'yellow'}>
+                    {portal_status ? 'QUANTUM STABILIZED' : 'FLUCTUATING'}
                   </Box>
                 </LabeledList.Item>
                 {current_target && (
-                  <LabeledList.Item label="Void Space Connection">
+                  <LabeledList.Item
+                    label="DIMENSIONAL ANCHOR"
+                    className="DiagnosticItem"
+                  >
                     <Box color="blue">{current_target.name}</Box>
                   </LabeledList.Item>
                 )}
