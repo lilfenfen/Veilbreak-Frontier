@@ -1,17 +1,17 @@
 // modular_zzveilbreak/code/modules/dungeons/portal_destinations_cleanup.dm
 
 /datum/portal_destination/veilbreak/proc/cleanup_z_level_completely(z_level, turf/ejection_turf = null)
-	// Validate Z-level before proceeding
+	// Validate Z-level against our actual portal dungeon Z-level
 	if(!z_level || z_level < 1 || z_level > world.maxz)
 		log_dungeon("Cleanup: ERROR - Invalid Z-level [z_level]")
 		return
 
-	// Prevent re-entrancy
-	if(cleanup_in_progress)
-		log_dungeon("Cleanup: Already in progress, skipping")
+	// CRITICAL FIX: Only clean up our assigned portal dungeon Z-level
+	if(z_level != dungeon_z_level)
+		log_dungeon("Cleanup: ERROR - Z-level [z_level] does not match portal dungeon Z-level [dungeon_z_level]")
 		return
 
-	log_dungeon("Cleanup: Starting complete cleanup of Z-level [z_level]")
+	log_dungeon("Cleanup: Starting complete cleanup of portal dungeon Z-level [z_level]")
 
 	cleanup_in_progress = TRUE
 	processing_disabled = TRUE
@@ -19,8 +19,8 @@
 	// Stop any active processing
 	STOP_PROCESSING(SSobj, src)
 
-	// Delete ALL mobs first (both hostile and non-hostile)
-	delete_all_mobs(z_level, ejection_turf)
+	// Handle ALL mobs according to the new rules
+	handle_all_mobs(z_level, ejection_turf)
 	CHECK_TICK
 
 	// Delete ALL objects and structures (no exceptions)
@@ -45,50 +45,100 @@
 	processing_disabled = FALSE
 	cleanup_in_progress = FALSE
 
-	log_dungeon("Cleanup: Complete cleanup finished for reusable Z-level [z_level]")
+	log_dungeon("Cleanup: Complete cleanup finished for portal dungeon Z-level [z_level]")
 
-/// Delete ALL mobs - both hostile and non-hostile
-/datum/portal_destination/veilbreak/proc/delete_all_mobs(z_level, turf/ejection_turf)
-	log_dungeon("Cleanup: Deleting ALL mobs from Z-level [z_level]")
+/// Handle ALL mobs according to the new rules: Delete FACTION_VOID and hostile mobs, eject everything else
+/datum/portal_destination/veilbreak/proc/handle_all_mobs(z_level, turf/ejection_turf)
+	log_dungeon("Cleanup: Handling ALL mobs from portal dungeon Z-level [z_level]")
 
 	var/mobs_deleted = 0
 	var/mobs_ejected = 0
 
-	for(var/mob/living/mob in GLOB.mob_living_list)
+	// Use both mob lists to ensure we catch everything
+	var/list/all_mobs = list()
+	all_mobs += GLOB.mob_list
+	all_mobs += GLOB.mob_living_list
+
+	// Remove duplicates
+	var/list/unique_mobs = list()
+	for(var/mob/mob in all_mobs)
+		if(!mob || QDELETED(mob))
+			continue
+		unique_mobs[mob] = TRUE
+
+	log_dungeon("Cleanup: Found [length(unique_mobs)] total mobs to process on portal dungeon Z-level [z_level]")
+
+	for(var/mob/mob in unique_mobs)
 		if(mob.z != z_level)
 			continue
 
-		// If we have an ejection turf and mob is player-controlled, try to eject them
-		if(ejection_turf && !QDELETED(ejection_turf) && mob.mind)
-			// Player mobs get ejected with force
-			mob.forceMove(ejection_turf)
+		log_dungeon("Cleanup: Processing mob [mob] at [AREACOORD(mob)] - type: [mob.type], mind: [mob.mind ? "YES" : "NO"], faction: [mob.faction]")
 
-			// Throw them with force in a random direction from the portal
-			var/throw_target = get_edge_target_turf(ejection_turf, pick(GLOB.cardinals))
-			mob.throw_at(throw_target, 3, 2, spin = TRUE)
+		// Check if this mob should be DELETED (FACTION_VOID or hostile)
+		var/should_delete = FALSE
 
-			if(mob.stat == CONSCIOUS)
-				mob.Stun(12 SECONDS)
-				to_chat(mob, span_warning("The portal violently collapses! You're thrown clear!"))
-				playsound(mob, 'sound/effects/bang.ogg', 60, TRUE)
-			else
-				mob.visible_message(span_notice("[mob] is thrown from a collapsing portal!"))
-				playsound(mob, 'sound/effects/bang.ogg', 40, TRUE)
+		// Check for FACTION_VOID (delete regardless of other factors)
+		if(isfaction(mob, FACTION_VOID))
+			log_dungeon("Cleanup: Marking mob [mob] for deletion - FACTION_VOID")
+			should_delete = TRUE
 
-			mobs_ejected++
-		else
-			// Delete all other mobs (NPCs, hostile mobs, etc.)
+		// Check if hostile (using the existing helper proc)
+		else if(is_hostile_or_void(mob))
+			log_dungeon("Cleanup: Marking mob [mob] for deletion - hostile")
+			should_delete = TRUE
+
+		// DELETE mobs that match the criteria
+		if(should_delete)
+			log_dungeon("Cleanup: Deleting mob [mob] at [AREACOORD(mob)]")
 			qdel(mob)
 			mobs_deleted++
 
-		if((mobs_deleted + mobs_ejected) % 20 == 0)
+		// EJECT all other mobs
+		else
+			// If we have an ejection turf, move mob there and throw them
+			if(ejection_turf && !QDELETED(ejection_turf))
+				var/old_loc = AREACOORD(mob)
+				mob.forceMove(ejection_turf)
+
+				// Throw them with force in a random direction from the portal
+				var/throw_target = get_edge_target_turf(ejection_turf, pick(GLOB.cardinals))
+				mob.throw_at(throw_target, 3, 2, spin = TRUE)
+
+				if(mob.stat == CONSCIOUS)
+					// Use proper stun mechanics for living mobs
+					if(isliving(mob))
+						var/mob/living/living_mob = mob
+						living_mob.Stun(12 SECONDS)
+					to_chat(mob, span_warning("The portal violently collapses! You're thrown clear!"))
+					playsound(mob, 'sound/effects/bang.ogg', 60, TRUE)
+				else
+					mob.visible_message(span_notice("[mob] is thrown from a collapsing portal!"))
+					playsound(mob, 'sound/effects/bang.ogg', 40, TRUE)
+
+				log_dungeon("Cleanup: Ejected mob [mob] from [old_loc] to [AREACOORD(ejection_turf)]")
+				mobs_ejected++
+			else
+				// No ejection turf, just delete (shouldn't happen but safety)
+				log_dungeon("Cleanup: No ejection turf, deleting mob [mob]")
+				qdel(mob)
+				mobs_deleted++
+
+		if((mobs_deleted + mobs_ejected) % 10 == 0)
 			CHECK_TICK
 
-	log_dungeon("Cleanup: Deleted [mobs_deleted] mobs and ejected [mobs_ejected] player mobs from Z-level [z_level]")
+	log_dungeon("Cleanup: Deleted [mobs_deleted] mobs and ejected [mobs_ejected] mobs from portal dungeon Z-level [z_level]")
+
+/// Helper proc to check if a mob belongs to a specific faction
+/datum/portal_destination/veilbreak/proc/isfaction(mob/mob, faction_to_check)
+	if(!mob || !isliving(mob))
+		return FALSE
+
+	var/mob/living/living_mob = mob
+	return living_mob.faction == faction_to_check
 
 /// Delete ALL objects, structures, and items - complete cleanup
 /datum/portal_destination/veilbreak/proc/delete_all_content(z_level)
-	log_dungeon("Cleanup: Deleting ALL content from Z-level [z_level]")
+	log_dungeon("Cleanup: Deleting ALL content from portal dungeon Z-level [z_level]")
 
 	var/objects_deleted = 0
 	var/areas_purged = 0
@@ -102,6 +152,7 @@
 		if(istype(object, /turf/open/space) || istype(object, /turf/open/space/basic))
 			continue
 
+		log_dungeon("Cleanup: Deleting object [object] at [AREACOORD(object)]")
 		qdel(object)
 		objects_deleted++
 
@@ -127,10 +178,10 @@
 
 		CHECK_TICK
 
-	log_dungeon("Cleanup: Deleted [objects_deleted] objects and purged [areas_purged] areas from Z-level [z_level]")
+	log_dungeon("Cleanup: Deleted [objects_deleted] objects and purged [areas_purged] areas from portal dungeon Z-level [z_level]")
 
 /datum/portal_destination/veilbreak/proc/reset_z_level_to_space(z_level)
-	log_dungeon("Cleanup: Resetting Z-level [z_level] to space")
+	log_dungeon("Cleanup: Resetting portal dungeon Z-level [z_level] to space")
 
 	var/turfs_processed = 0
 	for(var/turf/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
@@ -140,38 +191,47 @@
 		if(turfs_processed % 100 == 0)
 			CHECK_TICK
 
-	log_dungeon("Cleanup: Reset [turfs_processed] turfs to space")
+	log_dungeon("Cleanup: Reset [turfs_processed] turfs to space on portal dungeon Z-level [z_level]")
 
 /datum/portal_destination/veilbreak/proc/cleanup_portal_connections()
-	log_dungeon("Cleanup: Cleaning up portal connections")
+	log_dungeon("Cleanup: Cleaning up portal connections for portal dungeon Z-level [dungeon_z_level]")
 
 	// Clean up any remaining portal connections with safety checks
-	if(connected_portal && !QDELETED(connected_portal) && connected_portal.target == src)
-		connected_portal.target = null
-		connected_portal.transport_active = FALSE
-		connected_portal.update_appearance()
-		log_dungeon("Cleanup: Disconnected station portal")
+	if(connected_portal && !QDELETED(connected_portal))
+		// Clear BOTH directions of the connection
+		if(connected_portal.target == src)
+			connected_portal.target = null
+			connected_portal.transport_active = FALSE
+			connected_portal.update_appearance()
+			log_dungeon("Cleanup: Disconnected station portal from this destination")
 
-	// Clean up ALL portals on the dungeon Z-level
+		// Also clear the return destination if it exists
+		for(var/key in GLOB.portal_destinations)
+			var/datum/portal_destination/dest = GLOB.portal_destinations[key]
+			if(istype(dest, /datum/portal_destination/simple))
+				var/datum/portal_destination/simple/simple_dest = dest
+				if(simple_dest.return_portal == connected_portal)
+					GLOB.portal_destinations -= key
+					log_dungeon("Cleanup: Removed return destination [key]")
+					break
+
+	// Clean up ALL portals on the portal dungeon Z-level
 	var/portals_removed = 0
 	for(var/turf/T in block(locate(1, 1, dungeon_z_level), locate(world.maxx, world.maxy, dungeon_z_level)))
 		var/obj/machinery/portal/dungeon_portal = locate(/obj/machinery/portal) in T
 		if(dungeon_portal && !QDELETED(dungeon_portal))
-			// Find and remove the return destination safely
+			// Clear the portal's target to prevent "Return to Station" lingering
 			if(dungeon_portal.target)
-				for(var/key in GLOB.portal_destinations)
-					var/datum/portal_destination/dest = GLOB.portal_destinations[key]
-					if(dest == dungeon_portal.target)
-						GLOB.portal_destinations -= key
-						log_dungeon("Cleanup: Removed return destination [key]")
-						break
+				dungeon_portal.target = null
+				dungeon_portal.transport_active = FALSE
+				log_dungeon("Cleanup: Cleared target from dungeon portal at [AREACOORD(T)]")
 
 			// Delete the portal
 			QDEL_NULL(dungeon_portal)
 			portals_removed++
 			log_dungeon("Cleanup: Removed dungeon portal at [AREACOORD(T)]")
 
-	log_dungeon("Cleanup: Removed [portals_removed] portals from Z-level [dungeon_z_level]")
+	log_dungeon("Cleanup: Removed [portals_removed] portals from portal dungeon Z-level [dungeon_z_level]")
 
 /datum/portal_destination/veilbreak/proc/enable_processing()
 	processing_disabled = FALSE
