@@ -67,7 +67,7 @@ export const PortalControl = (props, context) => {
           {/* Header Status Panel */}
           <Stack.Item>
             <Section
-              title="Dimensional Portal Control"
+              title="Void Space Portal Control"
               buttons={
                 <Button
                   icon="sync"
@@ -88,7 +88,7 @@ export const PortalControl = (props, context) => {
                       </Box>
                     </LabeledList.Item>
                     {portal_name && (
-                      <LabeledList.Item label="Destination">
+                      <LabeledList.Item label="Void Space">
                         <Box color="violet" bold>
                           {portal_name}
                         </Box>
@@ -103,7 +103,7 @@ export const PortalControl = (props, context) => {
           {/* Main Control Panel */}
           <Stack.Item grow>
             <Section
-              title="Portal Operations"
+              title="Void Space Operations"
               fill
               buttons={
                 portal_active && (
@@ -112,7 +112,7 @@ export const PortalControl = (props, context) => {
                     color="bad"
                     onClick={() => act('deactivate')}
                   >
-                    Emergency Shutdown
+                    Shutdown Portal
                   </Button>
                 )
               }
@@ -123,7 +123,7 @@ export const PortalControl = (props, context) => {
                   <Stack.Item width="100%">
                     <Box textAlign="center" mb={2}>
                       <Icon name="cog" spin mr={1} />
-                      <strong>Stabilizing Portal Matrix</strong>
+                      <strong>Stabilizing Void Space Matrix</strong>
                     </Box>
                     <ProgressBar
                       value={generation_progress / 100}
@@ -147,24 +147,18 @@ export const PortalControl = (props, context) => {
                   <Stack.Item>
                     <Button
                       icon="bolt"
-                      fontSize="1.5rem"
-                      height="4rem"
-                      width="16rem"
+                      fontSize="1.2rem"
+                      lineHeight="1.2"
+                      height="3.5rem"
+                      width="14rem"
                       color="good"
                       onClick={() => act('generate_new')}
-                      tooltip="Generate a new Veilbreak dungeon portal"
+                      tooltip="Generate a new Void Space portal"
                     >
-                      <Stack align="center">
+                      <Stack vertical align="center">
                         <Stack.Item>
-                          <Icon name="portal" size={2} mr={1} />
-                        </Stack.Item>
-                        <Stack.Item>
-                          <Box textAlign="center">
-                            <Box bold>ACTIVATE PORTAL</Box>
-                            <Box fontSize="0.8rem" opacity={0.8}>
-                              Initialize New Dimension
-                            </Box>
-                          </Box>
+                          <Icon name="portal" mr={1} />
+                          ACTIVATE VOID SPACE
                         </Stack.Item>
                       </Stack>
                     </Button>
@@ -177,7 +171,7 @@ export const PortalControl = (props, context) => {
                     <Box textAlign="center" mb={2}>
                       <Icon name="portal" size={3} color="good" mb={1} />
                       <Box bold fontSize="1.2rem" color="good">
-                        PORTAL ACTIVE
+                        VOID SPACE ACTIVE
                       </Box>
                       {portal_name && (
                         <Box color="violet" bold mt={1}>
@@ -232,7 +226,7 @@ export const PortalControl = (props, context) => {
                   </Box>
                 </LabeledList.Item>
                 {current_target && (
-                  <LabeledList.Item label="Active Connection">
+                  <LabeledList.Item label="Void Space Connection">
                     <Box color="blue">{current_target.name}</Box>
                   </LabeledList.Item>
                 )}
