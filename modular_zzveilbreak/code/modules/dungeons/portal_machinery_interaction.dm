@@ -70,7 +70,7 @@
 
 	log_portal("Activate: Activated to [dest.name] at [AREACOORD(src)]")
 
-/// Deactivate the portal
+/// Deactivate the portal - enhanced to handle cleanup properly
 /obj/machinery/portal/proc/deactivate()
 	if(!target || transport_active == FALSE)
 		log_portal("Deactivate: No active target at [AREACOORD(src)]")
@@ -83,6 +83,7 @@
 	// Clear references first to prevent circular calls
 	target = null
 	transport_active = FALSE
+	generated_dungeon_data = null  // Clear dungeon data
 
 	// Safe sound play
 	playsound(src, 'sound/machines/gateway/gateway_close.ogg', 140, TRUE, TRUE, PORTAL_SOUND_RANGE)

@@ -254,7 +254,7 @@
 			// Match exact pattern from ice mineral wall example
 			wall.smoothing_flags = SMOOTH_BITMASK | SMOOTH_BORDER
 			wall.smoothing_groups = list(SMOOTH_GROUP_CLOSED_TURFS, SMOOTH_GROUP_WALLS)
-			wall.canSmoothWith = list(SMOOTH_GROUP_CLOSED_TURFS)
+			wall.canSmoothWith = list(SMOOTH_GROUP_CLOSED_TURFS, SMOOTH_GROUP_WALLS)
 			walls_fixed++
 			CHECK_TICK
 
@@ -263,7 +263,7 @@
 		if(mineral_wall.z == z_level)
 			mineral_wall.smoothing_flags = SMOOTH_BITMASK | SMOOTH_BORDER
 			mineral_wall.smoothing_groups = list(SMOOTH_GROUP_CLOSED_TURFS, SMOOTH_GROUP_MINERAL_WALLS)
-			mineral_wall.canSmoothWith = list(SMOOTH_GROUP_CLOSED_TURFS)
+			mineral_wall.canSmoothWith = list(SMOOTH_GROUP_CLOSED_TURFS, SMOOTH_GROUP_MINERAL_WALLS)
 			walls_fixed++
 			CHECK_TICK
 
@@ -272,7 +272,7 @@
 		if(r_wall.z == z_level && !istype(r_wall, /turf/closed/wall/mineral))
 			r_wall.smoothing_flags = SMOOTH_BITMASK | SMOOTH_BORDER
 			r_wall.smoothing_groups = list(SMOOTH_GROUP_CLOSED_TURFS, SMOOTH_GROUP_WALLS)
-			r_wall.canSmoothWith = list(SMOOTH_GROUP_CLOSED_TURFS)
+			r_wall.canSmoothWith = list(SMOOTH_GROUP_CLOSED_TURFS, SMOOTH_GROUP_WALLS)
 			walls_fixed++
 			CHECK_TICK
 
