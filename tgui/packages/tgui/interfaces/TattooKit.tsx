@@ -13,25 +13,18 @@ import {
   ProgressBar,
   Section,
   Stack,
-  Table,
   Tabs,
   TextArea,
-  Tooltip,
 } from 'tgui-core/components';
-import { useBackend, useSharedState } from '../backend';
+import { useBackend } from '../backend';
 import { Window } from '../layouts';
 
 interface TattooData {
-  // Target information
   target_name: string;
   target_ref: string;
-
-  // Kit status
   ink_uses: number;
   max_ink_uses: number;
   applying: boolean;
-
-  // Current design
   artist_name: string;
   tattoo_design: string;
   selected_zone: string;
@@ -41,16 +34,10 @@ interface TattooData {
   ink_color: string;
   design_mode: boolean;
   debug_mode: boolean;
-
-  // Available options
   font_options: Record<string, string>;
   flair_options: Record<string, string>;
   layer_options: Record<string, string>;
-
-  // Body parts data
   body_parts: BodyPart[];
-
-  // Existing tattoos for current zone
   existing_tattoos: Tattoo[];
 }
 
@@ -67,7 +54,6 @@ interface Tattoo {
   design: string;
   color: string;
   layer: number;
-  is_signature: boolean;
   font: string;
   flair: string | null;
   date_applied: string;
@@ -77,7 +63,6 @@ export const TattooKit = (props, context) => {
   const { act, data } = useBackend<TattooData>(context);
   const {
     target_name,
-    target_ref,
     ink_uses,
     max_ink_uses,
     applying,
@@ -89,7 +74,6 @@ export const TattooKit = (props, context) => {
     selected_flair = null,
     ink_color = '#000000',
     design_mode = false,
-    debug_mode = false,
     font_options = {},
     flair_options = {},
     layer_options = {},
@@ -97,303 +81,232 @@ export const TattooKit = (props, context) => {
     existing_tattoos = [],
   } = data;
 
-  const [searchItem, setSearchItem] = useState('');
-  const [activeTab, setActiveTab] = useSharedState(
-    context,
-    'activeTab',
-    design_mode ? 'design' : 'parts',
-  );
+  const [searchText, setSearchText] = useState('');
+  const [activeTab, setActiveTab] = useState(design_mode ? 'design' : 'parts');
 
   // Filter body parts based on search
   const filteredParts = body_parts.filter((part) =>
-    part.name.toLowerCase().includes(searchItem.toLowerCase()),
+    part.name.toLowerCase().includes(searchText.toLowerCase()),
   );
+
+  // Get current zone name
+  const currentZoneName =
+    body_parts.find((p) => p.zone === selected_zone)?.name || selected_zone;
 
   // Check if we can apply tattoo
   const canApply =
-    target_ref &&
     selected_zone &&
     artist_name?.length > 0 &&
     tattoo_design?.length > 0 &&
     ink_uses > 0 &&
-    !existing_tattoos.some((tattoo) => tattoo.layer === selected_layer);
+    !existing_tattoos.some((t) => t.layer === selected_layer);
 
-  return (
-    <Window
-      width={800}
-      height={700}
-      theme="abstract"
-      title={`Tattoo Kit - ${target_name || 'No Target'}`}
-    >
-      <Window.Content>
-        {applying && (
+  if (applying) {
+    return (
+      <Window width={400} height={200}>
+        <Window.Content>
           <Dimmer>
             <Stack vertical textAlign="center">
               <Stack.Item>
-                <Icon name="spinner" spin size={4} />
+                <Icon name="spinner" spin size={3} />
               </Stack.Item>
-              <Stack.Item fontSize="1.5rem" bold>
+              <Stack.Item fontSize="1.2rem" bold>
                 Applying Tattoo...
               </Stack.Item>
-              <Stack.Item>
-                Please hold still while the tattoo is being applied.
-              </Stack.Item>
+              <Stack.Item>Please hold still during the procedure.</Stack.Item>
             </Stack>
           </Dimmer>
-        )}
+        </Window.Content>
+      </Window>
+    );
+  }
 
-        <Stack vertical fill>
-          {/* Header Section */}
+  return (
+    <Window width={750} height={600} theme="abstract">
+      <Window.Content>
+        <Stack fill vertical>
+          {/* Header */}
           <Stack.Item>
             <Section
-              title={
-                <Stack align="center">
-                  <Stack.Item>
-                    <Icon name="paint-brush" />
-                  </Stack.Item>
-                  <Stack.Item>Professional Tattoo Kit</Stack.Item>
-                </Stack>
-              }
+              title="Tattoo Kit"
               buttons={
-                <Button
-                  icon="bug"
-                  color={debug_mode ? 'good' : 'transparent'}
-                  onClick={() => act('toggle_debug')}
-                  tooltip="Toggle debug mode"
-                >
-                  Debug
-                </Button>
+                <Box>
+                  <ProgressBar
+                    value={ink_uses}
+                    minValue={0}
+                    maxValue={max_ink_uses}
+                    color={ink_uses > 0 ? 'good' : 'bad'}
+                  >
+                    Ink: {ink_uses}/{max_ink_uses}
+                  </ProgressBar>
+                </Box>
               }
             >
-              <Stack>
-                <Stack.Item grow>
-                  <LabeledList>
-                    <LabeledList.Item label="Target">
-                      <Box color={target_name ? 'good' : 'average'} bold>
-                        {target_name || 'No Target Selected'}
-                      </Box>
-                    </LabeledList.Item>
-                    <LabeledList.Item label="Status">
-                      <Box color={design_mode ? 'blue' : 'green'}>
-                        {design_mode ? 'Design Mode' : 'Part Selection'}
-                      </Box>
-                    </LabeledList.Item>
-                  </LabeledList>
-                </Stack.Item>
-                <Stack.Item>
-                  <LabeledList>
-                    <LabeledList.Item label="Ink Remaining">
-                      <ProgressBar
-                        value={ink_uses}
-                        minValue={0}
-                        maxValue={max_ink_uses}
-                        color={
-                          ink_uses > max_ink_uses * 0.5
-                            ? 'good'
-                            : ink_uses > max_ink_uses * 0.2
-                              ? 'average'
-                              : 'bad'
-                        }
-                      >
-                        {ink_uses}/{max_ink_uses}
-                      </ProgressBar>
-                    </LabeledList.Item>
-                  </LabeledList>
-                </Stack.Item>
-              </Stack>
+              <LabeledList>
+                <LabeledList.Item label="Target">
+                  <Box color={target_name ? 'good' : 'average'} bold>
+                    {target_name || 'None'}
+                  </Box>
+                </LabeledList.Item>
+                <LabeledList.Item label="Mode">
+                  <Box color={design_mode ? 'blue' : 'green'}>
+                    {design_mode ? 'Designing' : 'Selecting Body Part'}
+                  </Box>
+                </LabeledList.Item>
+              </LabeledList>
             </Section>
           </Stack.Item>
 
-          {/* Main Content Area */}
+          {/* Main Content */}
           <Stack.Item grow>
             <Section fill>
-              <Stack fill vertical>
-                <Stack.Item>
-                  <Tabs fluid>
-                    <Tabs.Tab
-                      icon="list"
-                      selected={activeTab === 'parts'}
-                      onClick={() => {
-                        setActiveTab('parts');
-                        act('back_to_parts');
-                      }}
-                    >
-                      Body Parts
-                    </Tabs.Tab>
-                    <Tabs.Tab
-                      icon="paint-brush"
-                      selected={activeTab === 'design'}
-                      onClick={() => {
-                        if (selected_zone) {
-                          setActiveTab('design');
-                        }
-                      }}
-                      tooltip={
-                        !selected_zone ? 'Select a body part first' : null
-                      }
-                      disabled={!selected_zone}
-                    >
-                      Tattoo Design
-                    </Tabs.Tab>
-                  </Tabs>
-                </Stack.Item>
+              <Tabs fluid>
+                <Tabs.Tab
+                  icon="user"
+                  selected={activeTab === 'parts'}
+                  onClick={() => {
+                    setActiveTab('parts');
+                    act('back_to_parts');
+                  }}
+                >
+                  Body Parts
+                </Tabs.Tab>
+                <Tabs.Tab
+                  icon="paint-brush"
+                  selected={activeTab === 'design'}
+                  disabled={!selected_zone}
+                  onClick={() => setActiveTab('design')}
+                >
+                  {selected_zone ? `Design - ${currentZoneName}` : 'Design'}
+                </Tabs.Tab>
+              </Tabs>
 
-                <Stack.Item grow>
-                  {activeTab === 'parts' && (
-                    <BodyPartSelection
-                      body_parts={filteredParts}
-                      searchItem={searchItem}
-                      setSearchItem={setSearchItem}
-                      onSelectZone={(zone) => {
-                        act('select_zone', { zone });
-                        setActiveTab('design');
-                      }}
-                    />
-                  )}
+              <Box mt={1}>
+                {activeTab === 'parts' && (
+                  <BodyPartTab
+                    parts={filteredParts}
+                    searchText={searchText}
+                    onSearch={setSearchText}
+                    onSelectPart={(zone) => {
+                      act('select_zone', { zone });
+                      setActiveTab('design');
+                    }}
+                  />
+                )}
 
-                  {activeTab === 'design' && (
-                    <DesignInterface
-                      artist_name={artist_name}
-                      tattoo_design={tattoo_design}
-                      selected_zone={selected_zone}
-                      selected_layer={selected_layer}
-                      selected_font={selected_font}
-                      selected_flair={selected_flair}
-                      ink_color={ink_color}
-                      font_options={font_options}
-                      flair_options={flair_options}
-                      layer_options={layer_options}
-                      existing_tattoos={existing_tattoos}
-                      ink_uses={ink_uses}
-                      canApply={!!canApply}
-                      getZoneDisplayName={(zone) => {
-                        const part = body_parts.find((p) => p.zone === zone);
-                        return part ? part.name : 'Unknown Location';
-                      }}
-                      onBack={() => {
-                        setActiveTab('parts');
-                        act('back_to_parts');
-                      }}
-                      onApply={() => act('apply_tattoo')}
-                      onSetArtist={(value) =>
-                        act('set_artist', { artist: value })
-                      }
-                      onSetDesign={(value) =>
-                        act('set_design', { design: value })
-                      }
-                      onSetFont={(value) => act('set_font', { font: value })}
-                      onSetFlair={(value) => act('set_flair', { flair: value })}
-                      onSetLayer={(value) => act('set_layer', { layer: value })}
-                      onSetColor={(value) => act('set_color', { color: value })}
-                      onPickColor={() => act('pick_color')}
-                    />
-                  )}
-                </Stack.Item>
-              </Stack>
+                {activeTab === 'design' && (
+                  <DesignTab
+                    artistName={artist_name}
+                    design={tattoo_design}
+                    zone={selected_zone}
+                    zoneName={currentZoneName}
+                    layer={selected_layer}
+                    font={selected_font}
+                    flair={selected_flair}
+                    color={ink_color}
+                    fontOptions={font_options}
+                    flairOptions={flair_options}
+                    layerOptions={layer_options}
+                    existingTattoos={existing_tattoos}
+                    canApply={canApply}
+                    inkUses={ink_uses}
+                    onBack={() => {
+                      setActiveTab('parts');
+                      act('back_to_parts');
+                    }}
+                    onApply={() => act('apply_tattoo')}
+                    onArtistChange={(value) =>
+                      act('set_artist', { artist: value })
+                    }
+                    onDesignChange={(value) =>
+                      act('set_design', { design: value })
+                    }
+                    onFontChange={(value) => act('set_font', { font: value })}
+                    onFlairChange={(value) =>
+                      act('set_flair', { flair: value })
+                    }
+                    onLayerChange={(value) =>
+                      act('set_layer', { layer: value })
+                    }
+                    onColorChange={(value) =>
+                      act('set_color', { color: value })
+                    }
+                    onColorPick={() => act('pick_color')}
+                  />
+                )}
+              </Box>
             </Section>
           </Stack.Item>
-
-          {/* Debug Information */}
-          {debug_mode && (
-            <Stack.Item>
-              <Section
-                title="Debug Information"
-                backgroundColor="rgba(255,0,0,0.1)"
-              >
-                <LabeledList>
-                  <LabeledList.Item label="Selected Zone">
-                    {selected_zone}
-                  </LabeledList.Item>
-                  <LabeledList.Item label="Design Mode">
-                    {design_mode ? 'True' : 'False'}
-                  </LabeledList.Item>
-                  <LabeledList.Item label="Artist Length">
-                    {artist_name?.length || 0}
-                  </LabeledList.Item>
-                  <LabeledList.Item label="Design Length">
-                    {tattoo_design?.length || 0}
-                  </LabeledList.Item>
-                  <LabeledList.Item label="Can Apply">
-                    {canApply ? 'True' : 'False'}
-                  </LabeledList.Item>
-                </LabeledList>
-              </Section>
-            </Stack.Item>
-          )}
         </Stack>
       </Window.Content>
     </Window>
   );
 };
 
-interface BodyPartSelectionProps {
-  body_parts: BodyPart[];
-  searchItem: string;
-  setSearchItem: (value: string) => void;
-  onSelectZone: (zone: string) => void;
-}
-
-const BodyPartSelection = (props: BodyPartSelectionProps) => {
-  const { body_parts, searchItem, setSearchItem, onSelectZone } = props;
+// Body Parts Tab Component
+const BodyPartTab = (props: {
+  parts: BodyPart[];
+  searchText: string;
+  onSearch: (text: string) => void;
+  onSelectPart: (zone: string) => void;
+}) => {
+  const { parts, searchText, onSearch, onSelectPart } = props;
 
   return (
     <Stack fill vertical>
       <Stack.Item>
         <Input
-          autoFocus
           placeholder="Search body parts..."
-          value={searchItem}
-          onChange={setSearchItem}
+          value={searchText}
+          onChange={onSearch}
           fluid
         />
       </Stack.Item>
       <Stack.Item grow>
         <Section fill scrollable>
-          {body_parts.length === 0 ? (
+          {parts.length === 0 ? (
             <Box textAlign="center" color="label" py={4}>
-              <Icon name="search" size={3} opacity={0.5} />
-              <Box mt={2}>
-                {searchItem
-                  ? 'No body parts found matching search'
-                  : 'No accessible body parts found'}
+              <Icon name="search" size={2} />
+              <Box mt={1}>
+                {searchText
+                  ? 'No matching body parts'
+                  : 'No accessible body parts'}
               </Box>
             </Box>
           ) : (
-            <Table>
-              {body_parts.map((part) => (
-                <Table.Row key={part.zone} className="candystripe">
-                  <Table.Cell collapsing>
-                    <Icon
-                      name={part.covered ? 'tshirt' : 'user'}
-                      color={part.covered ? 'average' : 'good'}
-                    />
-                  </Table.Cell>
-                  <Table.Cell bold>{part.name}</Table.Cell>
-                  <Table.Cell collapsing color="label">
-                    {part.current_tattoos}/{part.max_tattoos}
-                  </Table.Cell>
-                  <Table.Cell collapsing>
-                    <Button
-                      icon="paint-brush"
-                      color={part.covered ? 'average' : 'good'}
-                      disabled={
-                        part.covered || part.current_tattoos >= part.max_tattoos
-                      }
-                      tooltip={
-                        part.covered
-                          ? 'This body part is covered by clothing'
-                          : part.current_tattoos >= part.max_tattoos
-                            ? 'Maximum tattoos reached for this part'
-                            : `Design a tattoo for ${part.name}`
-                      }
-                      onClick={() => onSelectZone(part.zone)}
-                    >
-                      Select
-                    </Button>
-                  </Table.Cell>
-                </Table.Row>
+            <Stack vertical spacing={1}>
+              {parts.map((part) => (
+                <Stack.Item key={part.zone}>
+                  <Button
+                    fluid
+                    color={part.covered ? 'average' : 'good'}
+                    disabled={
+                      part.covered || part.current_tattoos >= part.max_tattoos
+                    }
+                    onClick={() => onSelectPart(part.zone)}
+                  >
+                    <Stack align="center">
+                      <Stack.Item>
+                        <Icon
+                          name={part.covered ? 'tshirt' : 'user-circle'}
+                          mr={1}
+                        />
+                      </Stack.Item>
+                      <Stack.Item grow textAlign="left">
+                        <Box bold>{part.name}</Box>
+                        <Box color="label" fontSize="0.8rem">
+                          {part.current_tattoos}/{part.max_tattoos} tattoos
+                          {part.covered && ' • Covered'}
+                        </Box>
+                      </Stack.Item>
+                      <Stack.Item>
+                        <Icon name="chevron-right" />
+                      </Stack.Item>
+                    </Stack>
+                  </Button>
+                </Stack.Item>
               ))}
-            </Table>
+            </Stack>
           )}
         </Section>
       </Stack.Item>
@@ -401,319 +314,297 @@ const BodyPartSelection = (props: BodyPartSelectionProps) => {
   );
 };
 
-interface DesignInterfaceProps {
-  artist_name: string;
-  tattoo_design: string;
-  selected_zone: string;
-  selected_layer: number;
-  selected_font: string;
-  selected_flair: string | null;
-  ink_color: string;
-  font_options: Record<string, string>;
-  flair_options: Record<string, string>;
-  layer_options: Record<string, string>;
-  existing_tattoos: Tattoo[];
-  ink_uses: number;
+// Design Tab Component
+const DesignTab = (props: {
+  artistName: string;
+  design: string;
+  zone: string;
+  zoneName: string;
+  layer: number;
+  font: string;
+  flair: string | null;
+  color: string;
+  fontOptions: Record<string, string>;
+  flairOptions: Record<string, string>;
+  layerOptions: Record<string, string>;
+  existingTattoos: Tattoo[];
   canApply: boolean;
-  getZoneDisplayName: (zone: string) => string;
+  inkUses: number;
   onBack: () => void;
   onApply: () => void;
-  onSetArtist: (value: string) => void;
-  onSetDesign: (value: string) => void;
-  onSetFont: (value: string) => void;
-  onSetFlair: (value: string | null) => void;
-  onSetLayer: (value: number) => void;
-  onSetColor: (value: string) => void;
-  onPickColor: () => void;
-}
-
-const DesignInterface = (props: DesignInterfaceProps) => {
+  onArtistChange: (value: string) => void;
+  onDesignChange: (value: string) => void;
+  onFontChange: (value: string) => void;
+  onFlairChange: (value: string | null) => void;
+  onLayerChange: (value: number) => void;
+  onColorChange: (value: string) => void;
+  onColorPick: () => void;
+}) => {
   const {
-    artist_name,
-    tattoo_design,
-    selected_zone,
-    selected_layer,
-    selected_font,
-    selected_flair,
-    ink_color,
-    font_options,
-    flair_options,
-    layer_options,
-    existing_tattoos,
-    ink_uses,
+    artistName,
+    design,
+    zoneName,
+    layer,
+    font,
+    flair,
+    color,
+    fontOptions,
+    flairOptions,
+    layerOptions,
+    existingTattoos,
     canApply,
-    getZoneDisplayName,
+    inkUses,
     onBack,
     onApply,
-    onSetArtist,
-    onSetDesign,
-    onSetFont,
-    onSetFlair,
-    onSetLayer,
-    onSetColor,
-    onPickColor,
+    onArtistChange,
+    onDesignChange,
+    onFontChange,
+    onFlairChange,
+    onLayerChange,
+    onColorChange,
+    onColorPick,
   } = props;
 
   return (
     <Stack fill>
-      {/* Design Controls */}
-      <Stack.Item width="50%">
-        <Section fill scrollable title="Design Controls">
-          <Stack vertical>
-            {/* Artist Name */}
-            <Stack.Item>
-              <Box bold color="label" mb={1}>
-                Artist Name
-                {artist_name?.includes('%s') && (
-                  <Box as="span" color="yellow" ml={1}>
-                    (Signature Format)
-                  </Box>
-                )}
-              </Box>
-              <Input
-                fluid
-                value={artist_name}
-                onChange={(e, value) => onSetArtist(value)}
-                placeholder="Artist name (use %s for signature)"
-              />
-              <Box color="label" fontSize="0.8rem" mt={0.5}>
-                Use %s in name for signature formatting
-              </Box>
-            </Stack.Item>
-
-            {/* Tattoo Design */}
-            <Stack.Item mt={2}>
-              <Box bold color="label" mb={1}>
-                Tattoo Design
-              </Box>
-              <TextArea
-                fluid
-                height="100px"
-                value={tattoo_design}
-                onChange={(e, value) => onSetDesign(value)}
-                placeholder="Describe the tattoo design (supports :emoji: shortcodes)"
-              />
-              <Box color="label" fontSize="0.8rem" mt={0.5}>
-                Supports emoji shortcodes like :heart: :smile: :star: etc.
-              </Box>
-            </Stack.Item>
-
-            {/* Style Options */}
-            <Stack.Item mt={2}>
-              <Stack>
-                <Stack.Item grow>
-                  <Box bold color="label" mb={1}>
-                    Font Style
-                  </Box>
-                  <Dropdown
-                    width="100%"
-                    selected={selected_font}
-                    options={font_options}
-                    onSelected={onSetFont}
-                  />
-                </Stack.Item>
-                <Stack.Item grow ml={1}>
-                  <Box bold color="label" mb={1}>
-                    Text Flair
-                  </Box>
-                  <Dropdown
-                    width="100%"
-                    selected={selected_flair || 'null'}
-                    options={flair_options}
-                    onSelected={(value) =>
-                      onSetFlair(value === 'null' ? null : value)
-                    }
-                  />
-                </Stack.Item>
-              </Stack>
-            </Stack.Item>
-
-            {/* Layer Selection */}
-            <Stack.Item mt={2}>
-              <Box bold color="label" mb={1}>
-                Tattoo Layer
-              </Box>
-              <Stack>
-                {Object.entries(layer_options).map(([key, label]) => {
-                  const layerNum = parseInt(key);
-                  const isTaken = existing_tattoos.some(
-                    (t) => t.layer === layerNum,
-                  );
-                  return (
-                    <Stack.Item key={key} grow>
-                      <Button
-                        fluid
-                        color={
-                          selected_layer === layerNum
-                            ? isTaken
-                              ? 'average'
-                              : 'good'
-                            : isTaken
-                              ? 'average'
-                              : 'default'
-                        }
-                        onClick={() => {
-                          if (isTaken) {
-                            if (
-                              window.confirm(
-                                'This layer already has a tattoo. Are you sure you want to select it?',
-                              )
-                            ) {
-                              onSetLayer(layerNum);
-                            }
-                          } else {
-                            onSetLayer(layerNum);
-                          }
-                        }}
-                        tooltip={
-                          isTaken
-                            ? 'This layer already has a tattoo'
-                            : `Select ${label} layer`
-                        }
-                      >
-                        {label}
-                        {isTaken && ' (Taken)'}
-                      </Button>
-                    </Stack.Item>
-                  );
-                })}
-              </Stack>
-            </Stack.Item>
-
-            {/* Color Selection */}
-            <Stack.Item mt={2}>
-              <Box bold color="label" mb={1}>
-                Ink Color
-              </Box>
-              <Stack align="center">
-                <Stack.Item>
-                  <ColorBox color={ink_color} />
-                </Stack.Item>
-                <Stack.Item grow>
-                  <Input
-                    value={ink_color}
-                    onChange={(e, value) => onSetColor(value)}
-                  />
-                </Stack.Item>
-                <Stack.Item>
-                  <Button icon="palette" onClick={onPickColor}>
-                    Pick
-                  </Button>
-                </Stack.Item>
-              </Stack>
-            </Stack.Item>
-          </Stack>
-        </Section>
-      </Stack.Item>
-
-      {/* Preview Panel */}
-      <Stack.Item width="50%">
-        <Stack vertical fill>
-          {/* Action Buttons */}
+      {/* Left Panel - Design Controls */}
+      <Stack.Item width="60%">
+        <Stack fill vertical>
+          {/* Basic Info */}
           <Stack.Item>
-            <Section>
+            <Section title={`Designing for ${zoneName}`}>
               <Stack>
-                <Stack.Item>
-                  <Button icon="arrow-left" onClick={onBack}>
-                    Back to Parts
+                <Stack.Item grow>
+                  <Button fluid onClick={onBack}>
+                    <Icon name="arrow-left" /> Change Body Part
                   </Button>
                 </Stack.Item>
-                <Stack.Item grow>
+                <Stack.Item>
                   <Button
                     fluid
-                    fontSize="1.2rem"
-                    height="3rem"
-                    color={canApply ? 'good' : 'average'}
+                    color="good"
                     disabled={!canApply}
                     onClick={onApply}
                     tooltip={
-                      !canApply
-                        ? 'Fill out all fields and ensure ink is available'
-                        : 'Apply the tattoo design'
+                      !canApply ? 'Complete all fields to apply tattoo' : null
                     }
                   >
-                    <Icon name="paint-brush" mr={1} />
-                    Apply Tattoo ({ink_uses} use{ink_uses !== 1 ? 's' : ''}{' '}
-                    left)
+                    <Icon name="paint-brush" /> Apply ({inkUses} left)
                   </Button>
                 </Stack.Item>
               </Stack>
             </Section>
           </Stack.Item>
 
+          {/* Design Form */}
+          <Stack.Item grow>
+            <Section fill scrollable title="Tattoo Details">
+              <Stack vertical spacing={1}>
+                {/* Artist Name */}
+                <Stack.Item>
+                  <Box bold color="label" mb={0.5}>
+                    Artist Name
+                    {artistName.includes('%s') && (
+                      <Box as="span" color="yellow" ml={1}>
+                        (Signature)
+                      </Box>
+                    )}
+                  </Box>
+                  <Input
+                    value={artistName}
+                    onChange={onArtistChange}
+                    placeholder="Artist (use %s for signature)"
+                    fluid
+                  />
+                </Stack.Item>
+
+                {/* Tattoo Design */}
+                <Stack.Item>
+                  <Box bold color="label" mb={0.5}>
+                    Design Text
+                  </Box>
+                  <TextArea
+                    value={design}
+                    onChange={onDesignChange}
+                    placeholder="Describe your tattoo design..."
+                    height="80px"
+                    fluid
+                  />
+                </Stack.Item>
+
+                {/* Style Options */}
+                <Stack.Item>
+                  <Stack>
+                    <Stack.Item grow>
+                      <Box bold color="label" mb={0.5}>
+                        Font
+                      </Box>
+                      <Dropdown
+                        selected={font}
+                        options={fontOptions}
+                        onSelected={onFontChange}
+                        width="100%"
+                      />
+                    </Stack.Item>
+                    <Stack.Item grow ml={1}>
+                      <Box bold color="label" mb={0.5}>
+                        Style
+                      </Box>
+                      <Dropdown
+                        selected={flair || 'null'}
+                        options={flairOptions}
+                        onSelected={(value) =>
+                          onFlairChange(value === 'null' ? null : value)
+                        }
+                        width="100%"
+                      />
+                    </Stack.Item>
+                  </Stack>
+                </Stack.Item>
+
+                {/* Layer Selection */}
+                <Stack.Item>
+                  <Box bold color="label" mb={0.5}>
+                    Layer
+                  </Box>
+                  <Stack>
+                    {Object.entries(layerOptions).map(([key, label]) => {
+                      const layerNum = parseInt(key);
+                      const isTaken = existingTattoos.some(
+                        (t) => t.layer === layerNum,
+                      );
+                      return (
+                        <Stack.Item key={key} grow>
+                          <Button
+                            fluid
+                            selected={layer === layerNum}
+                            color={isTaken ? 'average' : 'default'}
+                            onClick={() => {
+                              if (isTaken) {
+                                if (
+                                  window.confirm(
+                                    'Layer has existing tattoo. Overwrite?',
+                                  )
+                                ) {
+                                  onLayerChange(layerNum);
+                                }
+                              } else {
+                                onLayerChange(layerNum);
+                              }
+                            }}
+                            tooltip={
+                              isTaken ? 'Existing tattoo on this layer' : null
+                            }
+                          >
+                            {label}
+                            {isTaken && ' *'}
+                          </Button>
+                        </Stack.Item>
+                      );
+                    })}
+                  </Stack>
+                </Stack.Item>
+
+                {/* Color Selection */}
+                <Stack.Item>
+                  <Box bold color="label" mb={0.5}>
+                    Ink Color
+                  </Box>
+                  <Stack align="center">
+                    <Stack.Item>
+                      <ColorBox color={color} />
+                    </Stack.Item>
+                    <Stack.Item grow>
+                      <Input value={color} onChange={onColorChange} fluid />
+                    </Stack.Item>
+                    <Stack.Item>
+                      <Button icon="palette" onClick={onColorPick}>
+                        Pick
+                      </Button>
+                    </Stack.Item>
+                  </Stack>
+                </Stack.Item>
+              </Stack>
+            </Section>
+          </Stack.Item>
+        </Stack>
+      </Stack.Item>
+
+      {/* Right Panel - Preview */}
+      <Stack.Item width="40%">
+        <Stack fill vertical>
           {/* Existing Tattoos */}
           <Stack.Item>
-            <Section
-              title={`Existing Tattoos - ${getZoneDisplayName(selected_zone)}`}
-            >
-              {existing_tattoos.length > 0 ? (
-                <Table>
-                  {existing_tattoos.map((tattoo, index) => (
-                    <Table.Row key={index} className="candystripe">
-                      <Table.Cell
+            <Section title="Existing Tattoos" fill={false}>
+              {existingTattoos.length === 0 ? (
+                <Box color="label" textAlign="center">
+                  No tattoos on this area
+                </Box>
+              ) : (
+                <Stack vertical spacing={0.5}>
+                  {existingTattoos.map((tattoo, index) => (
+                    <Stack.Item key={index}>
+                      <Box
                         style={{
                           borderLeft: `3px solid ${tattoo.color}`,
+                          padding: '4px 8px',
+                          background: 'rgba(0,0,0,0.3)',
                         }}
                       >
-                        <Box color={tattoo.color}>
-                          &ldquo;{tattoo.design}&rdquo;
+                        <Box color={tattoo.color} fontSize="0.9rem">
+                          "{tattoo.design}"
                         </Box>
-                        <Box color="label" fontSize="0.8rem">
-                          by {tattoo.artist} | Layer: {tattoo.layer} |{' '}
-                          {tattoo.date_applied}
+                        <Box color="label" fontSize="0.7rem">
+                          by {tattoo.artist} • Layer {tattoo.layer}
                         </Box>
-                      </Table.Cell>
-                    </Table.Row>
+                      </Box>
+                    </Stack.Item>
                   ))}
-                </Table>
-              ) : (
-                <Box textAlign="center" color="label" py={2}>
-                  No existing tattoos on this body part
-                </Box>
+                </Stack>
               )}
             </Section>
           </Stack.Item>
 
-          {/* New Design Preview */}
+          {/* Preview */}
           <Stack.Item grow>
-            <Section fill title="Design Preview" scrollable>
-              {artist_name && tattoo_design ? (
+            <Section fill title="Preview" scrollable>
+              {artistName && design ? (
                 <Box
-                  p={2}
                   style={{
-                    border: `2px dashed ${ink_color}`,
-                    background: `rgba(${hexToRgb(ink_color)}, 0.1)`,
-                    borderRadius: '4px',
+                    border: `2px solid ${color}`,
+                    padding: '12px',
+                    background: 'rgba(0,0,0,0.2)',
+                    height: '100%',
                   }}
                 >
-                  <Box bold color={ink_color} mb={1}>
-                    New Tattoo Preview
+                  <Box bold color={color} mb={1}>
+                    {zoneName}
                   </Box>
-                  <Box color={ink_color} fontFamily="monospace" mb={1}>
-                    - {getZoneDisplayName(selected_zone)}: &ldquo;
-                    {tattoo_design}
-                    &rdquo; (by{' '}
-                    {artist_name.includes('%s') ? 'You' : artist_name})
+                  <Box color={color} fontSize="1.1rem" mb={1}>
+                    "{design}"
                   </Box>
-                  <LabeledList>
-                    <LabeledList.Item label="Layer">
-                      {layer_options[selected_layer]}
-                    </LabeledList.Item>
-                    <LabeledList.Item label="Font">
-                      {font_options[selected_font]}
-                    </LabeledList.Item>
-                    <LabeledList.Item label="Flair">
-                      {flair_options[selected_flair || 'null']}
-                    </LabeledList.Item>
-                    <LabeledList.Item label="Color">
-                      <ColorBox color={ink_color} /> {ink_color}
-                    </LabeledList.Item>
-                  </LabeledList>
+                  <Box color="label" fontSize="0.9rem">
+                    by {artistName.includes('%s') ? '[Your Name]' : artistName}
+                  </Box>
+                  <Box mt={2} color="label" fontSize="0.8rem">
+                    <Stack>
+                      <Stack.Item>Font: {fontOptions[font]}</Stack.Item>
+                      <Stack.Item grow textAlign="right">
+                        Style: {flairOptions[flair || 'null']}
+                      </Stack.Item>
+                    </Stack>
+                    <Stack mt={0.5}>
+                      <Stack.Item>Layer: {layerOptions[layer]}</Stack.Item>
+                      <Stack.Item grow textAlign="right">
+                        Color: <ColorBox color={color} />
+                      </Stack.Item>
+                    </Stack>
+                  </Box>
                 </Box>
               ) : (
                 <Box textAlign="center" color="label" py={4}>
-                  <Icon name="paint-brush" size={3} opacity={0.5} />
-                  <Box mt={2}>Enter artist name and design to see preview</Box>
+                  <Icon name="eye-slash" size={2} />
+                  <Box mt={1}>Enter design details to see preview</Box>
                 </Box>
               )}
             </Section>
@@ -722,13 +613,4 @@ const DesignInterface = (props: DesignInterfaceProps) => {
       </Stack.Item>
     </Stack>
   );
-};
-
-// Helper function to convert hex to RGB
-const hexToRgb = (hex: string): string => {
-  if (!hex || hex.length !== 7) return '0,0,0';
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `${r},${g},${b}`;
 };
