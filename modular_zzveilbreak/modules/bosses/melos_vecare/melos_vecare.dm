@@ -32,7 +32,7 @@
 
 	anchored = TRUE
 
-	var/list/death_messages = list('
+	var/list/death_messages = list(
 		"Maybe in death, i'll find lover...",
 		"I die alone.",
 		"I will find my lover, not even death will stop me.")
