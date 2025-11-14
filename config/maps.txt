@@ -18,27 +18,28 @@ endmap
 # Production-level maps.
 
 map deltastation
-	minplayers 50
+	minplayers 0
 	votable
 endmap
 
 map Veilbreak
 	minplayers 0
 	votable
+	default
 endmap
 
 map icebox
-	minplayers 25
-	votable
+	minplayers 0
+	disabled
 endmap
 
 map catwalkstation
-	minplayers 25
+	minplayers 0
 #	votable
 endmap
 
 map metastation
-	minplayers 25
+	minplayers 0
 	#voteweight 0.5
 	votable
 	#feedbacklink https://www.youtube.com/watch?v=XG8b7WhANNA
@@ -46,51 +47,57 @@ map metastation
 endmap
 
 map tramstation
-	minplayers 35
+	minplayers 0
 	votable
 endmap
 
 map nebulastation
-	minplayers 35
+	minplayers 0
 	votable
 endmap
 
 #map wawastation
 #	votable
-#	minplayers 40
+#	minplayers 0
 #endmap
 
 # Bubberstation maps.
 
 map biodome
-	minplayers 40
+	minplayers 0
 	votable
 endmap
 
 map blueshift
-	minplayers 65
+	minplayers 0
 	feedbacklink https://discord.com/channels/1059199070016655462/1376747654339624970
 	votable
 endmap
 
 map boxstation
-	minplayers 30
+	minplayers 0
 	votable
 endmap
 
 map kilostation
-	maxplayers 40
+	maxplayers 0
 	votable
 endmap
 
 map moonstation
-	minplayers 50
+	minplayers 0
 	votable
 endmap
 
 map voidraptor
-	minplayers 40
+	minplayers 0
 	votable
+endmap
+
+map Veilbreak
+	minplayers 0
+	votable
+	default
 endmap
 
 # Debug-only maps.

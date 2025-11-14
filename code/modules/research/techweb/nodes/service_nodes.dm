@@ -45,7 +45,6 @@
 		"ticket_machine",
 		"radio_entertainment",
 		"photocopier",
-		"collapsable_umbrella",
 	)
 
 /datum/techweb_node/sanitation

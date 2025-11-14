@@ -1,7 +1,7 @@
 /datum/quirk/rad_fiend
 	name = "Rad Fiend"
 	desc = "You've been blessed by Cherenkov's warming light! Radiation is incapable of penetrating your protective barrier."
-	value = 4
+	value = 6
 	gain_text = span_notice("You feel empowered by Cherenkov's glow.")
 	lose_text = span_notice("You realize that rads aren't so rad.")
 	medical_record_text = "Patient emits a slight radioactive aura. The effect is harmless."
@@ -37,13 +37,6 @@
 
 	if(QDELETED(quirk_mob))
 		return
-
-	// Remove glow control action
-	var/datum/action/cosglow/update_glow/quirk_action = locate() in quirk_mob.actions
-	quirk_action.Remove(quirk_mob)
-
-	// Remove glow effect
-	quirk_mob.remove_filter("rad_fiend_glow")
 
 	// Remove radiation immunity
 	REMOVE_TRAIT(quirk_mob, TRAIT_RADIMMUNE, TRAIT_RAD_FIEND)

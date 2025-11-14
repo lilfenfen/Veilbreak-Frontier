@@ -1,252 +1,184 @@
-#define TATTOO_LAYER_UNDER 1
-#define TATTOO_LAYER_NORMAL 2
-#define TATTOO_LAYER_OVER 3
+// modular_zzveilbreak/code/modules/tattoo/tattoo_datums.dm
+// Datum for storing a single tattoo. Provides examine text and visibility helpers.
 
-/datum/tattoo
-    var/artist = "Unknown Artist" // Who applied the tattoo
-    var/design = "" // The tattoo design/description
-    var/body_part = BODY_ZONE_CHEST
-    var/color = "#000000"
-    var/date_applied = ""
-    var/layer = TATTOO_LAYER_NORMAL
+/datum/custom_tattoo
+	var/artist = "Unknown Artist"
+	var/design = "An intricate design"
+	var/body_part = BODY_ZONE_CHEST
+	var/color = "#000000"
+	var/date_applied = ""
+	var/layer = CUSTOM_TATTOO_LAYER_NORMAL
+	var/is_signature = FALSE
+	var/font = PEN_FONT
+	var/flair = null // Added: stores selected flair type
 
-/datum/tattoo/New(artist, design, body_part, color, layer = TATTOO_LAYER_NORMAL)
-    src.artist = sanitize_text(artist, "Unknown Artist")
-    src.design = sanitize_text(design, "An intricate design")
-    src.body_part = body_part
-    src.color = sanitize_hexcolor(color, default = "#000000")
-    src.layer = sanitize_integer(layer, 1, 3, 2)
-    src.date_applied = time2text(world.realtime, "YYYY-MM-DD")
+	// Constructor - MINIMAL sanitization only for security, not formatting
+	New(artist_in, design_in, body_part_in, color_in, layer_in = CUSTOM_TATTOO_LAYER_NORMAL, is_signature_in = FALSE, font_in = PEN_FONT, flair_in = null)
+		// Preserve exact input for artist and design
+		artist = artist_in || "Unknown Artist"
+		design = design_in || "An intricate design"
 
-/datum/tattoo/proc/get_examine_text(mob/viewer, mob/living/carbon/human/victim)
-	if(!is_visible(viewer, victim))
-		return ""
+		// Only sanitize where absolutely necessary for security/functionality
+		body_part = body_part_in || BODY_ZONE_CHEST
+		color = sanitize_hexcolor(color_in, default = "#000000") // Security: prevent invalid colors
+		layer = sanitize_integer(layer_in, CUSTOM_TATTOO_LAYER_UNDER, CUSTOM_TATTOO_LAYER_OVER, CUSTOM_TATTOO_LAYER_NORMAL)
+		date_applied = time2text(world.realtime, "YYYY-MM-DD")
+		is_signature = is_signature_in
+		font = (font_in in GLOB.custom_tattoo_fonts) ? font_in : PEN_FONT // Security: valid font only
+		flair = (flair_in in GLOB.custom_tattoo_flairs) ? flair_in : null // Security: valid flair only
 
-	// Make sure we have valid text
-	var/display_design = design
-	if(!display_design || display_design == "")
-		display_design = "an intricate design"
+	// Returns text-based examine string with emojis and safe span support
+	proc/get_examine_text(viewer, victim)
+		if(!is_custom_tattoo_visible(viewer, victim))
+			return ""
 
-	var/display_artist = artist
-	if(!display_artist || display_artist == "")
-		display_artist = "an unknown artist"
+		var/display_design = design
+		var/display_artist = artist
 
-	// Use the enhanced body part descriptions
-	var/body_part_description = get_specific_body_part_description(body_part)
+		// Apply text emoji parsing
+		display_design = parse_text_emojis(display_design)
 
-	var/text = "<span style='color:[color]'>- [body_part_description]: \"[display_design]\" (by [display_artist])</span>"
-	return text
+		// Apply flair formatting with safe spans
+		if(flair && GLOB.custom_tattoo_flairs[flair])
+			var/flair_type = GLOB.custom_tattoo_flairs[flair]
+			display_design = apply_safe_span(display_design, flair_type)
 
-/datum/tattoo/proc/is_visible(mob/viewer, mob/living/carbon/human/victim)
-    if(!victim || !viewer)
-        return FALSE
+		var/body_part_description = get_custom_tattoo_body_part_description(body_part)
+		var/text = "- [body_part_description]: \"[display_design]\" (by [display_artist])"
+		return text
 
-    if(get_dist(viewer, victim) > 7)
-        return FALSE
+	// Convenience wrapper for TGUI preview (same as examine text now)
+	proc/get_examine_text_tgui(viewer, victim)
+		return get_examine_text(viewer, victim)
 
-    // Observers and non-humans can always see
-    if(!ishuman(victim) || isobserver(viewer))
-        return TRUE
-
-    // Check if the body part is covered by clothing - APPLIES TO EVERYONE INCLUDING SELF
-    return !is_hidden_by_clothes(victim, viewer)
-
-/datum/tattoo/proc/is_hidden_by_clothes(mob/living/carbon/human/target_mob, mob/viewer)
-	if(!target_mob)
-		return TRUE
-
-	// Special handling for external organ slots (tails, wings, etc.)
-	if(body_part in list(ORGAN_SLOT_EXTERNAL_TAIL, ORGAN_SLOT_EXTERNAL_SPINES, ORGAN_SLOT_EXTERNAL_FRILLS,
-						ORGAN_SLOT_EXTERNAL_HORNS, ORGAN_SLOT_EXTERNAL_WINGS, ORGAN_SLOT_WINGS))
-		// These are usually always visible unless specifically covered by certain clothing
-		var/obj/item/organ/organ = target_mob.get_organ_slot(body_part)
-		if(!organ)
+	// Visibility checks (distance + clothing)
+	proc/is_custom_tattoo_visible(viewer, victim)
+		if(!victim || !viewer)
+			return FALSE
+		if(get_dist(viewer, victim) > 3)
+			return FALSE
+		if(!ishuman(victim) || isobserver(viewer))
 			return TRUE
+		if(victim == viewer)
+			return get_custom_tattoo_location_accessible(victim, body_part)
+		return get_custom_tattoo_location_accessible(victim, body_part)
 
-		// Check for specific clothing that might cover these features
-		if(target_mob.wear_suit)
-			// Some suits might cover wings/tails specifically
-			if(istype(target_mob.wear_suit, /obj/item/clothing/suit) && target_mob.wear_suit.flags_inv & HIDETAIL)
-				if(body_part == ORGAN_SLOT_EXTERNAL_TAIL)
-					return TRUE
-			// Check for spine covering
-			if(target_mob.wear_suit.flags_inv & HIDEJUMPSUIT)
-				if(body_part == ORGAN_SLOT_EXTERNAL_SPINES)
-					return TRUE
+	Destroy()
+		artist = null
+		design = null
+		body_part = null
+		color = null
+		date_applied = null
+		flair = null
+		return ..()
 
-		return FALSE
+// ---------------- Utilities ----------------
 
-	// Handle butt/stomach specifically since they're organ slots
-	if(body_part == ORGAN_SLOT_BUTT)
-		// Butt should be visible if not wearing pants/underwear that cover groin
-		if(target_mob.w_uniform)
-			var/covered = target_mob.w_uniform.body_parts_covered & GROIN
-			if(covered)
-				return TRUE
-		if(target_mob.wear_suit)
-			var/covered = target_mob.wear_suit.body_parts_covered & GROIN
-			if(covered)
-				return TRUE
-		// Check underwear too
-		if(target_mob.w_underwear && !target_mob.underwear_hidden())
-			var/covered = target_mob.w_underwear.body_parts_covered & GROIN
-			if(covered)
-				return TRUE
+// Human-readable body part description
+/proc/get_custom_tattoo_body_part_description(body_zone)
+	if(!body_zone) return "unknown location"
+	// organ-first mapping
+	switch(body_zone)
+		if(ORGAN_SLOT_PENIS) return "penis"
+		if(ORGAN_SLOT_WOMB) return "womb"
+		if(ORGAN_SLOT_VAGINA) return "vagina"
+		if(ORGAN_SLOT_TESTICLES) return "testicles"
+		if(ORGAN_SLOT_BREASTS) return "breasts"
+		if(ORGAN_SLOT_ANUS) return "anus"
+		if(ORGAN_SLOT_NIPPLES) return "nipples"
+		if(ORGAN_SLOT_TAIL) return "tail"
+		if(ORGAN_SLOT_SLIT) return "slit"
+		if(ORGAN_SLOT_SHEATH) return "sheath"
+		if(ORGAN_SLOT_WINGS) return "wings"
+		if(ORGAN_SLOT_BUTT) return "butt"
+		if(ORGAN_SLOT_BELLY) return "belly"
+	// normal zones
+	switch(body_zone)
+		if(BODY_ZONE_HEAD) return "head"
+		if(BODY_ZONE_CHEST) return "chest"
+		if(BODY_ZONE_L_ARM) return "left arm"
+		if(BODY_ZONE_R_ARM) return "right arm"
+		if(BODY_ZONE_L_LEG) return "left leg"
+		if(BODY_ZONE_R_LEG) return "right leg"
+		if(BODY_ZONE_PRECISE_L_HAND) return "left hand"
+		if(BODY_ZONE_PRECISE_R_HAND) return "right hand"
+		if(BODY_ZONE_PRECISE_L_FOOT) return "left foot"
+		if(BODY_ZONE_PRECISE_R_FOOT) return "right foot"
+		if(BODY_ZONE_PRECISE_GROIN) return "groin area"
+	// fallback: pretty-print define
+	var/formatted_name = replacetext(replacetext("[body_zone]", "BODY_ZONE_", ""), "_", " ")
+	formatted_name = lowertext(formatted_name)
+	formatted_name = capitalize(formatted_name)
+	return formatted_name
 
-		return FALSE
+/proc/get_custom_tattoo_standardized_body_part(body_part_string)
+	if(!body_part_string) return BODY_ZONE_CHEST
+	var/lower_part = lowertext(body_part_string)
+	switch(lower_part)
+		if("penis") return ORGAN_SLOT_PENIS
+		if("womb") return ORGAN_SLOT_WOMB
+		if("vagina") return ORGAN_SLOT_VAGINA
+		if("testicles", "balls") return ORGAN_SLOT_TESTICLES
+		if("breasts", "boobs", "tits") return ORGAN_SLOT_BREASTS
+		if("anus", "asshole") return ORGAN_SLOT_ANUS
+		if("nipples") return ORGAN_SLOT_NIPPLES
+		if("tail") return ORGAN_SLOT_TAIL
+		if("slit") return ORGAN_SLOT_SLIT
+		if("sheath") return ORGAN_SLOT_SHEATH
+		if("wings") return ORGAN_SLOT_WINGS
+		if("butt") return ORGAN_SLOT_BUTT
+		if("belly") return ORGAN_SLOT_BELLY
+		else return string_to_zone(body_part_string)
 
-	if(body_part == ORGAN_SLOT_BELLY)
-		// Stomach should be visible if not wearing shirt that covers chest
-		if(target_mob.w_uniform)
-			var/covered = target_mob.w_uniform.body_parts_covered & CHEST
-			if(covered)
-				return TRUE
-		if(target_mob.wear_suit)
-			var/covered = target_mob.wear_suit.body_parts_covered & CHEST
-			if(covered)
-				return TRUE
-		// Check undershirt too
-		if(target_mob.w_shirt && !target_mob.undershirt_hidden())
-			var/covered = target_mob.w_shirt.body_parts_covered & CHEST
-			if(covered)
-				return TRUE
+// Parse text emojis (replace :emoji: with actual unicode characters)
+/proc/parse_text_emojis(text)
+	if(!text || !istext(text))
+		return text
 
-		return FALSE
+	var/processed = text
+	for(var/emoji_code in GLOB.text_emoji_mappings)
+		var/emoji_char = GLOB.text_emoji_mappings[emoji_code]
+		processed = replacetext(processed, emoji_code, emoji_char)
 
-	var/obj/item/bodypart/BP = target_mob.get_bodypart(body_part)
-	if(!BP)
-		// Check if it's an organ instead
-		var/obj/item/organ/organ = target_mob.get_organ_slot(body_part)
-		if(!organ)
-			return TRUE
+	return processed
 
-	var/check_flags = body_zone_to_flag(body_part)
-	if(!check_flags)
-		return FALSE // If we can't map it to a flag, assume it's visible
+// Apply safe span formatting - only allows pre-approved span classes
+/proc/apply_safe_span(text, span_class)
+	if(!text || !span_class)
+		return text
 
-	if(target_mob.wear_suit)
-		if(target_mob.wear_suit.body_parts_covered & check_flags)
-			return TRUE
-		// Check if suit has flags that might cover the area
-		if(target_mob.wear_suit.flags_inv & HIDEJUMPSUIT)
-			if(check_flags & (CHEST|GROIN|ARMS|LEGS))
-				return TRUE
+	// Only allow span classes from our safe list
+	if(!(span_class in GLOB.safe_span_classes))
+		return text
 
-	// Uniform coverage
-	if(target_mob.w_uniform)
-		if(target_mob.w_uniform.body_parts_covered & check_flags)
-			return TRUE
+	// Use the existing sanitize_text proc from the helpers file
+	var/sanitized_text = sanitize_text(text)
 
-	// Special cases for specific clothing types
-	if(istype(target_mob.wear_suit, /obj/item/clothing/suit/toggle/labcoat/hospitalgown))
-		return TRUE
+	// Apply the safe span
+	return "<span class='[span_class]'>[sanitized_text]</span>"
 
-	// Additional clothing layers (SPLURT EDIT compatibility)
-	if(target_mob.w_shirt && !target_mob.undershirt_hidden())
-		if(target_mob.w_shirt.body_parts_covered & check_flags)
-			return TRUE
+// Simple HTML stripping that preserves emoji shortcodes
+/proc/strip_html_proper(text)
+	if(!text) return text
 
-	if(target_mob.w_underwear && !target_mob.underwear_hidden())
-		if(target_mob.w_underwear.body_parts_covered & check_flags)
-			return TRUE
+	var/processed = text
+	// Basic HTML tag removal - handle common patterns without regex
+	processed = replacetext(processed, "<span class='pink'>", "")
+	processed = replacetext(processed, "<span class='userlove'>", "")
+	processed = replacetext(processed, "<span class='brown'>", "")
+	processed = replacetext(processed, "<span class='cyan'>", "")
+	processed = replacetext(processed, "<span class='orange'>", "")
+	processed = replacetext(processed, "<span class='yellow'>", "")
+	processed = replacetext(processed, "<span class='subtle'>", "")
+	processed = replacetext(processed, "<span class='velvet'>", "")
+	processed = replacetext(processed, "<span class='velvet_notice'>", "")
+	processed = replacetext(processed, "<span class='glossy'>", "")
+	processed = replacetext(processed, "</span>", "")
+	processed = replacetext(processed, "<font", "")
+	processed = replacetext(processed, "</font>", "")
 
-	// Gloves for hands
-	if((check_flags & (HAND_LEFT|HAND_RIGHT)) && target_mob.gloves)
-		return TRUE
+	// Remove any remaining angle brackets
+	processed = replacetext(processed, "<", "")
+	processed = replacetext(processed, ">", "")
 
-	// Shoes for feet
-	if((check_flags & (FOOT_LEFT|FOOT_RIGHT)) && target_mob.shoes)
-		return TRUE
-
-	// Headwear for head
-	if((check_flags & HEAD) && target_mob.head)
-		return TRUE
-
-	return FALSE
-
-/proc/body_zone_to_flag(body_zone)
-    // Handle string organ slots first
-    if(body_zone == ORGAN_SLOT_BELLY)
-        return CHEST // Stomach is covered by chest clothing
-    if(body_zone == ORGAN_SLOT_BUTT)
-        return GROIN // Backside is covered by groin clothing
-
-    // External organs are usually exposed
-    if(body_zone in list(ORGAN_SLOT_EXTERNAL_TAIL, ORGAN_SLOT_EXTERNAL_SPINES, ORGAN_SLOT_EXTERNAL_FRILLS,
-                        ORGAN_SLOT_EXTERNAL_HORNS, ORGAN_SLOT_EXTERNAL_WINGS, ORGAN_SLOT_WINGS))
-        return null
-
-    // Handle numeric body zones
-    switch(body_zone)
-        if(BODY_ZONE_HEAD) return HEAD
-        if(BODY_ZONE_CHEST) return CHEST
-        if(BODY_ZONE_L_ARM) return ARM_LEFT
-        if(BODY_ZONE_R_ARM) return ARM_RIGHT
-        if(BODY_ZONE_L_LEG) return LEG_LEFT
-        if(BODY_ZONE_R_LEG) return LEG_RIGHT
-        if(BODY_ZONE_PRECISE_L_HAND) return HAND_LEFT
-        if(BODY_ZONE_PRECISE_R_HAND) return HAND_RIGHT
-        if(BODY_ZONE_PRECISE_L_FOOT) return FOOT_LEFT
-        if(BODY_ZONE_PRECISE_R_FOOT) return FOOT_RIGHT
-        if(BODY_ZONE_PRECISE_GROIN) return GROIN
-        else return null
-
-/// Returns more specific descriptions for body parts
-/proc/get_specific_body_part_description(body_zone)
-    // Handle string organ slots
-    if(body_zone == ORGAN_SLOT_BELLY)
-        return "stomach"
-    if(body_zone == ORGAN_SLOT_BUTT)
-        return "backside"
-    if(body_zone == ORGAN_SLOT_EXTERNAL_TAIL)
-        return "tail"
-    if(body_zone == ORGAN_SLOT_EXTERNAL_SPINES)
-        return "spine ridge"
-    if(body_zone == ORGAN_SLOT_EXTERNAL_FRILLS)
-        return "head frills"
-    if(body_zone == ORGAN_SLOT_EXTERNAL_HORNS)
-        return "horns"
-    if(body_zone == ORGAN_SLOT_EXTERNAL_WINGS)
-        return "wings"
-    if(body_zone == ORGAN_SLOT_WINGS)
-        return "wing membranes"
-
-    // Handle numeric body zones
-    switch(body_zone)
-        if(BODY_ZONE_HEAD) return "head"
-        if(BODY_ZONE_CHEST) return "chest"
-        if(BODY_ZONE_L_ARM) return "left arm"
-        if(BODY_ZONE_R_ARM) return "right arm"
-        if(BODY_ZONE_L_LEG) return "left leg"
-        if(BODY_ZONE_R_LEG) return "right leg"
-        if(BODY_ZONE_PRECISE_L_HAND) return "left hand"
-        if(BODY_ZONE_PRECISE_R_HAND) return "right hand"
-        if(BODY_ZONE_PRECISE_L_FOOT) return "left foot"
-        if(BODY_ZONE_PRECISE_R_FOOT) return "right foot"
-        if(BODY_ZONE_PRECISE_GROIN) return "groin area"
-        else
-            return get_body_zone_display_name(body_zone)
-
-/// Converts body part strings to standardized organ slot defines
-/// Converts body part strings to standardized organ slot defines
-/proc/get_standardized_body_part(body_part_string)
-    var/lower_part = lowertext(body_part_string)
-    world.log << "DEBUG: Converting body part string: [body_part_string] -> [lower_part]"
-
-    switch(lower_part)
-        if("butt", "backside", "ass", "rear")
-            return ORGAN_SLOT_BUTT
-        if("stomach", "belly")
-            return ORGAN_SLOT_BELLY
-        if("tail")
-            return ORGAN_SLOT_EXTERNAL_TAIL
-        if("spines", "spine ridge")
-            return ORGAN_SLOT_EXTERNAL_SPINES
-        if("frills", "head frills")
-            return ORGAN_SLOT_EXTERNAL_FRILLS
-        if("horns")
-            return ORGAN_SLOT_EXTERNAL_HORNS
-        if("wings", "wing membranes")
-            return ORGAN_SLOT_EXTERNAL_WINGS
-        else
-            return body_part_string
+	return trim(processed)

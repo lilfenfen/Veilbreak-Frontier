@@ -1,3 +1,6 @@
+## Default Storyteller. Comment out to enable voting.
+DEFAULT_STORYTELLER /datum/storyteller/extended
+
 ## Days until storyteller is votable
 # In case there's a forced storyteller in the config, allow for voting every set amount of days
 # this calculates day % value

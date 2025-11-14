@@ -69,16 +69,21 @@ GLOBAL_LIST_INIT(non_persistent_cleanables, list(
 
 				// Debug: log the original color before processing
 
-				// Compute persist color from original species color where possible.
-				// If already dried but no cached color exists, keep current color to avoid re-darkening.
-				if(blood_decal.dried)
-					if(blood_decal.cached_blood_color)
-						persist_color = blood_decal.get_dried_color(blood_decal.cached_blood_color)
+				// Only compute dried colors for blood that can actually dry (skip oil, xeno acid, etc.)
+				if(blood_decal.can_dry)
+					// Compute persist color from original species color where possible.
+					// If already dried but no cached color exists, keep current color to avoid re-darkening.
+					if(blood_decal.dried)
+						if(blood_decal.cached_blood_color)
+							persist_color = blood_decal.get_dried_color(blood_decal.cached_blood_color)
+						else
+							persist_color = blood_decal.color
 					else
-						persist_color = blood_decal.color
+						var/original_color = blood_decal.cached_blood_color || blood_decal.color
+						persist_color = blood_decal.get_dried_color(original_color)
 				else
-					var/original_color = blood_decal.cached_blood_color || blood_decal.color
-					persist_color = blood_decal.get_dried_color(original_color)
+					// For non-drying blood (like oil), just use the current color
+					persist_color = blood_decal.color
 
 				// Capture source species color if available for future loads
 				persist_blood_color = blood_decal.cached_blood_color
@@ -232,18 +237,23 @@ GLOBAL_LIST_INIT(non_persistent_cleanables, list(
 			// Restore cached species color when present so future saves/load can recompute correctly
 			if(cleanable_data["blood_color"])
 				blood_decal.cached_blood_color = cleanable_data["blood_color"]
-			// Ensure it's marked as dried (may already be from Initialize if type was /old)
-			blood_decal.dried = TRUE
-			// Stop any drying processing
-			STOP_PROCESSING(SSblood_drying, blood_decal)
+			// Only mark as dried if it can actually dry (skip oil, xeno acid, etc.)
+			if(blood_decal.can_dry)
+				// Ensure it's marked as dried (may already be from Initialize if type was /old)
+				blood_decal.dried = TRUE
+				// Stop any drying processing
+				STOP_PROCESSING(SSblood_drying, blood_decal)
+				// Reapply the saved dried color to override any DNA-based color from Initialize
+				blood_decal.color = cleanable_data["color"]
 			// Mark forensic DNA as too old to identify instead of wiping it completely
 			if(blood_decal.forensics && blood_decal.forensics.blood_DNA)
 				// Replace DNA with a "too old" marker that scanners can detect
 				blood_decal.forensics.blood_DNA = list("Too old to identify" = "Unknown")
-			// Reapply the saved dried color to override any DNA-based color from Initialize
-			blood_decal.color = cleanable_data["color"]
 			// Update appearance to apply dried names/descriptions and overlays
 			blood_decal.update_appearance()
+			// For non-drying blood, set color AFTER update_appearance to prevent darkening
+			if(!blood_decal.can_dry)
+				blood_decal.color = cleanable_data["color"]
 
 		// Restore pixel offsets (important for graffiti positioning)
 		if(!isnull(cleanable_data["pixel_x"]))
