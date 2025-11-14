@@ -37,7 +37,7 @@ interface TattooData {
   font_options: Record<string, string>;
   flair_options: Record<string, string>;
   layer_options: Record<string, string>;
-  body_parts: BodyPart[];
+  body_parts: BodyPart[] | Record<string, any>;
   existing_tattoos: Tattoo[];
 }
 
@@ -84,14 +84,21 @@ export const TattooKit = (props, context) => {
   const [searchText, setSearchText] = useState('');
   const [activeTab, setActiveTab] = useState(design_mode ? 'design' : 'parts');
 
-  // Filter body parts based on search
-  const filteredParts = body_parts.filter((part) =>
-    part.name.toLowerCase().includes(searchText.toLowerCase()),
+  // Safely convert body_parts to array and filter
+  const bodyPartsArray = Array.isArray(body_parts)
+    ? body_parts
+    : Object.values(body_parts).filter(
+        (item) => typeof item === 'object' && item !== null && 'zone' in item,
+      );
+
+  const filteredParts = bodyPartsArray.filter((part: any) =>
+    part.name?.toLowerCase().includes(searchText.toLowerCase()),
   );
 
   // Get current zone name
   const currentZoneName =
-    body_parts.find((p) => p.zone === selected_zone)?.name || selected_zone;
+    bodyPartsArray.find((p: any) => p.zone === selected_zone)?.name ||
+    selected_zone;
 
   // Check if we can apply tattoo
   const canApply =
@@ -99,7 +106,7 @@ export const TattooKit = (props, context) => {
     artist_name?.length > 0 &&
     tattoo_design?.length > 0 &&
     ink_uses > 0 &&
-    !existing_tattoos.some((t) => t.layer === selected_layer);
+    !existing_tattoos.some((t: any) => t.layer === selected_layer);
 
   if (applying) {
     return (
@@ -245,12 +252,14 @@ export const TattooKit = (props, context) => {
 
 // Body Parts Tab Component
 const BodyPartTab = (props: {
-  parts: BodyPart[];
+  parts: any[];
   searchText: string;
   onSearch: (text: string) => void;
   onSelectPart: (zone: string) => void;
 }) => {
   const { parts, searchText, onSearch, onSelectPart } = props;
+
+  console.log('Body parts data:', parts); // Debug log
 
   return (
     <Stack fill vertical>
@@ -263,19 +272,22 @@ const BodyPartTab = (props: {
         />
       </Stack.Item>
       <Stack.Item grow>
-        <Section fill scrollable>
+        <Section fill scrollable title="Available Body Parts">
           {parts.length === 0 ? (
             <Box textAlign="center" color="label" py={4}>
               <Icon name="search" size={2} />
               <Box mt={1}>
                 {searchText
-                  ? 'No matching body parts'
-                  : 'No accessible body parts'}
+                  ? 'No matching body parts found'
+                  : 'No accessible body parts available'}
+              </Box>
+              <Box mt={1} fontSize="0.8rem">
+                Make sure the target is accessible and clothing is removed.
               </Box>
             </Box>
           ) : (
             <Stack vertical spacing={1}>
-              {parts.map((part) => (
+              {parts.map((part: any) => (
                 <Stack.Item key={part.zone}>
                   <Button
                     fluid
@@ -293,10 +305,13 @@ const BodyPartTab = (props: {
                         />
                       </Stack.Item>
                       <Stack.Item grow textAlign="left">
-                        <Box bold>{part.name}</Box>
+                        <Box bold>{part.name || 'Unknown Part'}</Box>
                         <Box color="label" fontSize="0.8rem">
-                          {part.current_tattoos}/{part.max_tattoos} tattoos
-                          {part.covered && ' • Covered'}
+                          {part.current_tattoos || 0}/{part.max_tattoos || 3}{' '}
+                          tattoos
+                          {part.covered && ' • Covered by clothing'}
+                          {part.current_tattoos >= part.max_tattoos &&
+                            ' • Full'}
                         </Box>
                       </Stack.Item>
                       <Stack.Item>
@@ -327,7 +342,7 @@ const DesignTab = (props: {
   fontOptions: Record<string, string>;
   flairOptions: Record<string, string>;
   layerOptions: Record<string, string>;
-  existingTattoos: Tattoo[];
+  existingTattoos: any[];
   canApply: boolean;
   inkUses: number;
   onBack: () => void;
@@ -471,7 +486,7 @@ const DesignTab = (props: {
                     {Object.entries(layerOptions).map(([key, label]) => {
                       const layerNum = parseInt(key);
                       const isTaken = existingTattoos.some(
-                        (t) => t.layer === layerNum,
+                        (t: any) => t.layer === layerNum,
                       );
                       return (
                         <Stack.Item key={key} grow>
@@ -542,7 +557,7 @@ const DesignTab = (props: {
                 </Box>
               ) : (
                 <Stack vertical spacing={0.5}>
-                  {existingTattoos.map((tattoo, index) => (
+                  {existingTattoos.map((tattoo: any, index: number) => (
                     <Stack.Item key={index}>
                       <Box
                         style={{
