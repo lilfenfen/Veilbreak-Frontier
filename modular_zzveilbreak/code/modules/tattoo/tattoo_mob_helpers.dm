@@ -27,7 +27,7 @@
 	if(!custom_body_tattoos)
 		custom_body_tattoos = list()
 
-	// CHANGED: Check if layer is already taken for this body part
+	// Check if layer is already taken for this body part
 	var/list/current_tattoos = get_custom_tattoos(actual_zone)
 	for(var/datum/custom_tattoo/existing_tattoo in current_tattoos)
 		if(existing_tattoo.layer == new_tattoo.layer)
@@ -137,22 +137,3 @@
 			. += ""
 		. += span_notice("[p_they(TRUE)] [p_have()] visible tattoos:")
 		. += tattoo_examines
-
-// Handle tattoo kit interactions
-/mob/living/carbon/human/Topic(href, href_list)
-	. = ..()
-	if(.)
-		return
-
-	// Handle tattoo kit interactions
-	if(href_list["tattoo_select_zone"] || href_list["tattoo_back_to_parts"] || \
-	   href_list["tattoo_set_font"] || href_list["tattoo_set_layer"] || \
-	   href_list["tattoo_change_color"] || href_list["tattoo_apply"] || \
-	   href_list["submit_artist"] || href_list["submit_design"] || \
-	   href_list["tattoo_toggle_debug"])
-
-		var/obj/item/custom_tattoo_kit/kit = locate() in usr
-		if(kit && kit.current_target == src)
-			world.log << "TATTOO_MOB_TOPIC: Routing [href_list] from [usr.name] to kit targeting [src.name]"
-			kit.Topic(href, href_list)
-			return TRUE

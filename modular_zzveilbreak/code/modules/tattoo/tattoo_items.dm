@@ -51,33 +51,156 @@
 		ui_interact(user)
 
 /obj/item/custom_tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
-	if(!current_target || QDELETED(current_target))
-		to_chat(user, span_warning("No target selected."))
-		return
+	ui = SStgui.try_update_ui(user, src, ui)
+	if(!ui)
+		ui = new(user, src, "TattooKit")
+		ui.open()
 
-	var/datum/custom_tattoo_ui_data/ui_data = current_target.get_tattoo_ui_data("global")
+/obj/item/custom_tattoo_kit/ui_data(mob/user)
+	var/list/data = list()
+
+	// Target information
+	data["target_name"] = current_target ? current_target.name : null
+	data["target_ref"] = current_target ? REF(current_target) : null
+
+	// Kit status
+	data["ink_uses"] = ink_uses
+	data["max_ink_uses"] = max_ink_uses
+	data["applying"] = (world.time < next_use)
+
+	// Get current design data from target's UI data
+	var/datum/custom_tattoo_ui_data/ui_data = current_target?.get_tattoo_ui_data("global")
 	if(!ui_data)
 		ui_data = new()
-		current_target.set_tattoo_ui_data("global", ui_data)
+		if(current_target)
+			current_target.set_tattoo_ui_data("global", ui_data)
 
-	var/interface_html = ui_data.generate_interface(current_target, user, ink_uses, max_ink_uses, src)
+	// Current design
+	data["artist_name"] = ui_data.artist_name
+	data["tattoo_design"] = ui_data.tattoo_design
+	data["selected_zone"] = ui_data.zone
+	data["selected_layer"] = ui_data.selected_layer
+	data["selected_font"] = ui_data.selected_font
+	data["selected_flair"] = ui_data.selected_flair
+	data["ink_color"] = ui_data.ink_color
+	data["design_mode"] = ui_data.design_mode
+	data["debug_mode"] = ui_data.debug_mode
 
-	var/datum/browser/popup = new(user, "tattoo_kit", "Tattoo Kit", 700, 700)
-	popup.set_content(interface_html)
-	popup.open()
+	// Available options
+	data["font_options"] = ui_data.font_options
+	data["flair_options"] = ui_data.flair_options
 
-/obj/item/custom_tattoo_kit/Topic(href, href_list)
-	if(!current_target)
+	// Layer options with display names
+	data["layer_options"] = list(
+		"1" = "Under (Bottom)",
+		"2" = "Normal (Middle)",
+		"3" = "Over (Top)"
+	)
+
+	// Body parts data
+	data["body_parts"] = list()
+	if(current_target)
+		var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
+		for(var/zone_key in available_parts)
+			var/list/part_info = available_parts[zone_key]
+			data["body_parts"] += list(list(
+				"zone" = zone_key,
+				"name" = part_info["name"],
+				"covered" = part_info["covered"],
+				"current_tattoos" = part_info["current_tattoos"],
+				"max_tattoos" = part_info["max_tattoos"]
+			))
+
+	// Existing tattoos for current zone
+	data["existing_tattoos"] = list()
+	if(current_target && ui_data.zone)
+		var/list/tattoos = current_target.get_custom_tattoos(ui_data.zone)
+		for(var/datum/custom_tattoo/T as anything in tattoos)
+			if(QDELETED(T)) continue
+			data["existing_tattoos"] += list(list(
+				"artist" = T.artist,
+				"design" = T.design,
+				"color" = T.color,
+				"layer" = T.layer,
+				"is_signature" = T.is_signature,
+				"font" = T.font,
+				"flair" = T.flair,
+				"date_applied" = T.date_applied
+			))
+
+	return data
+
+/obj/item/custom_tattoo_kit/ui_act(action, params, datum/tgui/ui, datum/ui_state/state)
+	. = ..()
+	if(.)
 		return
 
-	var/datum/custom_tattoo_ui_data/ui_data = current_target.get_tattoo_ui_data("global")
+	var/mob/user = ui.user
+	var/datum/custom_tattoo_ui_data/ui_data = current_target?.get_tattoo_ui_data("global")
 	if(!ui_data)
-		return
+		ui_data = new()
+		if(current_target)
+			current_target.set_tattoo_ui_data("global", ui_data)
 
-	if(ui_data.handle_topic(href, href_list, usr, src))
-		return TRUE
+	switch(action)
+		if("toggle_debug")
+			ui_data.debug_mode = !ui_data.debug_mode
+			. = TRUE
 
-	return ..()
+		if("select_zone")
+			var/zone = params["zone"]
+			if(current_target && is_custom_tattoo_bodypart_existing(current_target, zone))
+				ui_data.zone = zone
+				ui_data.design_mode = TRUE
+				. = TRUE
+
+		if("back_to_parts")
+			ui_data.design_mode = FALSE
+			. = TRUE
+
+		if("set_artist")
+			ui_data.artist_name = params["artist"]
+			. = TRUE
+
+		if("set_design")
+			ui_data.tattoo_design = params["design"]
+			. = TRUE
+
+		if("set_font")
+			var/font = params["font"]
+			if(font in ui_data.font_options)
+				ui_data.selected_font = font
+				. = TRUE
+
+		if("set_flair")
+			var/flair = params["flair"]
+			ui_data.selected_flair = (flair == "null") ? null : flair
+			. = TRUE
+
+		if("set_layer")
+			var/layer = text2num(params["layer"])
+			if(layer in list(1, 2, 3))
+				ui_data.selected_layer = layer
+				. = TRUE
+
+		if("set_color")
+			ui_data.ink_color = params["color"]
+			. = TRUE
+
+		if("pick_color")
+			var/new_color = input(user, "Choose ink color:", "Tattoo Kit", ui_data.ink_color) as color|null
+			if(new_color)
+				ui_data.ink_color = new_color
+				. = TRUE
+
+		if("apply_tattoo")
+			if(can_apply_tattoo(user))
+				apply_tattoo(user)
+				. = TRUE
+
+	// Save UI data back to target
+	if(. && current_target)
+		current_target.set_tattoo_ui_data("global", ui_data)
 
 /obj/item/custom_tattoo_kit/proc/can_apply_tattoo(mob/user)
 	if(!current_target)
@@ -150,7 +273,7 @@
 		ui_data.selected_layer,
 		is_signature_format,
 		ui_data.selected_font,
-		ui_data.selected_flair // NEW: Include flair
+		ui_data.selected_flair
 	)
 
 	if(current_target.add_custom_tattoo(new_tattoo))
