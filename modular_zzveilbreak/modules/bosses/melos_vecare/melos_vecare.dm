@@ -32,12 +32,7 @@
 
 	anchored = TRUE
 
-	ComponentInitialize()
-		. = ..()
-		AddComponent(/datum/component/boss_music, \
-			boss_track = 'modular_zzveilbreak/sound/music/melos_music.mp3', \
-			track_duration = 73 SECONDS)
-	var/list/death_messages = list(
+	var/list/death_messages = list('
 		"Maybe in death, i'll find lover...",
 		"I die alone.",
 		"I will find my lover, not even death will stop me.")
