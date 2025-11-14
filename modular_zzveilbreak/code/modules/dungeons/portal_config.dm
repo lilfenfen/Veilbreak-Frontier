@@ -2,7 +2,7 @@
 
 // Configuration for the dungeon generator API
 #define DUNGEON_GENERATOR_URL "http://localhost:8000"
-#define DUNGEON_GENERATOR_TIMEOUT 300 // 30 seconds
+#define DUNGEON_GENERATOR_TIMEOUT 300
 
 // API Endpoints
 #define DUNGEON_GENERATE_ENDPOINT "/generate_dungeon"
@@ -13,7 +13,7 @@
 #define PORTAL_STATE_READY "ready"
 #define PORTAL_STATE_ERROR "error"
 
-// Background processing constants (for any remaining references)
+// Background processing constants
 #define BG_PROCESSING_CONTINUE 1
 #define BG_PROCESSING_FINISHED 2
 

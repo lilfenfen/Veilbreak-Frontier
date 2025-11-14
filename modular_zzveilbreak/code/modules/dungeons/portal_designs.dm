@@ -1,6 +1,5 @@
 // modular_zzveilbreak/code/modules/dungeons/portal_designs.dm
 
-// Protolathe designs for portal system
 /datum/design/board/portal
 	name = "Machine Design (Dimensional Portal)"
 	desc = "The circuit board for a Dimensional Portal."

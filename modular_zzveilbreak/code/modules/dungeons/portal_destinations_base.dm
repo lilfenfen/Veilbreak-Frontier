@@ -1,6 +1,5 @@
 // modular_zzveilbreak/code/modules/dungeons/portal_destinations_base.dm
 
-// Base portal destination type
 /datum/portal_destination
 	var/name = "Unknown Destination"
 	var/wait = 0
@@ -29,11 +28,9 @@
 			M.client.move_delay = max(world.time + 5, M.client.move_delay)
 
 /datum/portal_destination/proc/activate(obj/machinery/portal/activated)
-	log_dungeon("Destination: [name] activated by portal at [AREACOORD(activated)]")
 	return
 
 /datum/portal_destination/proc/deactivate(obj/machinery/portal/deactivated)
-	log_dungeon("Destination: [name] deactivated by portal at [AREACOORD(deactivated)]")
 	return
 
 /datum/portal_destination/proc/get_ui_data()
@@ -49,14 +46,12 @@
 		.["timeout"] = 0
 	.["connected"] = !!connected_portal
 
-/// Get the global key for this destination
 /datum/portal_destination/proc/get_global_key()
 	for(var/key in GLOB.portal_destinations)
 		if(GLOB.portal_destinations[key] == src)
 			return key
 	return null
 
-// Simple destination that directly references a portal location
 /datum/portal_destination/simple
 	name = "Simple Destination"
 	var/obj/machinery/portal/return_portal

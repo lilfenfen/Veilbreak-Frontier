@@ -1,17 +1,12 @@
 // modular_zzveilbreak/code/modules/dungeons/portal_http.dm
 
-// HTTP request manager for dungeon generation
 /datum/http_dungeon_generator
 	var/current_request_id = 0
 	var/list/active_requests = list()
 
 /datum/http_dungeon_generator/proc/generate_dungeon(datum/portal_destination/veilbreak/destination, width = 250, height = 250)
-	log_dungeon("DUNGEON DEBUG: generate_dungeon() called with width=[width], height=[height]")
-
-	// Check if RUSTG HTTP is available
 	var/datum/http_request/test_request = new()
 	if(!test_request)
-		log_dungeon("DUNGEON DEBUG: HTTP system not available - test_request is null")
 		destination.generation_failed("HTTP system not available")
 		return 0
 
@@ -20,27 +15,19 @@
 
 	var/datum/http_request/request = new()
 
-	// Request proper wall types that support smoothing
 	var/url = "[DUNGEON_GENERATOR_URL][DUNGEON_GENERATE_ENDPOINT]?width=[width]&height=[height]&seed=[rand(1,1000000)]"
-
-	log_dungeon("DUNGEON DEBUG: Prepared HTTP request to: [url]")
 
 	request.prepare(RUSTG_HTTP_METHOD_GET, url, "", "")
 	request.begin_async()
 
-	// Store the request data
 	active_requests["[request_id]_req"] = request
 	active_requests["[request_id]_time"] = world.time
 
 	return request_id
 
 /datum/http_dungeon_generator/proc/check_request(request_id)
-	log_dungeon("DUNGEON DEBUG: check_request() called for request_id: [request_id]")
-
 	var/datum/portal_destination/veilbreak/destination = active_requests["[request_id]"]
 	if(!destination || QDELETED(destination))
-		log_dungeon("DUNGEON DEBUG: Request [request_id] - destination missing or deleted")
-		// Clean up any remaining request data
 		active_requests -= "[request_id]"
 		active_requests -= "[request_id]_req"
 		active_requests -= "[request_id]_time"
@@ -48,18 +35,14 @@
 
 	var/datum/http_request/request = active_requests["[request_id]_req"]
 	if(!request || QDELETED(request))
-		log_dungeon("DUNGEON DEBUG: Request [request_id] - request object missing")
 		active_requests -= "[request_id]"
 		active_requests -= "[request_id]_time"
 		return FALSE
 
 	if(!request.is_complete())
-		// Check for timeout
 		var/start_time = active_requests["[request_id]_time"]
 		if(world.time - start_time > DUNGEON_GENERATOR_TIMEOUT)
-			log_dungeon("DUNGEON DEBUG: Request [request_id] - timeout after [DUNGEON_GENERATOR_TIMEOUT/10] seconds")
 			destination.generation_failed("Request timeout after [DUNGEON_GENERATOR_TIMEOUT/10] seconds")
-			// Clean up the request
 			active_requests -= "[request_id]"
 			active_requests -= "[request_id]_req"
 			active_requests -= "[request_id]_time"
@@ -69,19 +52,14 @@
 	var/datum/http_response/response = request.into_response()
 
 	if(response.errored || !response.body)
-		log_dungeon("DUNGEON DEBUG: Request [request_id] - error: [response.error]")
 		destination.generation_failed("HTTP error: [response.error]")
 	else
-		log_dungeon("DUNGEON DEBUG: Request [request_id] - response received, body length: [length(response.body)]")
 		var/list/data = json_decode(response.body)
 		if(data && data["status"] == "success")
-			log_dungeon("DUNGEON DEBUG: Request [request_id] - success, data received")
 			destination.generation_complete(data)
 		else
-			log_dungeon("DUNGEON DEBUG: Request [request_id] - API error: [data?["message"] || "Unknown error"]")
 			destination.generation_failed(data?["message"] || "Unknown error from generator")
 
-	// Cleanup - request is complete
 	active_requests -= "[request_id]"
 	active_requests -= "[request_id]_req"
 	active_requests -= "[request_id]_time"

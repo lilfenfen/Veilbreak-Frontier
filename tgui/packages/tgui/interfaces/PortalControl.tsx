@@ -144,7 +144,14 @@ export const PortalControl = (props, context) => {
 
     if (can_generate) {
       return (
-        <Box textAlign="center">
+        <Box
+          textAlign="center"
+          height="100%"
+          display="flex"
+          flexDirection="column"
+          alignItems="center"
+          justifyContent="center"
+        >
           <Button
             fontSize="1.4rem"
             lineHeight="1.2"
