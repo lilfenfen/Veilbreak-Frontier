@@ -10,10 +10,8 @@ import {
   Icon,
   Input,
   LabeledList,
-  NumberInput,
   ProgressBar,
   Section,
-  Stack,
   Tabs,
   TextArea,
   Tooltip,
@@ -84,8 +82,203 @@ export const TattooKit = (props, context) => {
   const [searchText, setSearchText] = useState('');
   const [activeTab, setActiveTab] = useState(design_mode ? 'design' : 'parts');
 
-  // Filter and categorize body parts
-  const filteredParts = body_parts.filter((part) =>
+  if (applying) {
+    return (
+      <Window width={400} height={200}>
+        <Window.Content>
+          <Dimmer>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                textAlign: 'center',
+              }}
+            >
+              <Icon name="spinner" spin size={3} />
+              <div
+                style={{
+                  fontSize: '1.2rem',
+                  fontWeight: 'bold',
+                  margin: '1rem 0',
+                }}
+              >
+                Applying Tattoo...
+              </div>
+              <div>Please hold still during the procedure.</div>
+            </div>
+          </Dimmer>
+        </Window.Content>
+      </Window>
+    );
+  }
+
+  return (
+    <Window width={950} height={700} theme="abstract">
+      <Window.Content
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+        }}
+      >
+        {/* Header Section */}
+        <Section
+          style={{ flexShrink: 0 }}
+          title={
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <Icon name="palette" />
+              Professional Tattoo Studio
+            </div>
+          }
+          buttons={
+            <div style={{ minWidth: '200px' }}>
+              <ProgressBar
+                value={ink_uses}
+                minValue={0}
+                maxValue={max_ink_uses}
+                color={
+                  ink_uses > max_ink_uses * 0.5
+                    ? 'good'
+                    : ink_uses > max_ink_uses * 0.2
+                      ? 'average'
+                      : 'bad'
+                }
+              >
+                Ink: {ink_uses}/{max_ink_uses}
+              </ProgressBar>
+            </div>
+          }
+        >
+          <LabeledList
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '1rem',
+            }}
+          >
+            <LabeledList.Item label="Client">
+              <Box color={target_name ? 'good' : 'average'} bold>
+                {target_name || 'No target selected'}
+              </Box>
+            </LabeledList.Item>
+            <LabeledList.Item label="Mode">
+              <Box color={design_mode ? 'blue' : 'green'}>
+                {design_mode ? 'Designing' : 'Selecting Body Part'}
+              </Box>
+            </LabeledList.Item>
+          </LabeledList>
+        </Section>
+
+        {/* Main Content */}
+        <Section
+          fill
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
+            flex: 1,
+          }}
+        >
+          <Tabs fluid style={{ flexShrink: 0 }}>
+            <Tabs.Tab
+              icon="user-circle"
+              selected={activeTab === 'parts'}
+              onClick={() => {
+                setActiveTab('parts');
+                act('back_to_parts');
+              }}
+            >
+              Body Canvas
+            </Tabs.Tab>
+            <Tabs.Tab
+              icon="paint-brush"
+              selected={activeTab === 'design'}
+              disabled={!selected_zone}
+              onClick={() => setActiveTab('design')}
+            >
+              Tattoo Design
+            </Tabs.Tab>
+          </Tabs>
+
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              marginTop: '0.5rem',
+            }}
+          >
+            {activeTab === 'parts' && (
+              <BodyCanvas
+                bodyParts={body_parts}
+                searchText={searchText}
+                onSearch={setSearchText}
+                onSelectPart={(zone) => {
+                  act('select_zone', { zone });
+                  setActiveTab('design');
+                }}
+              />
+            )}
+
+            {activeTab === 'design' && (
+              <DesignStudio
+                artistName={artist_name}
+                design={tattoo_design}
+                selectedZone={selected_zone}
+                bodyParts={body_parts}
+                layer={selected_layer}
+                font={selected_font}
+                flair={selected_flair}
+                color={ink_color}
+                fontOptions={font_options}
+                flairOptions={flair_options}
+                existingTattoos={existing_tattoos}
+                canApply={
+                  selected_zone &&
+                  artist_name?.trim().length > 0 &&
+                  tattoo_design?.trim().length > 0 &&
+                  ink_uses > 0
+                }
+                inkUses={ink_uses}
+                onBack={() => {
+                  setActiveTab('parts');
+                  act('back_to_parts');
+                }}
+                onApply={() => act('apply_tattoo')}
+                onArtistChange={(value) => act('set_artist', { artist: value })}
+                onDesignChange={(value) => act('set_design', { design: value })}
+                onFontChange={(value) => act('set_font', { font: value })}
+                onFlairChange={(value) => act('set_flair', { flair: value })}
+                onLayerChange={(value) => act('set_layer', { layer: value })}
+                onColorChange={(value) => act('set_color', { color: value })}
+                onColorPick={() => act('pick_color')}
+              />
+            )}
+          </div>
+        </Section>
+      </Window.Content>
+    </Window>
+  );
+};
+
+// Body Canvas Component
+const BodyCanvas = (props: {
+  bodyParts: BodyPart[];
+  searchText: string;
+  onSearch: (text: string) => void;
+  onSelectPart: (zone: string) => void;
+}) => {
+  const { bodyParts, searchText, onSearch, onSelectPart } = props;
+
+  const filteredParts = bodyParts.filter((part) =>
     part.name.toLowerCase().includes(searchText.toLowerCase()),
   );
 
@@ -96,197 +289,45 @@ export const TattooKit = (props, context) => {
     (part) => part.covered || part.current_tattoos >= part.max_tattoos,
   );
 
-  const currentZone = body_parts.find((p) => p.zone === selected_zone);
-
-  // Application requirements
-  const canApply =
-    selected_zone &&
-    artist_name?.trim().length > 0 &&
-    tattoo_design?.trim().length > 0 &&
-    ink_uses > 0 &&
-    existing_tattoos.length < 3 &&
-    !existing_tattoos.some((t) => t.layer === selected_layer);
-
-  if (applying) {
-    return (
-      <Window width={400} height={200}>
-        <Window.Content>
-          <Dimmer>
-            <Stack vertical textAlign="center" align="center">
-              <Stack.Item>
-                <Icon name="spinner" spin size={3} />
-              </Stack.Item>
-              <Stack.Item fontSize="1.2rem" bold>
-                Applying Tattoo...
-              </Stack.Item>
-              <Stack.Item>Please hold still during the procedure.</Stack.Item>
-            </Stack>
-          </Dimmer>
-        </Window.Content>
-      </Window>
-    );
-  }
-
-  return (
-    <Window width={900} height={650} theme="abstract">
-      <Window.Content>
-        <Stack fill vertical>
-          {/* Header Section */}
-          <Stack.Item>
-            <Section
-              title={
-                <Stack align="center">
-                  <Stack.Item>
-                    <Icon name="palette" mr={1} />
-                  </Stack.Item>
-                  <Stack.Item>Professional Tattoo Studio</Stack.Item>
-                </Stack>
-              }
-              buttons={
-                <Stack>
-                  <Stack.Item>
-                    <Box textAlign="center">
-                      <ProgressBar
-                        value={ink_uses}
-                        minValue={0}
-                        maxValue={max_ink_uses}
-                        color={
-                          ink_uses > max_ink_uses * 0.5
-                            ? 'good'
-                            : ink_uses > max_ink_uses * 0.2
-                              ? 'average'
-                              : 'bad'
-                        }
-                      >
-                        Ink: {ink_uses}/{max_ink_uses}
-                      </ProgressBar>
-                    </Box>
-                  </Stack.Item>
-                </Stack>
-              }
-            >
-              <LabeledList>
-                <LabeledList.Item label="Client">
-                  <Box color={target_name ? 'good' : 'average'} bold>
-                    {target_name || 'No target selected'}
-                  </Box>
-                </LabeledList.Item>
-                <LabeledList.Item label="Status">
-                  <Box color={design_mode ? 'blue' : 'green'}>
-                    {design_mode
-                      ? `Designing - ${currentZone?.name}`
-                      : 'Selecting Body Part'}
-                  </Box>
-                </LabeledList.Item>
-              </LabeledList>
-            </Section>
-          </Stack.Item>
-
-          {/* Main Content Area */}
-          <Stack.Item grow>
-            <Section fill>
-              <Tabs fluid>
-                <Tabs.Tab
-                  icon="user-circle"
-                  selected={activeTab === 'parts'}
-                  onClick={() => {
-                    setActiveTab('parts');
-                    act('back_to_parts');
-                  }}
-                >
-                  Body Canvas ({body_parts.length})
-                </Tabs.Tab>
-                <Tabs.Tab
-                  icon="paint-brush"
-                  selected={activeTab === 'design'}
-                  disabled={!selected_zone}
-                  onClick={() => setActiveTab('design')}
-                >
-                  Tattoo Studio {selected_zone && `- ${currentZone?.name}`}
-                </Tabs.Tab>
-              </Tabs>
-
-              <Box mt={1}>
-                {activeTab === 'parts' && (
-                  <BodyCanvas
-                    availableParts={availableParts}
-                    unavailableParts={unavailableParts}
-                    searchText={searchText}
-                    onSearch={setSearchText}
-                    onSelectPart={(zone) => {
-                      act('select_zone', { zone });
-                      setActiveTab('design');
-                    }}
-                  />
-                )}
-
-                {activeTab === 'design' && (
-                  <TattooStudio
-                    artistName={artist_name}
-                    design={tattoo_design}
-                    zone={selected_zone}
-                    zoneName={currentZone?.name}
-                    layer={selected_layer}
-                    font={selected_font}
-                    flair={selected_flair}
-                    color={ink_color}
-                    fontOptions={font_options}
-                    flairOptions={flair_options}
-                    existingTattoos={existing_tattoos}
-                    canApply={canApply}
-                    inkUses={ink_uses}
-                    onBack={() => {
-                      setActiveTab('parts');
-                      act('back_to_parts');
-                    }}
-                    onApply={() => act('apply_tattoo')}
-                    onArtistChange={(value) =>
-                      act('set_artist', { artist: value })
-                    }
-                    onDesignChange={(value) =>
-                      act('set_design', { design: value })
-                    }
-                    onFontChange={(value) => act('set_font', { font: value })}
-                    onFlairChange={(value) =>
-                      act('set_flair', { flair: value })
-                    }
-                    onLayerChange={(value) =>
-                      act('set_layer', { layer: value })
-                    }
-                    onColorChange={(value) =>
-                      act('set_color', { color: value })
-                    }
-                    onColorPick={() => act('pick_color')}
-                  />
-                )}
-              </Box>
-            </Section>
-          </Stack.Item>
-        </Stack>
-      </Window.Content>
-    </Window>
+  const EmptyState = ({
+    icon,
+    message,
+    hint,
+  }: {
+    icon: string;
+    message: string;
+    hint?: string;
+  }) => (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        color: '#999',
+        padding: '2rem',
+        flex: 1,
+      }}
+    >
+      <Icon name={icon} size={2} />
+      <div style={{ marginTop: '0.5rem' }}>{message}</div>
+      {hint && (
+        <div style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>{hint}</div>
+      )}
+    </div>
   );
-};
-
-// Body Canvas Component - Inspired by ChemMaster layout
-const BodyCanvas = (props: {
-  availableParts: BodyPart[];
-  unavailableParts: BodyPart[];
-  searchText: string;
-  onSearch: (text: string) => void;
-  onSelectPart: (zone: string) => void;
-}) => {
-  const {
-    availableParts,
-    unavailableParts,
-    searchText,
-    onSearch,
-    onSelectPart,
-  } = props;
 
   return (
-    <Stack fill vertical>
-      <Stack.Item>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        gap: '1rem',
+      }}
+    >
+      <div style={{ flexShrink: 0 }}>
         <Input
           placeholder="Search body areas..."
           value={searchText}
@@ -294,77 +335,96 @@ const BodyCanvas = (props: {
           fluid
           icon="search"
         />
-      </Stack.Item>
+      </div>
 
-      <Stack.Item grow>
-        <Stack fill>
-          {/* Available Canvas Areas */}
-          <Stack.Item grow={1}>
-            <Section
-              title={`Available Canvas (${availableParts.length})`}
-              fill
-              scrollable
-              color="good"
-            >
-              {availableParts.length === 0 ? (
-                <Box textAlign="center" color="label" py={4}>
-                  <Icon name="search" size={2} />
-                  <Box mt={1}>No available canvas areas</Box>
-                  <Box fontSize="0.8rem">
-                    Remove clothing or search different terms
-                  </Box>
-                </Box>
-              ) : (
-                <Stack vertical spacing={1}>
-                  {availableParts.map((part) => (
-                    <Stack.Item key={part.zone}>
-                      <BodyPartCard
-                        part={part}
-                        status="ready"
-                        color="good"
-                        icon="user-circle"
-                        onSelect={onSelectPart}
-                      />
-                    </Stack.Item>
-                  ))}
-                </Stack>
-              )}
-            </Section>
-          </Stack.Item>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '1rem',
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
+        {/* Available Areas */}
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <Section
+            title={`Available Canvas (${availableParts.length})`}
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0,
+            }}
+            color="good"
+          >
+            {availableParts.length === 0 ? (
+              <EmptyState
+                icon="search"
+                message="No available canvas areas"
+                hint="Remove clothing or search different terms"
+              />
+            ) : (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                  flex: 1,
+                  overflowY: 'auto',
+                }}
+              >
+                {availableParts.map((part) => (
+                  <BodyPartCard
+                    key={part.zone}
+                    part={part}
+                    status="available"
+                    onSelect={onSelectPart}
+                  />
+                ))}
+              </div>
+            )}
+          </Section>
+        </div>
 
-          {/* Unavailable Areas */}
-          <Stack.Item width="50%">
-            <Section
-              title={`Unavailable (${unavailableParts.length})`}
-              fill
-              scrollable
-              color="average"
-            >
-              {unavailableParts.length === 0 ? (
-                <Box textAlign="center" color="label" py={2}>
-                  <Icon name="check" />
-                  <Box>All areas accessible</Box>
-                </Box>
-              ) : (
-                <Stack vertical spacing={1}>
-                  {unavailableParts.map((part) => (
-                    <Stack.Item key={part.zone}>
-                      <BodyPartCard
-                        part={part}
-                        status={part.covered ? 'covered' : 'full'}
-                        color="average"
-                        icon={part.covered ? 'tshirt' : 'ban'}
-                        onSelect={onSelectPart}
-                      />
-                    </Stack.Item>
-                  ))}
-                </Stack>
-              )}
-            </Section>
-          </Stack.Item>
-        </Stack>
-      </Stack.Item>
-    </Stack>
+        {/* Unavailable Areas */}
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <Section
+            title={`Unavailable (${unavailableParts.length})`}
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0,
+            }}
+            color="average"
+          >
+            {unavailableParts.length === 0 ? (
+              <EmptyState icon="check" message="All areas accessible" />
+            ) : (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                  flex: 1,
+                  overflowY: 'auto',
+                }}
+              >
+                {unavailableParts.map((part) => (
+                  <BodyPartCard
+                    key={part.zone}
+                    part={part}
+                    status={part.covered ? 'covered' : 'full'}
+                    onSelect={onSelectPart}
+                  />
+                ))}
+              </div>
+            )}
+          </Section>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -372,18 +432,42 @@ const BodyCanvas = (props: {
 const BodyPartCard = (props: {
   part: BodyPart;
   status: string;
-  color: string;
-  icon: string;
   onSelect: (zone: string) => void;
 }) => {
-  const { part, status, color, icon, onSelect } = props;
-  const disabled = status !== 'ready';
+  const { part, status, onSelect } = props;
+  const disabled = status !== 'available';
+
+  const getStatusIcon = () => {
+    switch (status) {
+      case 'available':
+        return 'user-circle';
+      case 'covered':
+        return 'tshirt';
+      case 'full':
+        return 'ban';
+      default:
+        return 'question';
+    }
+  };
+
+  const getStatusText = () => {
+    switch (status) {
+      case 'available':
+        return 'Ready';
+      case 'covered':
+        return 'Covered';
+      case 'full':
+        return 'Full';
+      default:
+        return 'Unknown';
+    }
+  };
 
   return (
     <Button
       fluid
-      color={color}
-      onClick={() => !disabled && onSelect(part.zone)}
+      style={{ height: '60px', textAlign: 'left' }}
+      color={status === 'available' ? 'good' : 'average'}
       disabled={disabled}
       tooltip={
         disabled
@@ -392,31 +476,51 @@ const BodyPartCard = (props: {
             : 'Maximum tattoos reached'
           : `Select ${part.name} for tattooing`
       }
+      onClick={() => !disabled && onSelect(part.zone)}
     >
-      <Stack align="center">
-        <Stack.Item>
-          <Icon name={icon} mr={1} />
-        </Stack.Item>
-        <Stack.Item grow textAlign="left">
-          <Box bold>{part.name}</Box>
-          <Box color="label" fontSize="0.8rem">
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'auto 1fr auto',
+          alignItems: 'center',
+          gap: '0.5rem',
+          height: '100%',
+        }}
+      >
+        <div style={{ fontSize: '1.2rem' }}>
+          <Icon name={getStatusIcon()} />
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.2rem',
+          }}
+        >
+          <div style={{ fontWeight: 'bold' }}>{part.name}</div>
+          <div style={{ fontSize: '0.8rem', color: '#999' }}>
             {part.current_tattoos}/{part.max_tattoos} tattoos
-            {status === 'covered' && ' • Covered'}
-            {status === 'full' && ' • Full'}
-          </Box>
-        </Stack.Item>
-        <Stack.Item>{!disabled && <Icon name="chevron-right" />}</Stack.Item>
-      </Stack>
+          </div>
+          <div style={{ fontSize: '0.7rem', fontWeight: 'bold' }}>
+            {getStatusText()}
+          </div>
+        </div>
+        {!disabled && (
+          <div style={{ color: '#999' }}>
+            <Icon name="chevron-right" />
+          </div>
+        )}
+      </div>
     </Button>
   );
 };
 
-// Tattoo Studio Component - Main design interface
-const TattooStudio = (props: {
+// Design Studio Component
+const DesignStudio = (props: {
   artistName: string;
   design: string;
-  zone: string;
-  zoneName: string;
+  selectedZone: string;
+  bodyParts: BodyPart[];
   layer: number;
   font: string;
   flair: string | null;
@@ -439,7 +543,8 @@ const TattooStudio = (props: {
   const {
     artistName,
     design,
-    zoneName,
+    selectedZone,
+    bodyParts,
     layer,
     font,
     flair,
@@ -460,367 +565,545 @@ const TattooStudio = (props: {
     onColorPick,
   } = props;
 
+  const currentZone = bodyParts.find((part) => part.zone === selectedZone);
   const isSignature = artistName.includes('%s');
 
+  const EmptyPreview = ({
+    icon,
+    message,
+    hint,
+  }: {
+    icon: string;
+    message: string;
+    hint?: string;
+  }) => (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        color: '#999',
+        padding: '2rem',
+        height: '100%',
+      }}
+    >
+      <Icon name={icon} size={3} />
+      <div style={{ marginTop: '1rem', fontSize: '1.1rem' }}>{message}</div>
+      {hint && (
+        <div style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>{hint}</div>
+      )}
+    </div>
+  );
+
   return (
-    <Stack fill>
-      {/* Design Controls - Left Panel */}
-      <Stack.Item width="60%">
-        <Stack fill vertical>
-          {/* Studio Header */}
-          <Stack.Item>
-            <Section>
-              <Stack>
-                <Stack.Item>
-                  <Button onClick={onBack}>
-                    <Icon name="arrow-left" /> Change Canvas
-                  </Button>
-                </Stack.Item>
-                <Stack.Item grow textAlign="center">
-                  <Box bold fontSize="1.2rem">
-                    Tattoo Studio - {zoneName}
-                  </Box>
-                </Stack.Item>
-                <Stack.Item>
-                  <Button
-                    color="good"
-                    disabled={!canApply}
-                    onClick={onApply}
-                    tooltip={
-                      !canApply
-                        ? 'Complete all required fields and ensure ink is available'
-                        : 'Apply tattoo to selected area'
-                    }
-                    icon="paint-brush"
-                  >
-                    Apply Tattoo
-                  </Button>
-                </Stack.Item>
-              </Stack>
-            </Section>
-          </Stack.Item>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        gap: '1rem',
+      }}
+    >
+      {/* Studio Header */}
+      <Section style={{ flexShrink: 0 }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'auto 1fr auto',
+            alignItems: 'center',
+            gap: '1rem',
+          }}
+        >
+          <Button onClick={onBack}>
+            <Icon name="arrow-left" />
+            Change Canvas
+          </Button>
+          <div
+            style={{
+              fontWeight: 'bold',
+              fontSize: '1.1rem',
+              textAlign: 'center',
+            }}
+          >
+            Designing for {currentZone?.name || selectedZone}
+          </div>
+          <Button
+            color="good"
+            disabled={!canApply}
+            onClick={onApply}
+            tooltip={
+              !canApply ? 'Complete all required fields' : 'Apply tattoo'
+            }
+          >
+            <Icon name="paint-brush" />
+            Apply Tattoo ({inkUses} left)
+          </Button>
+        </div>
+      </Section>
 
-          {/* Design Form */}
-          <Stack.Item grow>
-            <Section fill scrollable title="Tattoo Design">
-              <Stack vertical spacing={1.5}>
-                {/* Artist Signature */}
-                <Stack.Item>
-                  <Box bold color="label" mb={0.5}>
-                    Artist Signature
-                    {isSignature && (
-                      <Box as="span" color="blue" ml={1}>
-                        <Icon name="signature" /> Auto-signature Enabled
-                      </Box>
-                    )}
-                  </Box>
-                  <Input
-                    value={artistName}
-                    onChange={(e, value) => onArtistChange(value)}
-                    placeholder="Enter artist name (use %s for automatic signature)"
-                    fluid
-                  />
-                  {isSignature && (
-                    <Box color="blue" fontSize="0.8rem" mt={0.5}>
-                      %s will be replaced with your name during application
-                    </Box>
-                  )}
-                </Stack.Item>
-
-                {/* Tattoo Design */}
-                <Stack.Item>
-                  <Box bold color="label" mb={0.5}>
-                    Tattoo Artwork
-                  </Box>
-                  <TextArea
-                    value={design}
-                    onChange={(e, value) => onDesignChange(value)}
-                    placeholder="Describe your tattoo design in detail..."
-                    height="100px"
-                    fluid
-                  />
-                  <Box color="label" fontSize="0.8rem" mt={0.5}>
-                    Supports emojis like :heart: :star: :smile: and text
-                    formatting
-                  </Box>
-                </Stack.Item>
-
-                {/* Style Configuration */}
-                <Stack.Item>
-                  <Stack>
-                    <Stack.Item grow>
-                      <Box bold color="label" mb={0.5}>
-                        Writing Instrument
-                      </Box>
-                      <Dropdown
-                        selected={font}
-                        options={fontOptions}
-                        onSelected={onFontChange}
-                        width="100%"
-                      />
-                    </Stack.Item>
-                    <Stack.Item grow ml={1}>
-                      <Box bold color="label" mb={0.5}>
-                        Text Flair
-                      </Box>
-                      <Dropdown
-                        selected={flair || 'null'}
-                        options={flairOptions}
-                        onSelected={(value) =>
-                          onFlairChange(value === 'null' ? null : value)
-                        }
-                        width="100%"
-                      />
-                    </Stack.Item>
-                  </Stack>
-                </Stack.Item>
-
-                {/* Layer Selection */}
-                <Stack.Item>
-                  <Box bold color="label" mb={0.5}>
-                    Layer Placement
-                  </Box>
-                  <Stack>
-                    {[1, 2, 3].map((layerNum) => {
-                      const isTaken = existingTattoos.some(
-                        (t) => t.layer === layerNum,
-                      );
-                      const isSelected = layer === layerNum;
-                      const layerNames = [
-                        'Under (Base)',
-                        'Normal (Middle)',
-                        'Over (Top)',
-                      ];
-
-                      return (
-                        <Stack.Item key={layerNum} grow>
-                          <Tooltip
-                            content={
-                              isTaken
-                                ? `Layer occupied - will replace existing tattoo`
-                                : `Place tattoo on ${layerNames[layerNum - 1]} layer`
-                            }
-                          >
-                            <Button
-                              fluid
-                              selected={isSelected}
-                              color={
-                                isTaken
-                                  ? 'yellow'
-                                  : isSelected
-                                    ? 'good'
-                                    : 'default'
-                              }
-                              onClick={() => {
-                                if (isTaken) {
-                                  if (
-                                    window.confirm(
-                                      'This layer has an existing tattoo. Applying a new design will replace it. Continue?',
-                                    )
-                                  ) {
-                                    onLayerChange(layerNum);
-                                  }
-                                } else {
-                                  onLayerChange(layerNum);
-                                }
-                              }}
-                            >
-                              <Stack vertical align="center">
-                                <Stack.Item>{layerNum}</Stack.Item>
-                                <Stack.Item fontSize="0.8rem">
-                                  {layerNames[layerNum - 1]}
-                                </Stack.Item>
-                                {isTaken && (
-                                  <Stack.Item fontSize="0.7rem" color="label">
-                                    Occupied
-                                  </Stack.Item>
-                                )}
-                              </Stack>
-                            </Button>
-                          </Tooltip>
-                        </Stack.Item>
-                      );
-                    })}
-                  </Stack>
-                </Stack.Item>
-
-                {/* Color Selection */}
-                <Stack.Item>
-                  <Box bold color="label" mb={0.5}>
-                    Ink Color
-                  </Box>
-                  <Stack align="center">
-                    <Stack.Item>
-                      <ColorBox color={color} />
-                    </Stack.Item>
-                    <Stack.Item grow>
-                      <Input
-                        value={color}
-                        onChange={(e, value) => onColorChange(value)}
-                        placeholder="#000000"
-                        fluid
-                      />
-                    </Stack.Item>
-                    <Stack.Item>
-                      <Button
-                        icon="palette"
-                        onClick={onColorPick}
-                        tooltip="Open color picker"
-                      >
-                        Pick
-                      </Button>
-                    </Stack.Item>
-                  </Stack>
-                </Stack.Item>
-              </Stack>
-            </Section>
-          </Stack.Item>
-        </Stack>
-      </Stack.Item>
-
-      {/* Preview & Existing Tattoos - Right Panel */}
-      <Stack.Item width="40%">
-        <Stack fill vertical>
-          {/* Existing Tattoos */}
-          <Stack.Item>
-            <Section
-              title={`Existing Artwork (${existingTattoos.length}/3)`}
-              fill={false}
-              buttons={
-                <Box color={existingTattoos.length >= 3 ? 'bad' : 'good'}>
-                  {existingTattoos.length}/3 slots used
-                </Box>
-              }
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1.5fr 1fr',
+          gap: '1rem',
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
+        {/* Design Controls */}
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <Section
+            title="Tattoo Design"
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0,
+            }}
+            fill
+          >
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+                flex: 1,
+                overflowY: 'auto',
+              }}
             >
-              {existingTattoos.length === 0 ? (
-                <Box textAlign="center" color="label" py={3}>
-                  <Icon name="canvas" size={2} />
-                  <Box mt={1}>Blank Canvas</Box>
-                  <Box fontSize="0.8rem">No tattoos yet</Box>
-                </Box>
-              ) : (
-                <Stack vertical spacing={1}>
-                  {existingTattoos.map((tattoo, index) => (
-                    <Stack.Item key={index}>
-                      <Box
-                        style={{
-                          borderLeft: `4px solid ${tattoo.color}`,
-                          padding: '8px',
-                          background: 'rgba(0,0,0,0.3)',
-                          borderRadius: '4px',
-                        }}
-                      >
-                        <Box
-                          color={tattoo.color}
-                          style={{
-                            fontFamily:
-                              tattoo.font === 'CRAYON_FONT'
-                                ? 'Comic Sans MS, cursive'
-                                : 'inherit',
-                            fontWeight: 'bold',
-                          }}
-                        >
-                          "{tattoo.design}"
-                        </Box>
-                        <Stack mt={0.5}>
-                          <Stack.Item grow fontSize="0.8rem" color="label">
-                            by {tattoo.artist}
-                          </Stack.Item>
-                          <Stack.Item fontSize="0.7rem" color="label">
-                            Layer {tattoo.layer}
-                          </Stack.Item>
-                        </Stack>
-                        {tattoo.flair && (
-                          <Box fontSize="0.7rem" color="blue">
-                            Style: {flairOptions[tattoo.flair]}
-                          </Box>
-                        )}
-                      </Box>
-                    </Stack.Item>
-                  ))}
-                </Stack>
-              )}
-            </Section>
-          </Stack.Item>
-
-          {/* Live Preview */}
-          <Stack.Item grow>
-            <Section fill title="Live Preview" scrollable>
-              {artistName || design ? (
-                <Box
+              {/* Artist Name */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                }}
+              >
+                <div
                   style={{
-                    border: `2px solid ${color}`,
-                    padding: '16px',
-                    background: 'rgba(0,0,0,0.1)',
-                    borderRadius: '8px',
-                    height: '100%',
+                    fontWeight: 'bold',
+                    color: '#ddd',
                     display: 'flex',
-                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.5rem',
                   }}
                 >
-                  {/* Preview Header */}
-                  <Box
-                    textAlign="center"
-                    bold
-                    fontSize="1rem"
+                  Artist Signature
+                  {isSignature && (
+                    <span
+                      style={{
+                        background: '#4d82ff',
+                        color: 'white',
+                        padding: '0.2rem 0.5rem',
+                        borderRadius: '0.25rem',
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                      }}
+                    >
+                      <Icon name="signature" />
+                      Auto-signature
+                    </span>
+                  )}
+                </div>
+                <Input
+                  value={artistName}
+                  onChange={(e, value) => onArtistChange(value)}
+                  placeholder="Enter artist name (use %s for automatic signature)"
+                  fluid
+                />
+                {isSignature && (
+                  <div style={{ fontSize: '0.8rem', color: '#999' }}>
+                    %s will be replaced with your name during application
+                  </div>
+                )}
+              </div>
+
+              {/* Tattoo Design */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                }}
+              >
+                <div style={{ fontWeight: 'bold', color: '#ddd' }}>
+                  Tattoo Artwork
+                </div>
+                <TextArea
+                  value={design}
+                  onChange={(e, value) => onDesignChange(value)}
+                  placeholder="Describe your tattoo design in detail..."
+                  height="100px"
+                  fluid
+                />
+                <div style={{ fontSize: '0.8rem', color: '#999' }}>
+                  Supports emojis like :heart: :star: :smile: and text
+                  formatting
+                </div>
+              </div>
+
+              {/* Style Options */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '1rem',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.5rem',
+                    flex: 1,
+                  }}
+                >
+                  <div style={{ fontWeight: 'bold', color: '#ddd' }}>
+                    Writing Instrument
+                  </div>
+                  <Dropdown
+                    selected={font}
+                    options={fontOptions}
+                    onSelected={onFontChange}
+                    width="100%"
+                  />
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.5rem',
+                    flex: 1,
+                  }}
+                >
+                  <div style={{ fontWeight: 'bold', color: '#ddd' }}>
+                    Text Flair
+                  </div>
+                  <Dropdown
+                    selected={flair || 'null'}
+                    options={flairOptions}
+                    onSelected={(value) =>
+                      onFlairChange(value === 'null' ? null : value)
+                    }
+                    width="100%"
+                  />
+                </div>
+              </div>
+
+              {/* Layer Selection */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                }}
+              >
+                <div style={{ fontWeight: 'bold', color: '#ddd' }}>
+                  Layer Placement
+                </div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr 1fr',
+                    gap: '0.5rem',
+                  }}
+                >
+                  {[1, 2, 3].map((layerNum) => {
+                    const isTaken = existingTattoos.some(
+                      (t) => t.layer === layerNum,
+                    );
+                    const isSelected = layer === layerNum;
+                    const layerNames = [
+                      'Under (Base)',
+                      'Normal (Middle)',
+                      'Over (Top)',
+                    ];
+
+                    return (
+                      <Tooltip
+                        key={layerNum}
+                        content={
+                          isTaken
+                            ? `Layer occupied - will replace existing tattoo`
+                            : `Place tattoo on ${layerNames[layerNum - 1]} layer`
+                        }
+                      >
+                        <Button
+                          fluid
+                          style={{ height: '60px' }}
+                          color={
+                            isTaken ? 'yellow' : isSelected ? 'good' : 'default'
+                          }
+                          onClick={() => {
+                            if (isTaken) {
+                              if (
+                                window.confirm(
+                                  'This layer has an existing tattoo. Applying a new design will replace it. Continue?',
+                                )
+                              ) {
+                                onLayerChange(layerNum);
+                              }
+                            } else {
+                              onLayerChange(layerNum);
+                            }
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                            }}
+                          >
+                            <div
+                              style={{ fontSize: '1.2rem', fontWeight: 'bold' }}
+                            >
+                              {layerNum}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: '0.8rem',
+                                textAlign: 'center',
+                              }}
+                            >
+                              {layerNames[layerNum - 1]}
+                            </div>
+                            {isTaken && (
+                              <div
+                                style={{
+                                  fontSize: '0.7rem',
+                                  color: '#ffa500',
+                                  fontWeight: 'bold',
+                                }}
+                              >
+                                Occupied
+                              </div>
+                            )}
+                          </div>
+                        </Button>
+                      </Tooltip>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Color Selection */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                }}
+              >
+                <div style={{ fontWeight: 'bold', color: '#ddd' }}>
+                  Ink Color
+                </div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'auto 1fr auto',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <ColorBox
                     color={color}
-                    mb={2}
                     style={{
-                      borderBottom: `1px solid ${color}`,
-                      paddingBottom: '8px',
+                      width: '30px',
+                      height: '30px',
+                      border: '1px solid #666',
+                    }}
+                  />
+                  <Input
+                    value={color}
+                    onChange={(e, value) => onColorChange(value)}
+                    placeholder="#000000"
+                  />
+                  <Button
+                    icon="palette"
+                    onClick={onColorPick}
+                    tooltip="Open color picker"
+                  >
+                    Pick
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Section>
+        </div>
+
+        {/* Preview Panel */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem',
+            minHeight: 0,
+          }}
+        >
+          {/* Existing Tattoos */}
+          <Section
+            title={`Existing Artwork (${existingTattoos.length}/3)`}
+            style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}
+            buttons={
+              <Box color={existingTattoos.length >= 3 ? 'bad' : 'good'}>
+                {existingTattoos.length}/3 slots used
+              </Box>
+            }
+          >
+            {existingTattoos.length === 0 ? (
+              <EmptyPreview
+                icon="canvas"
+                message="Blank Canvas"
+                hint="No tattoos yet"
+              />
+            ) : (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                }}
+              >
+                {existingTattoos.map((tattoo, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      borderLeft: `4px solid ${tattoo.color}`,
+                      padding: '0.5rem',
+                      borderRadius: '0.25rem',
                     }}
                   >
-                    {zoneName}
-                  </Box>
+                    <div
+                      style={{
+                        color: tattoo.color,
+                        fontWeight: 'bold',
+                        marginBottom: '0.3rem',
+                        fontFamily:
+                          tattoo.font === 'CRAYON_FONT'
+                            ? 'Comic Sans MS, cursive'
+                            : 'inherit',
+                      }}
+                    >
+                      "{tattoo.design}"
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontSize: '0.8rem',
+                        color: '#999',
+                      }}
+                    >
+                      <span>by {tattoo.artist}</span>
+                      <span>Layer {tattoo.layer}</span>
+                    </div>
+                    {tattoo.flair && (
+                      <div
+                        style={{
+                          fontSize: '0.7rem',
+                          color: '#4d82ff',
+                          marginTop: '0.2rem',
+                        }}
+                      >
+                        Style: {flairOptions[tattoo.flair]}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
 
-                  {/* Tattoo Preview */}
-                  <Box
-                    flexGrow={1}
-                    textAlign="center"
+          {/* Live Preview */}
+          <Section
+            fill
+            title="Live Preview"
+            style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}
+          >
+            <div
+              style={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              {artistName || design ? (
+                <div
+                  style={{
+                    border: `2px solid ${color}`,
+                    padding: '1rem',
+                    background: 'rgba(0, 0, 0, 0.1)',
+                    borderRadius: '0.5rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: '100%',
+                  }}
+                >
+                  <div
                     style={{
+                      color: color,
+                      borderBottom: `1px solid ${color}`,
+                      paddingBottom: '0.5rem',
+                      fontWeight: 'bold',
+                      textAlign: 'center',
+                      fontSize: '1rem',
+                    }}
+                  >
+                    {currentZone?.name || selectedZone}
+                  </div>
+
+                  <div
+                    style={{
+                      flex: 1,
                       display: 'flex',
-                      flexDirection: 'column',
+                      alignItems: 'center',
                       justifyContent: 'center',
                       minHeight: '80px',
+                      padding: '1rem 0',
                     }}
                   >
-                    <Box
-                      fontSize="1.1rem"
-                      color={color}
+                    <div
                       style={{
+                        color: color,
+                        fontWeight: 'bold',
+                        fontSize: '1.1rem',
+                        lineHeight: '1.4',
+                        textAlign: 'center',
                         fontFamily:
                           font === 'CRAYON_FONT'
                             ? 'Comic Sans MS, cursive'
                             : font === 'FOUNTAIN_PEN_FONT'
                               ? 'Brush Script MT, cursive'
                               : 'inherit',
-                        fontWeight: 'bold',
-                        lineHeight: '1.4',
                       }}
                     >
                       "{design || 'Your design will appear here'}"
-                    </Box>
-                  </Box>
+                    </div>
+                  </div>
 
-                  {/* Artist Signature */}
-                  <Box
-                    textAlign="right"
-                    color={color}
-                    fontSize="0.9rem"
-                    mt={2}
+                  <div
                     style={{
+                      color: color,
                       borderTop: `1px solid ${color}`,
-                      paddingTop: '8px',
+                      paddingTop: '0.5rem',
+                      fontSize: '0.9rem',
+                      textAlign: 'right',
                     }}
                   >
                     —{' '}
                     {isSignature
                       ? '[Your Signature]'
                       : artistName || 'Unknown Artist'}
-                  </Box>
+                  </div>
 
-                  {/* Style Details */}
-                  <Box mt={2} color="label" fontSize="0.8rem">
+                  <div style={{ marginTop: '1rem' }}>
                     <LabeledList>
                       <LabeledList.Item label="Instrument">
                         {fontOptions[font]}
@@ -834,34 +1117,19 @@ const TattooStudio = (props: {
                           : 'None'}
                       </LabeledList.Item>
                     </LabeledList>
-                  </Box>
-                </Box>
+                  </div>
+                </div>
               ) : (
-                <Box
-                  textAlign="center"
-                  color="label"
-                  py={4}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    height: '100%',
-                  }}
-                >
-                  <Icon name="eye-slash" size={3} />
-                  <Box mt={2} fontSize="1.1rem">
-                    Design Preview
-                  </Box>
-                  <Box mt={1} fontSize="0.9rem">
-                    Enter design details to see
-                  </Box>
-                  <Box fontSize="0.9rem">live preview here</Box>
-                </Box>
+                <EmptyPreview
+                  icon="eye-slash"
+                  message="Design Preview"
+                  hint="Enter design details to see live preview"
+                />
               )}
-            </Section>
-          </Stack.Item>
-        </Stack>
-      </Stack.Item>
-    </Stack>
+            </div>
+          </Section>
+        </div>
+      </div>
+    </div>
   );
 };
