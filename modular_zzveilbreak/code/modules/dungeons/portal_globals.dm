@@ -72,7 +72,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 			SSmobs.initialized && \
 			world.time > 30 SECONDS) // Give subsystems time to settle after round start.
 
-
+// Initialize dungeon mobs for AI processing
 /proc/initialize_dungeon_mobs(z_level)
 	if(!SSmobs.initialized)
 		return

@@ -147,6 +147,10 @@
 	initialize_atoms_on_z_level(z_level)
 	CHECK_TICK
 
+	// CRITICAL: Initialize dungeon mobs for AI processing
+	initialize_dungeon_mobs(z_level)
+	CHECK_TICK
+
 	// Initialize areas and power
 	initialize_areas_and_power(z_level)
 	CHECK_TICK
@@ -161,9 +165,6 @@
 
 	// CRITICAL: Force SSlighting initialization
 	force_lighting_initialization(z_level)
-	CHECK_TICK
-
-	initialize_dungeon_mobs(z_level)
 	CHECK_TICK
 
 	// Initialize smoothing
@@ -395,4 +396,3 @@
 
 			if(fixed_count % 50 == 0)
 				CHECK_TICK
-
