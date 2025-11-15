@@ -150,12 +150,18 @@
 	// Force atmos initialization using proper methods
 	var/atoms_initialized = 0
 	for(var/turf/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
-		if(!T.air)
-			T.Initalize_Atmos(0)
-			atoms_initialized++
+		// Use proper atmos initialization - check if turf has atmos system
+		if(istype(T, /turf/open))
+			var/turf/open/open_turf = T
+			if(!open_turf.air)
+				open_turf.Initalize_Atmos(0)
+				atoms_initialized++
 
-		// Force adjacency calculation
-		T.immediate_calculate_adjacent_turfs()
+			// Force adjacency calculation
+			open_turf.immediate_calculate_adjacent_turfs()
+		else if(istype(T, /turf/closed))
+			// Closed turfs don't have air, but we still need adjacency
+			T.immediate_calculate_adjacent_turfs()
 
 		if(atoms_initialized % 50 == 0)
 			CHECK_TICK
@@ -169,7 +175,7 @@
 		locate(max(1, center_x - 15), max(1, center_y - 15), z_level),
 		locate(min(world.maxx, center_x + 15), min(world.maxy, center_y + 15), z_level)
 	))
-		if(T.air && !T.excited && !T.blocks_air)
+		if(!T.blocks_air && !T.excited)
 			SSair.add_to_active(T)
 			activated_count++
 			if(activated_count >= 25) // Seed a reasonable area
@@ -181,10 +187,7 @@
 		generation_failed("Lighting subsystem not available")
 		return
 
-	// CRITICAL: Use SSlighting's proper initialization method
-	SSlighting.InitializeTurf(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level))
-
-	// Force lighting objects for all non-space turfs
+	// CRITICAL: Use SSlighting's proper initialization method - create lighting objects
 	var/lighting_objects_created = 0
 	for(var/turf/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
 		if(!T.space_lit && !T.lighting_object)
@@ -196,6 +199,9 @@
 
 		if(lighting_objects_created % 100 == 0)
 			CHECK_TICK
+
+	// Force lighting to update for the entire Z-level
+	SSlighting.create_all_lighting_objects()
 
 /datum/portal_destination/veilbreak/proc/log_loaded_content(z_level)
 	var/turf_count = 0

@@ -98,8 +98,8 @@
 				ejection_turf = station_turf
 			return ejection_turf
 
-	// Fallback: find any portal control console
-	for(var/obj/machinery/computer/portal_control/console in GLOB.machines)
+	// Fallback: find any portal control console - use world instead of GLOB.machines
+	for(var/obj/machinery/computer/portal_control/console in world)
 		if(console.linked_portal && !QDELETED(console.linked_portal))
 			var/turf/console_turf = get_turf(console.linked_portal)
 			if(console_turf)
