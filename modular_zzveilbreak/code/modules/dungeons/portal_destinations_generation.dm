@@ -151,6 +151,10 @@
 	initialize_dungeon_mobs(z_level)
 	CHECK_TICK
 
+	// CRITICAL: Activate AI for map-spawned mobs
+	activate_dungeon_mob_ai(z_level)
+	CHECK_TICK
+
 	// Initialize areas and power
 	initialize_areas_and_power(z_level)
 	CHECK_TICK
@@ -174,6 +178,31 @@
 	ensure_portal_connection()
 
 	generated = TRUE
+
+/datum/portal_destination/veilbreak/proc/activate_dungeon_mob_ai(z_level)
+	for(var/mob/living/simple_animal/hostile/mob in world)
+		if(mob.z != z_level)
+			continue
+
+		// Force AI controller reinitialization for map-spawned mobs
+		if(mob.ai_controller)
+			QDEL_NULL(mob.ai_controller)
+
+		// Get the AI controller type from the mob's definition
+		var/ai_controller_type
+		if(istype(mob, /mob/living/simple_animal/hostile/Voidling))
+			ai_controller_type = /datum/ai_controller/basic_controller/void/voidling
+		else if(istype(mob, /mob/living/simple_animal/hostile/Consumed_Pathfinder))
+			ai_controller_type = /datum/ai_controller/basic_controller/void_pathfinder
+		else if(istype(mob, /mob/living/simple_animal/hostile/Voidbug))
+			ai_controller_type = /datum/ai_controller/basic_controller/void/voidbug
+		else if(istype(mob, /mob/living/simple_animal/hostile/Void_Healer))
+			ai_controller_type = /datum/ai_controller/basic_controller/void_healer
+
+		if(ai_controller_type)
+			mob.ai_controller = new ai_controller_type(mob)
+
+		CHECK_TICK
 
 /datum/portal_destination/veilbreak/proc/initialize_atoms_on_z_level(z_level)
 	// CRITICAL: Force SSatoms to initialize all atoms on the new Z-level

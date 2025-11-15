@@ -36,9 +36,15 @@
 	robust_searching = TRUE
 	dodging = TRUE
 	dodge_prob = 50
-	stat_attack = CONSCIOUS  // FIXED: Attack conscious targets
+	stat_attack = CONSCIOUS
 
 	ai_controller = /datum/ai_controller/basic_controller/void/voidling
+
+/mob/living/simple_animal/hostile/Voidling/Initialize(mapload)
+	. = ..()
+	// Ensure AI controller is properly initialized for map-spawned mobs
+	if(mapload && ai_controller)
+		ai_controller = new ai_controller(src)
 
 /mob/living/simple_animal/hostile/Voidling/death(gibbed)
 	void_death("And the void reclaims.", voidling_loot_table)
@@ -73,9 +79,15 @@
 	ranged = 1
 	var/last_summon = 0
 	projectiletype = /obj/projectile/magic/voidbolt
-	stat_attack = CONSCIOUS  // FIXED: Attack conscious targets
+	stat_attack = CONSCIOUS
 
 	ai_controller = /datum/ai_controller/basic_controller/void_pathfinder
+
+/mob/living/simple_animal/hostile/Consumed_Pathfinder/Initialize(mapload)
+	. = ..()
+	// Ensure AI controller is properly initialized for map-spawned mobs
+	if(mapload && ai_controller)
+		ai_controller = new ai_controller(src)
 
 /mob/living/simple_animal/hostile/Consumed_Pathfinder/Life()
 	. = ..()
@@ -119,9 +131,15 @@
 	dodging = FALSE
 	var/block_chance = 30
 	var/last_pack_call = 0
-	stat_attack = CONSCIOUS  // FIXED: Attack conscious targets
+	stat_attack = CONSCIOUS
 
 	ai_controller = /datum/ai_controller/basic_controller/void/voidbug
+
+/mob/living/simple_animal/hostile/Voidbug/Initialize(mapload)
+	. = ..()
+	// Ensure AI controller is properly initialized for map-spawned mobs
+	if(mapload && ai_controller)
+		ai_controller = new ai_controller(src)
 
 /mob/living/simple_animal/hostile/Voidbug/take_damage(damage, damagetype, def_zone, blocked, forced, spread_damage, wound_bonus, bare_wound_bonus, sharpness, attack_direction, attacking_item)
 	if(prob(block_chance))
@@ -160,9 +178,15 @@
 	dodging = TRUE
 	dodge_prob = 70
 	var/last_heal = 0
-	stat_attack = CONSCIOUS  // FIXED: Attack conscious targets
+	stat_attack = CONSCIOUS
 
 	ai_controller = /datum/ai_controller/basic_controller/void_healer
+
+/mob/living/simple_animal/hostile/Void_Healer/Initialize(mapload)
+	. = ..()
+	// Ensure AI controller is properly initialized for map-spawned mobs
+	if(mapload && ai_controller)
+		ai_controller = new ai_controller(src)
 
 /mob/living/simple_animal/hostile/Void_Healer/death(gibbed)
 	void_death("[src] fades into nothingness.", void_healer_table)
