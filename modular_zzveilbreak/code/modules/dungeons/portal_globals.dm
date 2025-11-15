@@ -69,4 +69,23 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 	return (SSmapping.initialized && \
 			SSatoms.initialized == INITIALIZATION_INNEW_REGULAR && \
 			SSair.initialized && \
+			SSmobs.initialized && \
 			world.time > 30 SECONDS) // Give subsystems time to settle after round start.
+
+
+/proc/initialize_dungeon_mobs(z_level)
+	if(!SSmobs.initialized)
+		return
+
+	var/mobs_initialized = 0
+	for(var/mob/living/mob in world)
+		if(mob.z != z_level)
+			continue
+
+		// Add to mobs subsystem for AI processing if not already there
+		if(!(mob in GLOB.mob_living_list))
+			GLOB.mob_living_list += mob
+			mobs_initialized++
+
+		if(mobs_initialized % 25 == 0)
+			CHECK_TICK

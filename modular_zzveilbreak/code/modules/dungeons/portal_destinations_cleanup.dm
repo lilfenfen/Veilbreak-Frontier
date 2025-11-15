@@ -52,9 +52,16 @@
 
 		if(isliving(mob))
 			var/mob/living/living_mob = mob
+
+			// Remove from mobs subsystem processing to prevent errors during cleanup
+			if(living_mob in GLOB.mob_living_list)
+				GLOB.mob_living_list -= living_mob
+
+			// Delete void faction mobs
 			if(living_mob.faction == FACTION_VOID)
 				should_delete = TRUE
 
+		// Also delete other hostile mobs
 		if(!should_delete && is_hostile_or_void(mob))
 			should_delete = TRUE
 
@@ -82,6 +89,10 @@
 				else
 					living_mob.visible_message(span_notice("[living_mob] is thrown from a collapsing portal!"))
 					playsound(living_mob, 'sound/effects/bang.ogg', 40, TRUE)
+
+			// Add back to mobs subsystem processing if it's a living mob that was ejected
+			if(isliving(mob) && !(mob in GLOB.mob_living_list))
+				GLOB.mob_living_list += mob
 
 			mobs_ejected++
 
@@ -114,11 +125,21 @@
 	var/areas_purged = 0
 	var/ticks_checked = 0
 
+	// First pass: delete all objects on the Z-level
 	for(var/obj/object in world)
 		if(object.z != z_level)
 			continue
 
+		// Skip space turfs and basic space
 		if(istype(object, /turf/open/space) || istype(object, /turf/open/space/basic))
+			continue
+
+		// Skip mobs as they're handled separately
+		if(ismob(object))
+			continue
+
+		// Skip portals as they're handled in cleanup_portal_connections
+		if(istype(object, /obj/machinery/portal))
 			continue
 
 		qdel(object)
@@ -127,6 +148,7 @@
 		if(ticks_checked % 50 == 0)
 			CHECK_TICK
 
+	// Second pass: reset area power settings
 	for(var/area/area in world)
 		var/has_turfs_on_z = FALSE
 		for(var/turf/T in area.contents)
@@ -156,12 +178,14 @@
 			CHECK_TICK
 
 /datum/portal_destination/veilbreak/proc/cleanup_portal_connections()
+	// Clean up the station-side portal connection
 	if(connected_portal && !QDELETED(connected_portal))
 		if(connected_portal.target == src)
 			connected_portal.target = null
 			connected_portal.transport_active = FALSE
 			connected_portal.update_appearance()
 
+		// Clean up any simple return destinations pointing to this portal
 		for(var/key in GLOB.portal_destinations)
 			var/datum/portal_destination/dest = GLOB.portal_destinations[key]
 			if(istype(dest, /datum/portal_destination/simple))
@@ -170,6 +194,7 @@
 					GLOB.portal_destinations -= key
 					break
 
+	// Clean up all portals on the dungeon Z-level
 	var/portals_removed = 0
 	for(var/turf/T in block(locate(1, 1, dungeon_z_level), locate(world.maxx, world.maxy, dungeon_z_level)))
 		var/obj/machinery/portal/dungeon_portal = locate(/obj/machinery/portal) in T

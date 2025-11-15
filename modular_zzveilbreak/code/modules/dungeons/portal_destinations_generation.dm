@@ -163,6 +163,9 @@
 	force_lighting_initialization(z_level)
 	CHECK_TICK
 
+	initialize_dungeon_mobs(z_level)
+	CHECK_TICK
+
 	// Initialize smoothing
 	initialize_enhanced_smoothing(z_level)
 	CHECK_TICK
@@ -392,3 +395,4 @@
 
 			if(fixed_count % 50 == 0)
 				CHECK_TICK
+
