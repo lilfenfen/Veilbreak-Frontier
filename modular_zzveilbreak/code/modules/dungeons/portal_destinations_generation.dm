@@ -127,13 +127,12 @@
 	initialize_machinery(z_level)
 	CHECK_TICK
 
-	initialize_lighting(z_level)
+	// CRITICAL: Force SSair to recognize the new Z-level
+	force_air_initialization(z_level)
 	CHECK_TICK
 
-	debug_wall_smoothing_configuration(z_level)
-	CHECK_TICK
-
-	force_wall_smoothing_setup(z_level)
+	// CRITICAL: Force SSlighting to initialize
+	force_lighting_initialization(z_level)
 	CHECK_TICK
 
 	initialize_enhanced_smoothing(z_level)
@@ -142,6 +141,42 @@
 	ensure_portal_connection()
 
 	generated = TRUE
+
+/datum/portal_destination/veilbreak/proc/force_air_initialization(z_level)
+	if(!SSair || !SSair.initialized)
+		return
+
+	// Force SSair to process the new Z-level
+	for(var/turf/open/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
+		if(!T.air)
+			T.Initalize_Atmos(0)
+			T.immediate_calculate_adjacent_turfs()
+		CHECK_TICK
+
+	// Add some turfs to active processing to kickstart atmos
+	var/activated_count = 0
+	for(var/turf/open/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
+		if(T.air && !T.excited)
+			SSair.add_to_active(T)
+			activated_count++
+			if(activated_count >= 50) // Don't overload, just seed it
+				break
+		CHECK_TICK
+
+/datum/portal_destination/veilbreak/proc/force_lighting_initialization(z_level)
+	if(!SSlighting || !SSlighting.initialized)
+		return
+
+	// Force lighting objects for all non-space turfs
+	var/lighting_objects_created = 0
+	for(var/turf/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
+		if(!T.space_lit && !T.lighting_object)
+			new /datum/lighting_object(T)
+			lighting_objects_created++
+		CHECK_TICK
+
+	// Force an immediate lighting update for the entire Z-level
+	SSlighting.InitializeTurf(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level))
 
 /datum/portal_destination/veilbreak/proc/log_loaded_content(z_level)
 	var/turf_count = 0
@@ -199,11 +234,32 @@
 	if(!SSlighting || !SSlighting.initialized)
 		return
 
+	// Initialize lighting objects first
 	for(var/x = 1 to world.maxx)
 		for(var/y = 1 to world.maxy)
 			var/turf/iter_turf = locate(x, y, z_level)
 			if(!iter_turf.space_lit && !iter_turf.lighting_object)
 				new /datum/lighting_object(iter_turf)
+			CHECK_TICK
+
+	// Then update transparency for all turfs that need it
+	initialize_transparency(z_level)
+
+/datum/portal_destination/veilbreak/proc/initialize_transparency(z_level)
+	var/transparency_updates = 0
+	for(var/turf/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
+		// Update transparency for floors that should be transparent
+		if(istype(T, /turf/open/openspace) || istype(T, /turf/open/space))
+			T.update_appearance() // This should handle transparency
+			transparency_updates++
+
+		// Also update any objects on the turf that might affect transparency
+		for(var/obj/O in T)
+			if(O.opacity)
+				T.reconsider_lights()
+				break
+
+		if(transparency_updates % 100 == 0)
 			CHECK_TICK
 
 /datum/portal_destination/veilbreak/proc/initialize_machinery(z_level)

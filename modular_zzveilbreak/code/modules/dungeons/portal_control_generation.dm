@@ -92,8 +92,9 @@
 	cleanup_in_progress = TRUE
 	force_ui_update()
 
-	var/turf/ejection_turf = null
-	if(linked_portal && !QDELETED(linked_portal))
+	// CRITICAL: Get ejection turf from STATION side, not dungeon side
+	var/turf/ejection_turf = find_station_ejection_turf()
+	if(!ejection_turf && linked_portal && !QDELETED(linked_portal))
 		ejection_turf = get_step(linked_portal, SOUTH)
 		if(!ejection_turf)
 			ejection_turf = get_turf(linked_portal)
@@ -101,3 +102,13 @@
 	veil_dest.cleanup_z_level_completely(veil_dest.dungeon_z_level, ejection_turf)
 
 	addtimer(CALLBACK(src, .proc/on_cleanup_completed), 5 SECONDS)
+
+/obj/machinery/computer/portal_control/proc/find_station_ejection_turf()
+	if(linked_portal && !QDELETED(linked_portal))
+		var/turf/portal_turf = get_turf(linked_portal)
+		if(portal_turf)
+			var/turf/ejection_turf = get_step(portal_turf, SOUTH)
+			if(!ejection_turf || !isfloorturf(ejection_turf))
+				ejection_turf = portal_turf
+			return ejection_turf
+	return null

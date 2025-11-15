@@ -63,9 +63,14 @@
 			mobs_deleted++
 
 		else if(ejection_turf && !QDELETED(ejection_turf))
-			mob.forceMove(ejection_turf)
+			// CRITICAL: Ensure we're ejecting to the STATION side portal, not the dungeon portal
+			var/turf/actual_ejection_turf = find_station_ejection_turf()
+			if(!actual_ejection_turf)
+				actual_ejection_turf = ejection_turf // Fallback
 
-			var/throw_target = get_edge_target_turf(ejection_turf, pick(GLOB.cardinals))
+			mob.forceMove(actual_ejection_turf)
+
+			var/throw_target = get_edge_target_turf(actual_ejection_turf, pick(GLOB.cardinals))
 			mob.throw_at(throw_target, 3, 2, spin = TRUE)
 
 			if(isliving(mob))
@@ -82,6 +87,28 @@
 
 		if((mobs_deleted + mobs_ejected) % 25 == 0)
 			CHECK_TICK
+
+/datum/portal_destination/veilbreak/proc/find_station_ejection_turf()
+	// Find the station-side portal for ejection
+	if(connected_portal && !QDELETED(connected_portal))
+		var/turf/station_turf = get_turf(connected_portal)
+		if(station_turf)
+			var/turf/ejection_turf = get_step(station_turf, SOUTH)
+			if(!ejection_turf || !isfloorturf(ejection_turf))
+				ejection_turf = station_turf
+			return ejection_turf
+
+	// Fallback: find any portal control console
+	for(var/obj/machinery/computer/portal_control/console in GLOB.machines)
+		if(console.linked_portal && !QDELETED(console.linked_portal))
+			var/turf/console_turf = get_turf(console.linked_portal)
+			if(console_turf)
+				var/turf/ejection_turf = get_step(console_turf, SOUTH)
+				if(!ejection_turf || !isfloorturf(ejection_turf))
+					ejection_turf = console_turf
+				return ejection_turf
+
+	return null
 
 /datum/portal_destination/veilbreak/proc/delete_all_content_optimized(z_level)
 	var/areas_purged = 0
