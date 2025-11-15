@@ -115,7 +115,8 @@
 		generation_failed("Failed to load map: [error_message]")
 		return
 
-	initialize_dungeon_subsystems(dungeon_z_level)
+	// CRITICAL: Wait for subsystems to catch up and initialize properly
+	addtimer(CALLBACK(src, .proc/initialize_dungeon_subsystems, dungeon_z_level), 2 SECONDS)
 
 /datum/portal_destination/veilbreak/proc/initialize_dungeon_subsystems(z_level)
 	log_loaded_content(z_level)
@@ -127,12 +128,11 @@
 	initialize_machinery(z_level)
 	CHECK_TICK
 
-	// CRITICAL: Force SSair to recognize the new Z-level
-	force_air_initialization(z_level)
+	// CRITICAL: Use proper subsystem initialization methods
+	initialize_air_system_properly(z_level)
 	CHECK_TICK
 
-	// CRITICAL: Force SSlighting to initialize
-	force_lighting_initialization(z_level)
+	initialize_lighting_system_properly(z_level)
 	CHECK_TICK
 
 	initialize_enhanced_smoothing(z_level)
@@ -142,30 +142,47 @@
 
 	generated = TRUE
 
-/datum/portal_destination/veilbreak/proc/force_air_initialization(z_level)
+/datum/portal_destination/veilbreak/proc/initialize_air_system_properly(z_level)
 	if(!SSair || !SSair.initialized)
+		generation_failed("Air subsystem not available")
 		return
 
-	// Force SSair to process the new Z-level
-	for(var/turf/open/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
+	// Force atmos initialization using proper methods
+	var/atoms_initialized = 0
+	for(var/turf/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
 		if(!T.air)
 			T.Initalize_Atmos(0)
-			T.immediate_calculate_adjacent_turfs()
-		CHECK_TICK
+			atoms_initialized++
 
-	// Add some turfs to active processing to kickstart atmos
+		// Force adjacency calculation
+		T.immediate_calculate_adjacent_turfs()
+
+		if(atoms_initialized % 50 == 0)
+			CHECK_TICK
+
+	// CRITICAL: Add central area to active processing to kickstart atmos
 	var/activated_count = 0
-	for(var/turf/open/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
-		if(T.air && !T.excited)
+	var/center_x = round(world.maxx / 2)
+	var/center_y = round(world.maxy / 2)
+
+	for(var/turf/open/T in block(
+		locate(max(1, center_x - 15), max(1, center_y - 15), z_level),
+		locate(min(world.maxx, center_x + 15), min(world.maxy, center_y + 15), z_level)
+	))
+		if(T.air && !T.excited && !T.blocks_air)
 			SSair.add_to_active(T)
 			activated_count++
-			if(activated_count >= 50) // Don't overload, just seed it
+			if(activated_count >= 25) // Seed a reasonable area
 				break
 		CHECK_TICK
 
-/datum/portal_destination/veilbreak/proc/force_lighting_initialization(z_level)
+/datum/portal_destination/veilbreak/proc/initialize_lighting_system_properly(z_level)
 	if(!SSlighting || !SSlighting.initialized)
+		generation_failed("Lighting subsystem not available")
 		return
+
+	// CRITICAL: Use SSlighting's proper initialization method
+	SSlighting.InitializeTurf(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level))
 
 	// Force lighting objects for all non-space turfs
 	var/lighting_objects_created = 0
@@ -173,10 +190,12 @@
 		if(!T.space_lit && !T.lighting_object)
 			new /datum/lighting_object(T)
 			lighting_objects_created++
-		CHECK_TICK
 
-	// Force an immediate lighting update for the entire Z-level
-	SSlighting.InitializeTurf(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level))
+		// Update appearance to handle transparency
+		T.update_appearance()
+
+		if(lighting_objects_created % 100 == 0)
+			CHECK_TICK
 
 /datum/portal_destination/veilbreak/proc/log_loaded_content(z_level)
 	var/turf_count = 0
@@ -229,38 +248,6 @@
 			area.update_icon()
 
 		CHECK_TICK
-
-/datum/portal_destination/veilbreak/proc/initialize_lighting(z_level)
-	if(!SSlighting || !SSlighting.initialized)
-		return
-
-	// Initialize lighting objects first
-	for(var/x = 1 to world.maxx)
-		for(var/y = 1 to world.maxy)
-			var/turf/iter_turf = locate(x, y, z_level)
-			if(!iter_turf.space_lit && !iter_turf.lighting_object)
-				new /datum/lighting_object(iter_turf)
-			CHECK_TICK
-
-	// Then update transparency for all turfs that need it
-	initialize_transparency(z_level)
-
-/datum/portal_destination/veilbreak/proc/initialize_transparency(z_level)
-	var/transparency_updates = 0
-	for(var/turf/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
-		// Update transparency for floors that should be transparent
-		if(istype(T, /turf/open/openspace) || istype(T, /turf/open/space))
-			T.update_appearance() // This should handle transparency
-			transparency_updates++
-
-		// Also update any objects on the turf that might affect transparency
-		for(var/obj/O in T)
-			if(O.opacity)
-				T.reconsider_lights()
-				break
-
-		if(transparency_updates % 100 == 0)
-			CHECK_TICK
 
 /datum/portal_destination/veilbreak/proc/initialize_machinery(z_level)
 	var/processed = 0

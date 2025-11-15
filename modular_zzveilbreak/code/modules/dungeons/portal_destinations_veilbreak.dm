@@ -38,12 +38,16 @@
 		dungeon_z_level = GLOB.portal_dungeon_z_level
 		return TRUE
 
-	var/datum/space_level/new_level = SSmapping.add_new_zlevel("Portal Dungeon", list(ZTRAIT_AWAY = TRUE))
+	// CRITICAL: Use the mapping subsystem's proper method to add a new Z-level
+	var/datum/space_level/new_level = SSmapping.add_new_zlevel("Portal Dungeon", list(ZTRAIT_AWAY = TRUE, ZTRAIT_MINING = TRUE))
 	if(!new_level)
 		return FALSE
 
 	GLOB.portal_dungeon_z_level = new_level.z_value
 	dungeon_z_level = GLOB.portal_dungeon_z_level
+
+	// CRITICAL: Let the mapping subsystem fully initialize the Z-level
+	SSmapping.manage_z_level(new_level, FALSE, TRUE)
 
 	return TRUE
 
