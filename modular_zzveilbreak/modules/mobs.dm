@@ -36,12 +36,9 @@
 	robust_searching = TRUE
 	dodging = TRUE
 	dodge_prob = 50
+	stat_attack = CONSCIOUS  // FIXED: Attack conscious targets
 
 	ai_controller = /datum/ai_controller/basic_controller/void/voidling
-
-/mob/living/simple_animal/hostile/Voidling/New()
-	. = ..()
-	faction |= FACTION_HOSTILE
 
 /mob/living/simple_animal/hostile/Voidling/death(gibbed)
 	void_death("And the void reclaims.", voidling_loot_table)
@@ -76,12 +73,9 @@
 	ranged = 1
 	var/last_summon = 0
 	projectiletype = /obj/projectile/magic/voidbolt
+	stat_attack = CONSCIOUS  // FIXED: Attack conscious targets
 
 	ai_controller = /datum/ai_controller/basic_controller/void_pathfinder
-
-/mob/living/simple_animal/hostile/Consumed_Pathfinder/New()
-	. = ..()
-	faction |= FACTION_HOSTILE
 
 /mob/living/simple_animal/hostile/Consumed_Pathfinder/Life()
 	. = ..()
@@ -125,12 +119,9 @@
 	dodging = FALSE
 	var/block_chance = 30
 	var/last_pack_call = 0
+	stat_attack = CONSCIOUS  // FIXED: Attack conscious targets
 
 	ai_controller = /datum/ai_controller/basic_controller/void/voidbug
-
-/mob/living/simple_animal/hostile/Voidbug/New()
-	. = ..()
-	faction |= FACTION_HOSTILE
 
 /mob/living/simple_animal/hostile/Voidbug/take_damage(damage, damagetype, def_zone, blocked, forced, spread_damage, wound_bonus, bare_wound_bonus, sharpness, attack_direction, attacking_item)
 	if(prob(block_chance))
@@ -169,24 +160,21 @@
 	dodging = TRUE
 	dodge_prob = 70
 	var/last_heal = 0
+	stat_attack = CONSCIOUS  // FIXED: Attack conscious targets
 
 	ai_controller = /datum/ai_controller/basic_controller/void_healer
-
-/mob/living/simple_animal/hostile/Void_Healer/New()
-	. = ..()
-	faction |= FACTION_HOSTILE
 
 /mob/living/simple_animal/hostile/Void_Healer/death(gibbed)
 	void_death("[src] fades into nothingness.", void_healer_table)
 
-// Define the targeting strategy for void creatures - remove stat_attack
+// FIXED: Use standard targeting strategy instead of custom one
 /datum/targeting_strategy/basic/void
+	// This inherits from basic targeting strategy which already handles conscious targets
 
 // Basic void AI controller
 /datum/ai_controller/basic_controller/void
 	blackboard = list(
 		BB_TARGETING_STRATEGY = /datum/targeting_strategy/basic/void,
-		BB_TARGET_MINIMUM_STAT = HARD_CRIT,
 	)
 
 	ai_movement = /datum/ai_movement/basic_avoidance
@@ -197,7 +185,7 @@
 		/datum/ai_planning_subtree/basic_melee_attack_subtree,
 	)
 
-// Voidling specific AI
+// Voidling specific AI - aggressive melee attacker
 /datum/ai_controller/basic_controller/void/voidling
 	planning_subtrees = list(
 		/datum/ai_planning_subtree/target_retaliate,
@@ -205,7 +193,7 @@
 		/datum/ai_planning_subtree/basic_melee_attack_subtree,
 	)
 
-// Voidbug specific AI - more defensive
+// Voidbug specific AI - defensive melee attacker
 /datum/ai_controller/basic_controller/void/voidbug
 	planning_subtrees = list(
 		/datum/ai_planning_subtree/target_retaliate,
@@ -217,7 +205,6 @@
 /datum/ai_controller/basic_controller/void_pathfinder
 	blackboard = list(
 		BB_TARGETING_STRATEGY = /datum/targeting_strategy/basic/void,
-		BB_TARGET_MINIMUM_STAT = HARD_CRIT,
 	)
 
 	ai_movement = /datum/ai_movement/basic_avoidance
