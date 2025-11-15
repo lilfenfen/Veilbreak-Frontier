@@ -323,7 +323,7 @@ export const PortalControl = (props, context) => {
                     {portal_status ? 'QUANTUM STABILIZED' : 'FLUCTUATING'}
                   </Box>
                 </LabeledList.Item>
-                {/* DIMENSIONAL ANCHOR now shows "Quantum Pocket Space" */}
+                {/* DIMENSIONAL ANCHOR shows "Quantum Pocket Space" */}
                 {current_target?.name &&
                 current_target.name !== '0' &&
                 !cleanup_in_progress ? (

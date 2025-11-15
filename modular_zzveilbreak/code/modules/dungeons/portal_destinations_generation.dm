@@ -54,14 +54,36 @@
 
 	last_generation_data = data.Copy()
 
+	// Ensure we have proper map_name data
 	if(data["dmm_content"])
 		load_generated_dmm(data["dmm_content"])
 	else
 		generation_failed("No DMM content in response")
 
+	// Notify control computer immediately with the new data
 	if(connected_control_computer && !QDELETED(connected_control_computer))
 		connected_control_computer.on_generation_completed()
-		connected_control_computer = null
+		// Also update the name immediately
+		connected_control_computer.cached_portal_name = get_portal_name_from_data(data)
+		connected_control_computer.force_ui_update()
+
+/datum/portal_destination/veilbreak/proc/get_portal_name_from_data(list/data)
+	if(!data)
+		return "Quantum Pocket Space"
+
+	// Try to get map_name from metadata first
+	if(data["metadata"] && data["metadata"]["map_name"])
+		var/map_name = data["metadata"]["map_name"]
+		if(map_name && map_name != "0" && map_name != "")
+			return map_name
+
+	// Try direct map_name
+	if(data["map_name"])
+		var/map_name = data["map_name"]
+		if(map_name && map_name != "0" && map_name != "")
+			return map_name
+
+	return "Quantum Pocket Space"
 
 /datum/portal_destination/veilbreak/proc/load_generated_dmm(dmm_content)
 	if(!dmm_content)

@@ -36,17 +36,18 @@
 
 	data["can_generate"] = !generation_in_progress && !cleanup_in_progress && data["portal_present"] && linked_portal.destination && !data["portal_active"] && data["portal_status"]
 
-	// Better portal name handling - show name when portal is active OR has a generated destination
+	// Better portal name handling - ensure we always have the correct name when portal is active
 	data["portal_name"] = null
 	if(data["portal_active"] || (linked_portal?.destination?.generated))
-		data["portal_name"] = cached_portal_name
-		// If no cached name but we have a target, try to get one
-		if(!data["portal_name"] && linked_portal.target)
+		// Always try to get the most current name
+		if(linked_portal.target && istype(linked_portal.target, /datum/portal_destination/veilbreak))
 			var/datum/portal_destination/veilbreak/veil_dest = linked_portal.target
 			data["portal_name"] = get_portal_name(veil_dest)
-			// Cache it for future use
-			if(data["portal_name"] && !cached_portal_name)
+			// Update cache if needed
+			if(data["portal_name"] && data["portal_name"] != cached_portal_name)
 				cached_portal_name = data["portal_name"]
+		else if(cached_portal_name)
+			data["portal_name"] = cached_portal_name
 
 	return data
 

@@ -51,11 +51,13 @@
 
 	update_appearance()
 
-	// Notify control computer to update the portal name
+	// Enhanced notification to ensure name is updated immediately
 	if(!is_dungeon_portal() && dest && istype(dest, /datum/portal_destination/veilbreak))
 		var/datum/portal_destination/veilbreak/veil_dest = dest
 		if(veil_dest.connected_control_computer && !QDELETED(veil_dest.connected_control_computer))
 			veil_dest.connected_control_computer.on_portal_activated(veil_dest)
+			// Force immediate UI update with the correct name
+			veil_dest.connected_control_computer.force_ui_update()
 
 	if(!QDELETED(dest))
 		dest.activate(src)

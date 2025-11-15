@@ -140,7 +140,20 @@
 	if(!veil_dest || QDELETED(veil_dest))
 		return
 
+	// Force immediate name update and UI refresh
 	cached_portal_name = get_portal_name(veil_dest)
+	// Double-check we have the actual map_name, not just default
+	if(veil_dest.last_generation_data)
+		var/list/metadata = veil_dest.last_generation_data["metadata"]
+		if(metadata && metadata["map_name"])
+			var/map_name = metadata["map_name"]
+			if(map_name && map_name != "0" && map_name != "")
+				cached_portal_name = map_name
+		else if(veil_dest.last_generation_data["map_name"])
+			var/map_name = veil_dest.last_generation_data["map_name"]
+			if(map_name && map_name != "0" && map_name != "")
+				cached_portal_name = map_name
+
 	force_ui_update()
 
 /obj/machinery/computer/portal_control/proc/cleanup_portal_simple(datum/portal_destination/veilbreak/veil_dest)
@@ -182,12 +195,19 @@
 	if(!veil_dest || !veil_dest.generated)
 		return "Quantum Pocket Space" // Default name
 
+	// Prioritize the actual map_name from generation data
 	if(veil_dest.last_generation_data)
 		var/list/metadata = veil_dest.last_generation_data["metadata"]
 		if(metadata && metadata["map_name"])
 			var/map_name = metadata["map_name"]
 			if(map_name && map_name != "0" && map_name != "")
 				return map_name
+
+	// Also check if there's a specific name in the main data
+	if(veil_dest.last_generation_data && veil_dest.last_generation_data["map_name"])
+		var/map_name = veil_dest.last_generation_data["map_name"]
+		if(map_name && map_name != "0" && map_name != "")
+			return map_name
 
 	return "Quantum Pocket Space" // Fallback name
 
