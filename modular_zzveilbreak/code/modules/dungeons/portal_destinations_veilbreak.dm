@@ -38,6 +38,10 @@
 		dungeon_z_level = GLOB.portal_dungeon_z_level
 		return TRUE
 
+	// Check if subsystems are ready
+	if(!subsystems_ready_for_portals())
+		return FALSE
+
 	// CRITICAL: Use the mapping subsystem's proper method to add a new Z-level
 	var/datum/space_level/new_level = SSmapping.add_new_zlevel("Portal Dungeon", list(ZTRAIT_AWAY = TRUE, ZTRAIT_MINING = TRUE))
 	if(!new_level)
@@ -46,6 +50,12 @@
 	GLOB.portal_dungeon_z_level = new_level.z_value
 	dungeon_z_level = GLOB.portal_dungeon_z_level
 
+	// CRITICAL: Let the mapping subsystem fully initialize the Z-level
+	SSmapping.manage_z_level(new_level, TRUE, TRUE) // filled_with_space = TRUE, contain_turfs = TRUE
+
+	// Force area initialization for the new Z-level
+	SSmapping.build_area_turfs(dungeon_z_level, TRUE)
+
 	return TRUE
 
 /datum/portal_destination/veilbreak/proc/generation_failed(reason)
@@ -53,6 +63,12 @@
 	generated = FALSE
 	generation_progress = 0
 	actual_dungeon_portal_location = null
+
+	// Clean up the Z-level if we created one but failed to generate
+	if(dungeon_z_level && !generated)
+		GLOB.portal_dungeon_z_level = null
+		// Note: We don't remove the Z-level from SSmapping because it's complex and might be in use.
+		// Instead, we'll mark it as unused and avoid using it again.
 
 	if(connected_portal && !QDELETED(connected_portal))
 		connected_portal.say("Dungeon generation failed: [reason]")

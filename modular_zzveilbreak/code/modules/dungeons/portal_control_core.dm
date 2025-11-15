@@ -18,6 +18,14 @@
 
 /obj/machinery/computer/portal_control/Initialize(mapload, obj/item/circuitboard/C)
 	. = ..()
+
+	// Wait for subsystems to be ready before attempting linkup
+	if(!subsystems_ready_for_portals())
+		addtimer(CALLBACK(src, .proc/delayed_linkup), 5 SECONDS)
+	else
+		delayed_linkup()
+
+/obj/machinery/computer/portal_control/proc/delayed_linkup()
 	try_to_linkup()
 
 /obj/machinery/computer/portal_control/CanAllowThrough(atom/movable/mover, border_dir)
@@ -121,6 +129,37 @@
 
 	if(linked_portal && !QDELETED(linked_portal))
 		linked_portal.say("Portal stabilization failed: [reason]")
+
+/obj/machinery/computer/portal_control/proc/cleanup_portal_simple(datum/portal_destination/veilbreak/veil_dest)
+	if(!veil_dest || QDELETED(veil_dest))
+		return
+
+	if(!veil_dest.dungeon_z_level)
+		return
+
+	cleanup_in_progress = TRUE
+	force_ui_update()
+
+	// CRITICAL: Get ejection turf from STATION side, not dungeon side
+	var/turf/ejection_turf = find_station_ejection_turf()
+	if(!ejection_turf && linked_portal && !QDELETED(linked_portal))
+		ejection_turf = get_step(linked_portal, SOUTH)
+		if(!ejection_turf)
+			ejection_turf = get_turf(linked_portal)
+
+	veil_dest.cleanup_z_level_completely(veil_dest.dungeon_z_level, ejection_turf)
+
+	addtimer(CALLBACK(src, .proc/on_cleanup_completed), 5 SECONDS)
+
+/obj/machinery/computer/portal_control/proc/find_station_ejection_turf()
+	if(linked_portal && !QDELETED(linked_portal))
+		var/turf/portal_turf = get_turf(linked_portal)
+		if(portal_turf)
+			var/turf/ejection_turf = get_step(portal_turf, SOUTH)
+			if(!ejection_turf || !isfloorturf(ejection_turf))
+				ejection_turf = portal_turf
+			return ejection_turf
+	return null
 
 /obj/machinery/computer/portal_control/proc/on_cleanup_completed()
 	cleanup_in_progress = FALSE

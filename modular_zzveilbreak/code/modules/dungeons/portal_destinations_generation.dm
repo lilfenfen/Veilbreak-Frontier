@@ -4,7 +4,9 @@
 	if(generating)
 		return FALSE
 
-	if(!SSmapping || !SSmapping.initialized)
+	// Check subsystem readiness
+	if(!subsystems_ready_for_portals())
+		generation_failed("Subsystems not ready")
 		return FALSE
 
 	generating = TRUE
@@ -68,8 +70,6 @@
 	if(!initialize_portal_z_level())
 		return generation_failed("Failed to initialize portal Z-level")
 
-	reset_z_level_to_space(dungeon_z_level)
-
 	load_dmm_with_ticks(dmm_content)
 
 /datum/portal_destination/veilbreak/proc/load_dmm_with_ticks(dmm_content)
@@ -85,6 +85,7 @@
 		generation_failed("Failed to write map data")
 		return
 
+	// Use the same map loading pattern as SSmapping
 	SSatoms.map_loader_begin("dungeon_generator_[dungeon_z_level]")
 
 	if(SSair.initialized)
@@ -96,7 +97,8 @@
 	try
 		var/datum/parsed_map/parsed = new(file(temp_filename))
 		if(parsed && parsed.bounds)
-			loaded_successfully = parsed.load(1, 1, dungeon_z_level, no_changeturf = FALSE, place_on_top = TRUE, new_z = FALSE)
+			// Use the same parameters as SSmapping's LoadGroup
+			loaded_successfully = parsed.load(1, 1, dungeon_z_level, no_changeturf = FALSE, place_on_top = FALSE, new_z = FALSE)
 		else
 			error_message = "Failed to parse map file - no bounds"
 			loaded_successfully = FALSE
@@ -115,14 +117,15 @@
 		generation_failed("Failed to load map: [error_message]")
 		return
 
-	// CRITICAL: Use the same initialization pattern as the mapping subsystem
-	initialize_dungeon_subsystems(dungeon_z_level)
+	// CRITICAL: Wait for SSatoms to finish processing the new map
+	addtimer(CALLBACK(src, .proc/finalize_dungeon_generation, dungeon_z_level), 1 SECONDS)
 
-/datum/portal_destination/veilbreak/proc/initialize_dungeon_subsystems(z_level)
-	log_loaded_content(z_level)
+/datum/portal_destination/veilbreak/proc/finalize_dungeon_generation(z_level)
+	// CRITICAL: Initialize all atoms on the new Z-level
+	initialize_atoms_on_z_level(z_level)
 	CHECK_TICK
 
-	// Initialize areas and power first (like mapping subsystem does)
+	// Initialize areas and power
 	initialize_areas_and_power(z_level)
 	CHECK_TICK
 
@@ -130,11 +133,11 @@
 	initialize_machinery(z_level)
 	CHECK_TICK
 
-	// CRITICAL: Force SSair to recognize the new Z-level using proper methods
+	// CRITICAL: Force SSair initialization
 	force_air_initialization(z_level)
 	CHECK_TICK
 
-	// CRITICAL: Force SSlighting to initialize using proper methods
+	// CRITICAL: Force SSlighting initialization
 	force_lighting_initialization(z_level)
 	CHECK_TICK
 
@@ -146,29 +149,38 @@
 
 	generated = TRUE
 
+/datum/portal_destination/veilbreak/proc/initialize_atoms_on_z_level(z_level)
+	// CRITICAL: Force SSatoms to initialize all atoms on the new Z-level
+	if(SSatoms.initialized)
+		SSatoms.InitializeAtoms(Z_TURFS(z_level))
+
 /datum/portal_destination/veilbreak/proc/force_air_initialization(z_level)
 	if(!SSair || !SSair.initialized)
 		return
 
-	// Use the same pattern as mapping subsystem - initialize atmos for all turfs
-	for(var/turf/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
-		T.Initalize_Atmos(0)
-		T.immediate_calculate_adjacent_turfs()
-		CHECK_TICK
+	// Wait a moment for SSair to be ready
+	addtimer(CALLBACK(src, .proc/actually_initialize_air, z_level), 2 SECONDS)
 
-	// Add some turfs to active processing to kickstart atmos (like mapping does)
-	var/center_x = round(world.maxx / 2)
-	var/center_y = round(world.maxy / 2)
-	var/activated = 0
+/datum/portal_destination/veilbreak/proc/actually_initialize_air(z_level)
+	var/initialized_count = 0
+	for(var/turf/open/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
+		// FIXED: Use return_air() instead of .air
+		var/datum/gas_mixture/air = T.return_air()
+		if(!air) // Only initialize if not already done
+			T.Initalize_Atmos(0)
+			T.immediate_calculate_adjacent_turfs()
+		initialized_count++
 
-	for(var/turf/open/T in block(
-		locate(max(1, center_x - 10), max(1, center_y - 10), z_level),
-		locate(min(world.maxx, center_x + 10), min(world.maxy, center_y + 10), z_level)
-	))
-		if(!T.excited)
+		if(initialized_count % 50 == 0)
+			CHECK_TICK
+
+	// Activate some turfs to kickstart atmos
+	var/activated_count = 0
+	for(var/turf/open/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
+		if(!T.excited && !T.blocks_air)
 			SSair.add_to_active(T)
-			activated++
-			if(activated >= 15)
+			activated_count++
+			if(activated_count >= 100) // Activate a good number of turfs
 				break
 		CHECK_TICK
 
@@ -176,18 +188,21 @@
 	if(!SSlighting || !SSlighting.initialized)
 		return
 
-	// Create lighting objects for all non-space turfs (like SSlighting.Initialize does)
+	// CRITICAL: Create lighting objects for all non-space turfs
 	var/objects_created = 0
 	for(var/turf/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
 		if(!T.space_lit && !T.lighting_object)
 			new /datum/lighting_object(T)
 			objects_created++
 
-		// Update appearance for transparency
+		// Force lighting updates
 		T.update_appearance()
 
 		if(objects_created % 100 == 0)
 			CHECK_TICK
+
+	// CRITICAL: Force SSlighting to process the new Z-level
+	SSlighting.create_all_lighting_objects()
 
 /datum/portal_destination/veilbreak/proc/log_loaded_content(z_level)
 	var/turf_count = 0

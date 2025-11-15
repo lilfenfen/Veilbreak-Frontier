@@ -62,6 +62,13 @@
 /obj/machinery/portal/Initialize(mapload)
 	. = ..()
 
+	// Wait for subsystems to be ready before initializing
+	if(!subsystems_ready_for_portals())
+		addtimer(CALLBACK(src, .proc/delayed_initialize), 5 SECONDS)
+	else
+		delayed_initialize()
+
+/obj/machinery/portal/proc/delayed_initialize()
 	destination = new /datum/portal_destination/veilbreak()
 	destination.connected_portal = src
 
