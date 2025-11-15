@@ -115,26 +115,30 @@
 		generation_failed("Failed to load map: [error_message]")
 		return
 
-	// CRITICAL: Wait for subsystems to catch up and initialize properly
-	addtimer(CALLBACK(src, .proc/initialize_dungeon_subsystems, dungeon_z_level), 2 SECONDS)
+	// CRITICAL: Use the same initialization pattern as the mapping subsystem
+	initialize_dungeon_subsystems(dungeon_z_level)
 
 /datum/portal_destination/veilbreak/proc/initialize_dungeon_subsystems(z_level)
 	log_loaded_content(z_level)
 	CHECK_TICK
 
+	// Initialize areas and power first (like mapping subsystem does)
 	initialize_areas_and_power(z_level)
 	CHECK_TICK
 
+	// Initialize machinery
 	initialize_machinery(z_level)
 	CHECK_TICK
 
-	// CRITICAL: Use proper subsystem initialization methods
-	initialize_air_system_properly(z_level)
+	// CRITICAL: Force SSair to recognize the new Z-level using proper methods
+	force_air_initialization(z_level)
 	CHECK_TICK
 
-	initialize_lighting_system_properly(z_level)
+	// CRITICAL: Force SSlighting to initialize using proper methods
+	force_lighting_initialization(z_level)
 	CHECK_TICK
 
+	// Initialize smoothing
 	initialize_enhanced_smoothing(z_level)
 	CHECK_TICK
 
@@ -142,66 +146,48 @@
 
 	generated = TRUE
 
-/datum/portal_destination/veilbreak/proc/initialize_air_system_properly(z_level)
+/datum/portal_destination/veilbreak/proc/force_air_initialization(z_level)
 	if(!SSair || !SSair.initialized)
-		generation_failed("Air subsystem not available")
 		return
 
-	// Force atmos initialization using proper methods
-	var/atoms_initialized = 0
+	// Use the same pattern as mapping subsystem - initialize atmos for all turfs
 	for(var/turf/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
-		// Use proper atmos initialization - check if turf has atmos system
-		if(istype(T, /turf/open))
-			var/turf/open/open_turf = T
-			if(!open_turf.air)
-				open_turf.Initalize_Atmos(0)
-				atoms_initialized++
+		T.Initalize_Atmos(0)
+		T.immediate_calculate_adjacent_turfs()
+		CHECK_TICK
 
-			// Force adjacency calculation
-			open_turf.immediate_calculate_adjacent_turfs()
-		else if(istype(T, /turf/closed))
-			// Closed turfs don't have air, but we still need adjacency
-			T.immediate_calculate_adjacent_turfs()
-
-		if(atoms_initialized % 50 == 0)
-			CHECK_TICK
-
-	// CRITICAL: Add central area to active processing to kickstart atmos
-	var/activated_count = 0
+	// Add some turfs to active processing to kickstart atmos (like mapping does)
 	var/center_x = round(world.maxx / 2)
 	var/center_y = round(world.maxy / 2)
+	var/activated = 0
 
 	for(var/turf/open/T in block(
-		locate(max(1, center_x - 15), max(1, center_y - 15), z_level),
-		locate(min(world.maxx, center_x + 15), min(world.maxy, center_y + 15), z_level)
+		locate(max(1, center_x - 10), max(1, center_y - 10), z_level),
+		locate(min(world.maxx, center_x + 10), min(world.maxy, center_y + 10), z_level)
 	))
-		if(!T.blocks_air && !T.excited)
+		if(!T.excited)
 			SSair.add_to_active(T)
-			activated_count++
-			if(activated_count >= 25) // Seed a reasonable area
+			activated++
+			if(activated >= 15)
 				break
 		CHECK_TICK
 
-/datum/portal_destination/veilbreak/proc/initialize_lighting_system_properly(z_level)
+/datum/portal_destination/veilbreak/proc/force_lighting_initialization(z_level)
 	if(!SSlighting || !SSlighting.initialized)
-		generation_failed("Lighting subsystem not available")
 		return
 
-	// CRITICAL: Use SSlighting's proper initialization method - create lighting objects
-	var/lighting_objects_created = 0
+	// Create lighting objects for all non-space turfs (like SSlighting.Initialize does)
+	var/objects_created = 0
 	for(var/turf/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
 		if(!T.space_lit && !T.lighting_object)
 			new /datum/lighting_object(T)
-			lighting_objects_created++
+			objects_created++
 
-		// Update appearance to handle transparency
+		// Update appearance for transparency
 		T.update_appearance()
 
-		if(lighting_objects_created % 100 == 0)
+		if(objects_created % 100 == 0)
 			CHECK_TICK
-
-	// Force lighting to update for the entire Z-level
-	SSlighting.create_all_lighting_objects()
 
 /datum/portal_destination/veilbreak/proc/log_loaded_content(z_level)
 	var/turf_count = 0
@@ -313,8 +299,10 @@
 	if(!SSicon_smooth || !SSicon_smooth.initialized)
 		return
 
+	// Give it a moment to settle
 	sleep(1)
 
+	// Force smoothing for all walls on the Z-level
 	var/direct_count = 0
 	for(var/turf/closed/wall/wall in world)
 		if(wall.z == z_level)
@@ -323,6 +311,7 @@
 			if(direct_count % 100 == 0)
 				CHECK_TICK
 
+	// Also queue smoothing
 	var/queued_count = 0
 	for(var/turf/closed/wall/wall in world)
 		if(wall.z == z_level)
@@ -331,8 +320,10 @@
 			if(queued_count % 100 == 0)
 				CHECK_TICK
 
+	// Use the subsystem's smoothing
 	smooth_zlevel(z_level, TRUE)
 
+	// Verify and fix any remaining unsmoothed walls
 	addtimer(CALLBACK(src, .proc/verify_and_finalize_smoothing, z_level), 2 SECONDS)
 
 /datum/portal_destination/veilbreak/proc/verify_and_finalize_smoothing(z_level)

@@ -46,9 +46,6 @@
 	GLOB.portal_dungeon_z_level = new_level.z_value
 	dungeon_z_level = GLOB.portal_dungeon_z_level
 
-	// CRITICAL: Let the mapping subsystem fully initialize the Z-level
-	SSmapping.manage_z_level(new_level, FALSE, TRUE)
-
 	return TRUE
 
 /datum/portal_destination/veilbreak/proc/generation_failed(reason)
