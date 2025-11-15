@@ -7,12 +7,16 @@
 	data["portal_status"] = data["portal_present"] ? linked_portal.powered() : FALSE
 	data["portal_active"] = data["portal_present"] ? (linked_portal.transport_active ? TRUE : FALSE) : FALSE
 
+	// Improved current target detection with better name handling
 	if(data["portal_present"] && linked_portal.target && !QDELETED(linked_portal.target))
 		var/target_name = linked_portal.target.name
-		if(target_name == "0" || target_name == "")
-			data["current_target"] = null
-		else
+		// Use cached name if available, otherwise use target name
+		if(cached_portal_name)
+			data["current_target"] = list("name" = cached_portal_name)
+		else if(target_name && target_name != "0" && target_name != "")
 			data["current_target"] = list("name" = target_name)
+		else
+			data["current_target"] = list("name" = "Quantum Pocket Space")
 	else
 		data["current_target"] = null
 
@@ -31,7 +35,18 @@
 		data["generation_progress"] = veil_dest.generation_progress
 
 	data["can_generate"] = !generation_in_progress && !cleanup_in_progress && data["portal_present"] && linked_portal.destination && !data["portal_active"] && data["portal_status"]
-	data["portal_name"] = data["portal_active"] || (linked_portal?.destination?.generated) ? cached_portal_name : null
+
+	// Better portal name handling - show name when portal is active OR has a generated destination
+	data["portal_name"] = null
+	if(data["portal_active"] || (linked_portal?.destination?.generated))
+		data["portal_name"] = cached_portal_name
+		// If no cached name but we have a target, try to get one
+		if(!data["portal_name"] && linked_portal.target)
+			var/datum/portal_destination/veilbreak/veil_dest = linked_portal.target
+			data["portal_name"] = get_portal_name(veil_dest)
+			// Cache it for future use
+			if(data["portal_name"] && !cached_portal_name)
+				cached_portal_name = data["portal_name"]
 
 	return data
 

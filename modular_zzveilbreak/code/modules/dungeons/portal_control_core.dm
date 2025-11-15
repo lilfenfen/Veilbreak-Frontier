@@ -70,7 +70,13 @@
 					start_generation_monitoring()
 				else if(veil_dest.generated)
 					cached_portal_name = get_portal_name(veil_dest)
+				else if(found_portal.transport_active)
+					// Also get name when portal is active but destination might not be marked generated yet
+					cached_portal_name = get_portal_name(veil_dest)
 			break
+
+	// Force UI update after linkup to show current state
+	force_ui_update()
 
 /obj/machinery/computer/portal_control/proc/force_ui_update()
 	if(world.time < last_ui_update + ui_update_cooldown)
@@ -130,6 +136,13 @@
 	if(linked_portal && !QDELETED(linked_portal))
 		linked_portal.say("Portal stabilization failed: [reason]")
 
+/obj/machinery/computer/portal_control/proc/on_portal_activated(datum/portal_destination/veilbreak/veil_dest)
+	if(!veil_dest || QDELETED(veil_dest))
+		return
+
+	cached_portal_name = get_portal_name(veil_dest)
+	force_ui_update()
+
 /obj/machinery/computer/portal_control/proc/cleanup_portal_simple(datum/portal_destination/veilbreak/veil_dest)
 	if(!veil_dest || QDELETED(veil_dest))
 		return
@@ -167,7 +180,7 @@
 
 /obj/machinery/computer/portal_control/proc/get_portal_name(datum/portal_destination/veilbreak/veil_dest)
 	if(!veil_dest || !veil_dest.generated)
-		return generate_fallback_name()
+		return "Quantum Pocket Space" // Default name
 
 	if(veil_dest.last_generation_data)
 		var/list/metadata = veil_dest.last_generation_data["metadata"]
@@ -176,10 +189,10 @@
 			if(map_name && map_name != "0" && map_name != "")
 				return map_name
 
-	return generate_fallback_name()
+	return "Quantum Pocket Space" // Fallback name
 
 /obj/machinery/computer/portal_control/proc/generate_fallback_name()
-	return "Dungeon [rand(1000,9999)]"
+	return "Quantum Pocket Space [rand(1000,9999)]"
 
 /obj/machinery/computer/portal_control/on_construction()
 	. = ..()

@@ -51,6 +51,12 @@
 
 	update_appearance()
 
+	// Notify control computer to update the portal name
+	if(!is_dungeon_portal() && dest && istype(dest, /datum/portal_destination/veilbreak))
+		var/datum/portal_destination/veilbreak/veil_dest = dest
+		if(veil_dest.connected_control_computer && !QDELETED(veil_dest.connected_control_computer))
+			veil_dest.connected_control_computer.on_portal_activated(veil_dest)
+
 	if(!QDELETED(dest))
 		dest.activate(src)
 
@@ -103,7 +109,7 @@
 	if(!istype(target, /datum/portal_destination/veilbreak) || !generated_dungeon_data)
 		return
 
-	var/dungeon_name = generated_dungeon_data["map_name"] || "Unknown Dungeon"
+	var/dungeon_name = generated_dungeon_data["map_name"] || "Quantum Pocket Space"
 	var/width = generated_dungeon_data["dimensions"]?["width"] || "?"
 	var/height = generated_dungeon_data["dimensions"]?["height"] || "?"
 	var/rooms = generated_dungeon_data["statistics"]?["rooms"] || "?"
