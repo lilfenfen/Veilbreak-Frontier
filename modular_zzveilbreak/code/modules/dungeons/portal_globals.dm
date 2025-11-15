@@ -73,7 +73,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 			world.time > 30 SECONDS) // Give subsystems time to settle after round start.
 
 // Initialize dungeon mobs for AI processing
-/proc/initialize_dungeon_mobs(z_level)
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_mobs(z_level)
 	if(!SSmobs.initialized)
 		return
 
@@ -86,6 +86,13 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 		if(!(mob in GLOB.mob_living_list))
 			GLOB.mob_living_list += mob
 			mobs_initialized++
+
+		// Specifically handle void creatures
+		if(istype(mob, /mob/living/basic/void_creature))
+			var/mob/living/basic/void_creature/void_mob = mob
+			if(void_mob.AIStatus == AI_ON && !(void_mob in GLOB.simple_animals[AI_ON]))
+				GLOB.simple_animals[AI_ON] += void_mob
+				mobs_initialized++
 
 		if(mobs_initialized % 25 == 0)
 			CHECK_TICK

@@ -180,11 +180,16 @@
 	generated = TRUE
 
 /datum/portal_destination/veilbreak/proc/activate_dungeon_mob_ai(z_level)
+	var/mobs_processed = 0
+	var/mobs_with_ai = 0
+
 	for(var/mob/living/basic/void_creature/mob in world)
 		if(mob.z != z_level)
 			continue
 
-		// Force AI controller reinitialization for map-spawned mobs
+		mobs_processed++
+
+		// CRITICAL: Force AI controller creation if it doesn't exist
 		if(!mob.ai_controller)
 			switch(mob.type)
 				if(/mob/living/basic/void_creature/voidling)
@@ -195,8 +200,24 @@
 					mob.ai_controller = new /datum/ai_controller/basic_controller/void/voidbug(mob)
 				if(/mob/living/basic/void_creature/void_healer)
 					mob.ai_controller = new /datum/ai_controller/basic_controller/void_healer(mob)
+				else
+					// Fallback for any void creatures
+					mob.ai_controller = new /datum/ai_controller/basic_controller/void(mob)
 
-		CHECK_TICK
+		// CRITICAL: Ensure AI controller is started
+		if(mob.ai_controller && !mob.ai_controller.active)
+			mob.ai_controller.start_ai()
+			mobs_with_ai++
+
+		// CRITICAL: Ensure mob is in the processing list
+		if(mob.AIStatus == AI_ON && !(mob in GLOB.simple_animals[AI_ON]))
+			GLOB.simple_animals[AI_ON] += mob
+
+		if(mobs_processed % 25 == 0)
+			CHECK_TICK
+
+	// Debug info
+	message_admins("DEBUG: Processed [mobs_processed] void creatures, [mobs_with_ai] with activated AI on Z-level [z_level]")
 
 /datum/portal_destination/veilbreak/proc/initialize_atoms_on_z_level(z_level)
 	// CRITICAL: Force SSatoms to initialize all atoms on the new Z-level

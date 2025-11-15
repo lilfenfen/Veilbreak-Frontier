@@ -33,12 +33,32 @@
 	status_flags = CANPUSH
 	obj_damage = 30
 	movement_type = GROUND
+	AIStatus = AI_ON // CRITICAL: Ensure AI is enabled by default
 
 /mob/living/basic/void_creature/Initialize(mapload)
 	. = ..()
-	// Ensure AI controller is properly initialized for map-spawned mobs
-	if(mapload && !ai_controller)
-		ai_controller = new ai_controller(src)
+	// CRITICAL: Ensure AI controller is properly initialized for both map-spawned and manually spawned mobs
+	if(!ai_controller)
+		// Set up default AI controller based on type
+		if(istype(src, /mob/living/basic/void_creature/voidling))
+			ai_controller = new /datum/ai_controller/basic_controller/void/voidling(src)
+		else if(istype(src, /mob/living/basic/void_creature/consumed_pathfinder))
+			ai_controller = new /datum/ai_controller/basic_controller/void_pathfinder(src)
+		else if(istype(src, /mob/living/basic/void_creature/voidbug))
+			ai_controller = new /datum/ai_controller/basic_controller/void/voidbug(src)
+		else if(istype(src, /mob/living/basic/void_creature/void_healer))
+			ai_controller = new /datum/ai_controller/basic_controller/void_healer(src)
+		else
+			// Fallback for base type
+			ai_controller = new /datum/ai_controller/basic_controller/void(src)
+
+	// CRITICAL: Start AI immediately for map-spawned mobs
+	if(ai_controller && !ai_controller.active)
+		ai_controller.start_ai()
+
+	// CRITICAL: Ensure we're in the simple_animals list for processing
+	if(AIStatus == AI_ON && !(src in GLOB.simple_animals[AI_ON]))
+		GLOB.simple_animals[AI_ON] += src
 
 /mob/living/basic/void_creature/Destroy()
 	return ..()
@@ -169,7 +189,6 @@
 	damage_type = BURN
 	range = 50
 	speed = 0.2
-
 
 // Basic void AI controller
 /datum/ai_controller/basic_controller/void
