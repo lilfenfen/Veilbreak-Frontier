@@ -31,22 +31,6 @@
 	var/lyric_index = 1
 
 	anchored = TRUE
-	/// The music file to play.
-	var/boss_music = 'modular_zzveilbreak/sound/music/melos_theme.ogg'
-	/// The sound channel for the music.
-	var/sound_channel
-
-	Initialize()
-		. = ..()
-		sound_channel = SSsounds.reserve_sound_channel(src)
-		if(sound_channel)
-			playsound(src, sound(boss_music, repeat = TRUE, wait = FALSE, channel = sound_channel, volume = 85), 85, FALSE, 40)
-
-
-	Destroy()
-		. = ..()
-		stop_music()
-
 
 	var/list/death_messages = list(
 		"Maybe in death, i'll find lover...",
@@ -55,19 +39,12 @@
 
 	death(message)
 		var/loot = pick_loot_from_table(melos_vecare_drops)
-		stop_music()
 		if(loot)
 			new loot(loc)
 		var/msg = pick(death_messages)
 		visible_message("<span style='color:#8a2be2; font-style:italic; '>[msg]</span>")
 		..()
 
-
-	proc/stop_music()
-		if(sound_channel)
-			stop_sound_channel(sound_channel)
-			SSsounds.free_sound_channel(sound_channel)
-			sound_channel = null
 
 /mob/living/simple_animal/hostile/megafauna/melos_vecare/Life()
 	. = ..()

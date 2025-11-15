@@ -1,6 +1,13 @@
-<!-- Most valid html will work in here, but you have to use URL links for images. -->
+<div style="border: 2px solid #8A2BE2; /* A nice purple color (BlueViolet) */
+            background-color: #F0F8FF; /* Light background for contrast */
+            padding: 15px; /* Adds space inside the box */
+            margin: 20px 0; /* Adds space above and below the box */
+            border-radius: 8px; /* Slightly rounded corners */
+            font-size: 1.1em; /* Makes the text a little bigger than default */
+            box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.2);">
 
-<h1>Welcome to Veilbreak Frontier!</h1>
+    <h1>Welcome to Veilbreak Frontier!</h1>
 
-<i>A relaxed MRP ERP server with standards. We are also working on our own pve content to have our players enjoy their time and have glorious stories to tell.
-github link: https://github.com/lilfenfen/Veilbreak-Frontier/tree/master</i>
+    <i>A relaxed MRP ERP server with standards. We are also working on our own PvE content to have our players enjoy their time and have glorious stories to tell.
+    Github link: <a href="https://github.com/lilfenfen/Veilbreak-Frontier/tree/master">https://github.com/lilfenfen/Veilbreak-Frontier/tree/master</a></i>
+</div>
