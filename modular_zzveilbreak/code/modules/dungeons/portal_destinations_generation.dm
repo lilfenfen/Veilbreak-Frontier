@@ -180,27 +180,21 @@
 	generated = TRUE
 
 /datum/portal_destination/veilbreak/proc/activate_dungeon_mob_ai(z_level)
-	for(var/mob/living/simple_animal/hostile/mob in world)
+	for(var/mob/living/basic/void_creature/mob in world)
 		if(mob.z != z_level)
 			continue
 
 		// Force AI controller reinitialization for map-spawned mobs
-		if(mob.ai_controller)
-			QDEL_NULL(mob.ai_controller)
-
-		// Get the AI controller type from the mob's definition
-		var/ai_controller_type
-		if(istype(mob, /mob/living/simple_animal/hostile/Voidling))
-			ai_controller_type = /datum/ai_controller/basic_controller/void/voidling
-		else if(istype(mob, /mob/living/simple_animal/hostile/Consumed_Pathfinder))
-			ai_controller_type = /datum/ai_controller/basic_controller/void_pathfinder
-		else if(istype(mob, /mob/living/simple_animal/hostile/Voidbug))
-			ai_controller_type = /datum/ai_controller/basic_controller/void/voidbug
-		else if(istype(mob, /mob/living/simple_animal/hostile/Void_Healer))
-			ai_controller_type = /datum/ai_controller/basic_controller/void_healer
-
-		if(ai_controller_type)
-			mob.ai_controller = new ai_controller_type(mob)
+		if(!mob.ai_controller)
+			switch(mob.type)
+				if(/mob/living/basic/void_creature/voidling)
+					mob.ai_controller = new /datum/ai_controller/basic_controller/void/voidling(mob)
+				if(/mob/living/basic/void_creature/consumed_pathfinder)
+					mob.ai_controller = new /datum/ai_controller/basic_controller/void_pathfinder(mob)
+				if(/mob/living/basic/void_creature/voidbug)
+					mob.ai_controller = new /datum/ai_controller/basic_controller/void/voidbug(mob)
+				if(/mob/living/basic/void_creature/void_healer)
+					mob.ai_controller = new /datum/ai_controller/basic_controller/void_healer(mob)
 
 		CHECK_TICK
 

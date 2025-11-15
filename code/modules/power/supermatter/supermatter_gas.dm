@@ -1,3 +1,5 @@
+// modular_zzveilbreak/code/modules/power/supermatter/supermatter_gas.dm
+
 /proc/init_sm_gas()
 	var/list/gas_list = list()
 	for (var/sm_gas_path in subtypesof(/datum/sm_gas))
@@ -266,7 +268,13 @@ GLOBAL_LIST_EMPTY(delirium_warnings)
 		target_turf.ChangeTurf(/turf/open/floor/void_tile, flags = CHANGETURF_INHERIT_AIR)
 
 		if(prob(25))
-			var/mob_type = pick(/mob/living/simple_animal/hostile/Voidling, /mob/living/simple_animal/hostile/Consumed_Pathfinder, /mob/living/simple_animal/hostile/Voidbug, /mob/living/simple_animal/hostile/Void_Healer)
+			// FIXED: Use new basic mob types instead of old simple_animal types
+			var/mob_type = pick(
+				/mob/living/basic/void_creature/voidling,
+				/mob/living/basic/void_creature/consumed_pathfinder,
+				/mob/living/basic/void_creature/voidbug,
+				/mob/living/basic/void_creature/void_healer,
+			)
 			new mob_type(target_turf)
 
 		// Schedule the next transformation and summon
@@ -275,9 +283,8 @@ GLOBAL_LIST_EMPTY(delirium_warnings)
 /datum/sm_gas/delirium/extra_effects(obj/machinery/power/supermatter_crystal/sm)
 	if(sm.gas_percentage[/datum/gas/delirium] > 0.1)
 		if(!GLOB.delirium_warnings[sm])
-			for(var/mob/M in range(150, sm)) // Wide range warning
+			for(var/mob/M in range(150, sm))  // Wide range warning
 				to_chat(M, span_warning("The fabric of reality shudders as the Void begins to manifest around the supermatter!"))
-				to_chat(M, )
 			GLOB.delirium_warnings[sm] = world.time
 			// Start the transformation and summoning loop
 			INVOKE_ASYNC(src, PROC_REF(transform_and_summon), sm)
