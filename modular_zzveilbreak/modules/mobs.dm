@@ -60,11 +60,8 @@
 		ai_controller = new /datum/ai_controller/basic_controller/void(src)
 
 /mob/living/basic/void_creature/proc/register_with_ai_subsystems()
-	// CRITICAL: Ensure the AI controller is properly set up
+	// CRITICAL: Ensure the AI controller is properly set up and active
 	if(ai_controller)
-		// Ensure the AI controller knows about its pawn
-		ai_controller.pawn = src
-
 		// CRITICAL: Set AI status to ON to ensure it gets processed
 		ai_controller.set_ai_status(AI_STATUS_ON)
 
