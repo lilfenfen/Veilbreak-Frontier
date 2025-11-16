@@ -5,11 +5,15 @@
 #define BB_VOID_SUMMON_COOLDOWN "void_summon_cooldown"
 #define BB_VOID_HEAL_COOLDOWN "void_heal_cooldown"
 
+// Define faction constants
+#define FACTION_VOID "void"
+#define FACTION_STATION "station"
+
 // Base void mob type with common functionality
 /mob/living/basic/void_creature
 	name = "Void Creature"
 	desc = "A creature from the void."
-	faction = list(FACTION_VOID)
+	faction = list(FACTION_VOID, "hostile")
 	gender = NEUTER
 	speak_emote = list("hums")
 	response_help_continuous = "touches"
@@ -174,7 +178,7 @@
 		/datum/ai_planning_subtree/basic_melee_attack_subtree,
 	)
 
-// Targeting strategy for basic void creatures
+// Targeting strategy for basic void creatures - FIXED VERSION
 /datum/targeting_strategy/basic
 	/// Range we can attack from
 	var/range = 1
@@ -182,9 +186,31 @@
 /datum/targeting_strategy/basic/can_attack(mob/living/owner, atom/target, vision_range)
 	if(!ismob(target))
 		return FALSE
+
+	var/mob/target_mob = target
+	// Don't target dead mobs or ghosts
+	if(target_mob.stat == DEAD || isobserver(target_mob))
+		return FALSE
+
+	// Don't target our own faction - FIXED: Use proper faction checking
+	if(compare_factions(owner, target_mob))
+		return FALSE
+
 	if(get_dist(owner, target) > range)
 		return FALSE
+
 	return TRUE
+
+// Helper proc for faction checking
+/proc/compare_factions(mob/living/owner, mob/target)
+	if(!owner.faction || !target.faction)
+		return FALSE
+
+	// Check if they share any factions (shouldn't attack if they do)
+	for(var/faction in owner.faction)
+		if(faction in target.faction)
+			return TRUE
+	return FALSE
 
 // Voidling specific AI - aggressive melee attacker
 /datum/ai_controller/basic_controller/void/voidling

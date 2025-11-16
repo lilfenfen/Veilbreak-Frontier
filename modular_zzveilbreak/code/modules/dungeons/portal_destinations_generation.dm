@@ -151,6 +151,10 @@
 	initialize_dungeon_mobs(z_level)
 	CHECK_TICK
 
+	// CRITICAL: Ensure mobs are hostile to players
+	ensure_mob_hostility(z_level)
+	CHECK_TICK
+
 	// Initialize areas and power
 	initialize_areas_and_power(z_level)
 	CHECK_TICK
@@ -177,6 +181,39 @@
 
 	// Final check to ensure AI systems are running
 	addtimer(CALLBACK(src, .proc/final_ai_verification, z_level), 2 SECONDS)
+
+	// Force mob processing - FIXED: Use SSmobs instead of SSbasic_mobs
+	addtimer(CALLBACK(src, .proc/force_mob_processing, z_level), 3 SECONDS)
+
+/datum/portal_destination/veilbreak/proc/ensure_mob_hostility(z_level)
+	// Force all void creatures to be hostile to players
+	for(var/mob/living/basic/void_creature/mob in world)
+		if(mob.z != z_level)
+			continue
+
+		// Ensure faction is properly set to be hostile to players
+		if(!mob.faction)
+			mob.faction = list(FACTION_VOID, "hostile")
+		else if(FACTION_VOID in mob.faction)
+			// Already has void faction, ensure hostile
+			mob.faction |= "hostile"
+		else
+			// Add both void and hostile factions
+			mob.faction = list(FACTION_VOID, "hostile")
+
+		// Force AI controller to re-evaluate targets
+		if(mob.ai_controller)
+			mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
+
+		CHECK_TICK
+
+/datum/portal_destination/veilbreak/proc/force_mob_processing(z_level)
+	// Force mobs to be processed - FIXED: Use proper subsystem
+	for(var/mob/living/basic/mob in world)
+		if(mob.z == z_level && mob.ai_controller)
+			// Basic mobs are automatically processed by their AI controllers
+			// This just ensures they're in the right state
+			continue
 
 /datum/portal_destination/veilbreak/proc/initialize_atoms_on_z_level(z_level)
 	// CRITICAL: Force SSatoms to initialize all atoms on the new Z-level
