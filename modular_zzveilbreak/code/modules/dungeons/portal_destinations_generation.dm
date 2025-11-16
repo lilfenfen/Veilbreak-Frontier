@@ -249,22 +249,30 @@
 	var/pawns_set = 0
 	var/global_added = 0
 
+	message_admins("DEBUG: Starting force_ai_initialization_fixed on Z[z_level]")
+
 	for(var/mob/living/basic/mob in world)
 		if(mob.z != z_level)
 			continue
 
 		// CRITICAL: Set the pawn for existing AI controllers
-		if(mob.ai_controller && mob.ai_controller.pawn != mob)
-			mob.ai_controller.pawn = mob
-			pawns_set++
-			message_admins("DEBUG: Set pawn for [mob.type] at ([mob.x],[mob.y],[mob.z])")
+		if(mob.ai_controller)
+			if(mob.ai_controller.pawn != mob)
+				mob.ai_controller.pawn = mob
+				pawns_set++
+				message_admins("DEBUG: Set pawn for [mob.type] at ([mob.x],[mob.y],[mob.z]) - Controller: [mob.ai_controller.type]")
+			else
+				message_admins("DEBUG: Pawn already set for [mob.type] at ([mob.x],[mob.y],[mob.z])")
+		else
+			message_admins("DEBUG: No AI controller for [mob.type] at ([mob.x],[mob.y],[mob.z])")
 
 		// Ensure mob is in the global processing list
 		if(!(mob in GLOB.basic_mobs))
 			GLOB.basic_mobs += mob
 			global_added++
+			message_admins("DEBUG: Added [mob.type] to global list")
 
-		if((pawns_set + global_added) % 25 == 0)
+		if((pawns_set + global_added) % 50 == 0)
 			CHECK_TICK
 
 	message_admins("DEBUG: Fixed AI initialization on Z[z_level] - Pawns Set: [pawns_set], Global Added: [global_added]")
