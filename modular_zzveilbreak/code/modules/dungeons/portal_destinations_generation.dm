@@ -481,15 +481,23 @@
 		if(!mob.faction)
 			mob.faction = list(FACTION_VOID, "hostile")
 			faction_changes++
-		else if(FACTION_VOID in mob.faction)
-			// Already has void faction, ensure hostile
-			if(!("hostile" in mob.faction))
-				mob.faction |= "hostile"
-				faction_changes++
 		else
-			// Add both void and hostile factions
-			mob.faction = list(FACTION_VOID, "hostile")
-			faction_changes++
+			// Ensure both factions are present (case-sensitive)
+			var/has_void = FALSE
+			var/has_hostile = FALSE
+
+			for(var/fact in mob.faction)
+				if(fact == FACTION_VOID)
+					has_void = TRUE
+				if(fact == "hostile")
+					has_hostile = TRUE
+
+			if(!has_void)
+				mob.faction += FACTION_VOID
+				faction_changes++
+			if(!has_hostile)
+				mob.faction += "hostile"
+				faction_changes++
 
 		// Force AI controller to re-evaluate targets
 		if(mob.ai_controller)

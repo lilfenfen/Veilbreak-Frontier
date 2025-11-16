@@ -47,21 +47,11 @@
 	// CRITICAL: Proper AI controller initialization for spawned mobs
 	var/debug_msg = "Void creature [type] spawned at ([x],[y],[z]) - "
 
-	// Always create a fresh AI controller for spawned mobs
+	// FIX: Create AI controller using the proper method
 	if(ai_controller)
-		// Destroy any existing controller (shouldn't exist for newly spawned mobs)
-		if(src.ai_controller)
-			QDEL_NULL(src.ai_controller)
-
-		// Create fresh controller
-		src.ai_controller = new ai_controller(src)
-		debug_msg += "AI controller FRESHLY CREATED, "
-
-		// Verify pawn is set
-		if(src.ai_controller.pawn == src)
-			debug_msg += "Pawn VERIFIED, "
-		else
-			debug_msg += "Pawn BROKEN, "
+		// Use the standard basic mob AI initialization
+		INVOKE_ASYNC(src, .proc/initialize_ai_controller)
+		debug_msg += "AI controller INITIALIZED, "
 	else
 		debug_msg += "NO AI controller type, "
 
@@ -82,32 +72,30 @@
 	if(src.ai_controller && src.ai_controller.pawn == src)
 		src.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
 
+/mob/living/basic/void_creature/proc/initialize_ai_controller()
+	// This uses the standard basic mob AI initialization
+	if(ai_controller)
+		ai_controller = new ai_controller(src)
+
 /mob/living/basic/void_creature/proc/ensure_hostility()
 	// Ensure faction is properly set to be hostile to players
 	if(!faction)
 		faction = list(FACTION_VOID, "hostile")
-	else if(FACTION_VOID in faction)
-		// Already has void faction, ensure hostile
-		if(!("hostile" in faction))
-			faction |= "hostile"
 	else
-		// Add both void and hostile factions
-		faction = list(FACTION_VOID, "hostile")
+		// Ensure both factions are present (case-sensitive)
+		var/has_void = FALSE
+		var/has_hostile = FALSE
 
-/mob/living/basic/void_creature/proc/void_death(message, loot_table)
-	if(QDELETED(src))
-		return
+		for(var/fact in faction)
+			if(fact == FACTION_VOID)
+				has_void = TRUE
+			if(fact == "hostile")
+				has_hostile = TRUE
 
-	if(loot_table)
-		var/loot = pick_loot_from_table(loot_table)
-		if(loot)
-			new loot(loc)
-	if(message)
-		visible_message(span_danger("[message]"))
-
-	// Use the standard mob deletion instead of qdel to prevent bad del
-	// The DEL_ON_DEATH flag will handle proper deletion
-	death()
+		if(!has_void)
+			faction += FACTION_VOID
+		if(!has_hostile)
+			faction += "hostile"
 
 // Voidling - Basic melee attacker
 /mob/living/basic/void_creature/voidling
@@ -130,7 +118,18 @@
 		flick("voidling_2", src)
 
 /mob/living/basic/void_creature/voidling/death(gibbed)
-	void_death("And the void reclaims.", voidling_loot_table)
+	. = ..()
+	if(!.)
+		return FALSE
+
+	// Only drop loot when actually dead, not when hurt
+	if(!gibbed)
+		var/loot = pick_loot_from_table(voidling_loot_table)
+		if(loot)
+			new loot(loc)
+
+	visible_message(span_danger("And the void reclaims [src]."))
+	return TRUE
 
 // Consumed Pathfinder - Ranged attacker with summoning
 /mob/living/basic/void_creature/consumed_pathfinder
@@ -154,7 +153,17 @@
 	AddComponent(/datum/component/ranged_attacks, /obj/projectile/magic/voidbolt)
 
 /mob/living/basic/void_creature/consumed_pathfinder/death(gibbed)
-	void_death("[src] shatters into nothingness.", consumed_pathfinder_drops)
+	. = ..()
+	if(!.)
+		return FALSE
+
+	if(!gibbed)
+		var/loot = pick_loot_from_table(consumed_pathfinder_drops)
+		if(loot)
+			new loot(loc)
+
+	visible_message(span_danger("[src] shatters into nothingness."))
+	return TRUE
 
 // Voidbug - Defensive tank
 /mob/living/basic/void_creature/voidbug
@@ -181,7 +190,17 @@
 	. = ..()
 
 /mob/living/basic/void_creature/voidbug/death(gibbed)
-	void_death("[src] crumbles into void dust.", voidbug_loot_table)
+	. = ..()
+	if(!.)
+		return FALSE
+
+	if(!gibbed)
+		var/loot = pick_loot_from_table(voidbug_loot_table)
+		if(loot)
+			new loot(loc)
+
+	visible_message(span_danger("[src] crumbles into void dust."))
+	return TRUE
 
 // Void Healer - Support mob
 /mob/living/basic/void_creature/void_healer
@@ -202,7 +221,17 @@
 	ai_controller = /datum/ai_controller/basic_controller/void_healer
 
 /mob/living/basic/void_creature/void_healer/death(gibbed)
-	void_death("[src] fades into nothingness.", void_healer_table)
+	. = ..()
+	if(!.)
+		return FALSE
+
+	if(!gibbed)
+		var/loot = pick_loot_from_table(void_healer_table)
+		if(loot)
+			new loot(loc)
+
+	visible_message(span_danger("[src] fades into nothingness."))
+	return TRUE
 
 // Projectile for Consumed Pathfinder
 /obj/projectile/magic/voidbolt
@@ -214,7 +243,7 @@
 	range = 50
 	speed = 0.2
 
-// Basic void AI controller
+// Basic void AI controller - FIXED VERSION
 /datum/ai_controller/basic_controller/void
 	blackboard = list(
 		BB_TARGETING_STRATEGY = /datum/targeting_strategy/basic,
@@ -278,13 +307,11 @@
 		/datum/ai_planning_subtree/basic_melee_attack_subtree,
 	)
 
-// Consumed Pathfinder AI - ranged attacker with summoning
+// Consumed Pathfinder AI - FIXED VERSION
 /datum/ai_controller/basic_controller/void_pathfinder
 	blackboard = list(
 		BB_TARGETING_STRATEGY = /datum/targeting_strategy/basic,
 		BB_VOID_SUMMON_COOLDOWN = 0,
-		BB_BASIC_MOB_RETREAT_DISTANCE = 5,
-		BB_BASIC_MOB_MINIMUM_DISTANCE = 3,
 	)
 
 	ai_movement = /datum/ai_movement/basic_avoidance
@@ -296,7 +323,7 @@
 		/datum/ai_planning_subtree/basic_ranged_attack_subtree,
 	)
 
-// Void Healer AI - flees and heals allies
+// Void Healer AI - FIXED VERSION
 /datum/ai_controller/basic_controller/void_healer
 	blackboard = list(
 		BB_TARGETING_STRATEGY = /datum/targeting_strategy/basic,
