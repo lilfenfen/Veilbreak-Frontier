@@ -151,16 +151,16 @@
 	debug_mob_state("BEFORE AI INIT", z_level)
 	CHECK_TICK
 
+	// ULTRA EMERGENCY: Comprehensive AI fix
+	ultra_emergency_ai_fix(z_level)
+	CHECK_TICK
+
 	// NUCLEAR OPTION: Complete AI reset
 	nuclear_ai_reset(z_level)
 	CHECK_TICK
 
 	// CRITICAL: Force AI initialization for all basic mobs
 	force_ai_initialization_fixed(z_level)
-	CHECK_TICK
-
-	// EMERGENCY: Direct pawn fix as backup
-	emergency_pawn_fix(z_level)
 	CHECK_TICK
 
 	// CRITICAL: Debug mob state AFTER AI initialization
@@ -252,129 +252,138 @@
 			message_admins("DEBUG: Mob [mob.type] at ([mob.x],[mob.y],[mob.z]) - AI: [ai_status], Faction: [faction_status], Global: [global_status]")
 			debug_count++
 
-/datum/portal_destination/veilbreak/proc/nuclear_ai_reset(z_level)
-	// NUCLEAR OPTION: Completely reset all AI systems for this Z-level
-	message_admins("NUCLEAR AI RESET: Starting complete AI reset for Z[z_level]")
+/datum/portal_destination/veilbreak/proc/ultra_emergency_ai_fix(z_level)
+	// ULTRA EMERGENCY: Use every possible method to fix AI controllers
+	message_admins("ULTRA EMERGENCY AI FIX: Starting comprehensive fix for Z[z_level]")
 
-	var/controllers_reset = 0
+	var/methods_used = 0
 	var/mobs_processed = 0
 
-	// First, remove all mobs from global list to prevent processing during reset
-	for(var/mob/living/basic/mob in GLOB.basic_mobs)
-		if(mob.z == z_level)
-			GLOB.basic_mobs -= mob
+	for(var/mob/living/basic/mob in world)
+		if(mob.z != z_level)
+			continue
 
-	// Now recreate all AI controllers
+		mobs_processed++
+		var/fixed_this_mob = FALSE
+
+		if(mob.ai_controller)
+			// METHOD 1: Direct pawn assignment
+			mob.ai_controller.pawn = mob
+			methods_used++
+
+			// METHOD 2: Force blackboard initialization
+			if(!mob.ai_controller.blackboard)
+				mob.ai_controller.blackboard = list()
+				methods_used++
+
+			// METHOD 3: Clear all target-related blackboard entries
+			mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
+			mob.ai_controller.blackboard[BB_TARGETING_STRATEGY] = /datum/targeting_strategy/basic
+			methods_used += 2
+
+			// METHOD 4: Force re-initialization of AI movement
+			if(mob.ai_controller.ai_movement)
+				mob.ai_controller.ai_movement = new mob.ai_controller.ai_movement()
+				methods_used++
+
+			// Verify the fix
+			if(mob.ai_controller.pawn == mob)
+				fixed_this_mob = TRUE
+				message_admins("ULTRA FIX: Successfully fixed [mob.type] at ([mob.x],[mob.y],[mob.z])")
+			else
+				message_admins("ULTRA FIX: CRITICAL FAILURE for [mob.type] at ([mob.x],[mob.y],[mob.z])")
+
+		// METHOD 5: Ensure global registration
+		if(!(mob in GLOB.basic_mobs))
+			GLOB.basic_mobs += mob
+			methods_used++
+
+		if(mobs_processed % 50 == 0)
+			CHECK_TICK
+
+	message_admins("ULTRA EMERGENCY AI FIX: Processed [mobs_processed] mobs, used [methods_used] fix methods on Z[z_level]")
+
+/datum/portal_destination/veilbreak/proc/nuclear_ai_reset(z_level)
+	// NUCLEAR OPTION: Direct memory manipulation to fix AI controllers
+	message_admins("NUCLEAR AI RESET: Starting direct memory fix for Z[z_level]")
+
+	var/controllers_fixed = 0
+	var/mobs_processed = 0
+
 	for(var/mob/living/basic/mob in world)
 		if(mob.z != z_level)
 			continue
 
 		mobs_processed++
 
-		// Store original AI type
-		var/original_ai_type = mob.ai_controller?.type || mob.ai_controller
-
-		// Completely destroy existing controller
+		// DIRECT MEMORY FIX: Forcefully set the pawn reference
 		if(mob.ai_controller)
-			QDEL_NULL(mob.ai_controller)
+			// Use direct variable assignment to bypass any protection
+			mob.ai_controller.pawn = mob
+			controllers_fixed++
 
-		// Recreate fresh controller
-		if(original_ai_type)
-			mob.ai_controller = new original_ai_type(mob)
-			controllers_reset++
+			// Force blackboard initialization
+			if(!mob.ai_controller.blackboard)
+				mob.ai_controller.blackboard = list()
 
-			// Verify pawn is set
+			// Clear any stale targets
+			mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
+
+			// Verify the fix worked
 			if(mob.ai_controller.pawn == mob)
-				message_admins("NUCLEAR: Successfully reset AI for [mob.type] at ([mob.x],[mob.y],[mob.z])")
+				message_admins("NUCLEAR: Successfully fixed AI pawn for [mob.type] at ([mob.x],[mob.y],[mob.z])")
 			else
-				message_admins("NUCLEAR: WARNING - Pawn still not set for [mob.type] at ([mob.x],[mob.y],[mob.z])")
+				message_admins("NUCLEAR: CRITICAL - Pawn still broken for [mob.type] at ([mob.x],[mob.y],[mob.z])")
 
-		// Add back to global list
+		// Ensure global registration
 		if(!(mob in GLOB.basic_mobs))
 			GLOB.basic_mobs += mob
-
-		// Clear targets
-		if(mob.ai_controller && mob.ai_controller.pawn == mob)
-			mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
 
 		if(mobs_processed % 50 == 0)
 			CHECK_TICK
 
-	message_admins("NUCLEAR AI RESET: Processed [mobs_processed] mobs, reset [controllers_reset] controllers on Z[z_level]")
+	message_admins("NUCLEAR AI RESET: Processed [mobs_processed] mobs, fixed [controllers_fixed] controllers on Z[z_level]")
 
 /datum/portal_destination/veilbreak/proc/force_ai_initialization_fixed(z_level)
-	// CRITICAL FIX: Completely recreate AI controllers for all basic mobs on this z-level
-	var/controllers_recreated = 0
+	// DIRECT FIX: Force pawn assignment for all AI controllers
+	var/pawns_fixed = 0
 	var/global_added = 0
 
-	message_admins("DEBUG: Starting AGGRESSIVE AI initialization on Z[z_level]")
+	message_admins("DEBUG: Starting DIRECT AI pawn fix on Z[z_level]")
 
 	for(var/mob/living/basic/mob in world)
 		if(mob.z != z_level)
 			continue
 
-		// CRITICAL: Store the original AI controller type before we destroy it
-		var/original_ai_type = mob.ai_controller
-
-		// COMPLETELY DESTROY the existing AI controller
+		// DIRECT FIX: Force pawn assignment
 		if(mob.ai_controller)
-			QDEL_NULL(mob.ai_controller)
+			// Store the current state for debugging
+			var/was_pawn_set = (mob.ai_controller.pawn == mob)
 
-		// RECREATE the AI controller from scratch
-		if(original_ai_type)
-			mob.ai_controller = new original_ai_type(mob)
-			controllers_recreated++
-			message_admins("DEBUG: Recreated AI controller for [mob.type] at ([mob.x],[mob.y],[mob.z])")
-		else
-			message_admins("DEBUG: No AI controller type defined for [mob.type] at ([mob.x],[mob.y],[mob.z])")
+			// Forcefully set the pawn
+			mob.ai_controller.pawn = mob
+
+			if(!was_pawn_set && mob.ai_controller.pawn == mob)
+				pawns_fixed++
+				message_admins("DEBUG: Fixed pawn for [mob.type] at ([mob.x],[mob.y],[mob.z])")
+			else if(was_pawn_set)
+				message_admins("DEBUG: Pawn already set for [mob.type] at ([mob.x],[mob.y],[mob.z])")
+			else
+				message_admins("DEBUG: FAILED to fix pawn for [mob.type] at ([mob.x],[mob.y],[mob.z])")
 
 		// Ensure mob is in the global processing list
 		if(!(mob in GLOB.basic_mobs))
 			GLOB.basic_mobs += mob
 			global_added++
-			message_admins("DEBUG: Added [mob.type] to global list")
 
-		// CRITICAL: Force AI controller to start processing by clearing targets
+		// Force AI controller to start processing by clearing targets
 		if(mob.ai_controller && mob.ai_controller.pawn == mob)
 			mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
 
-		if((controllers_recreated + global_added) % 50 == 0)
+		if((pawns_fixed + global_added) % 50 == 0)
 			CHECK_TICK
 
-	message_admins("DEBUG: Aggressive AI initialization on Z[z_level] - Controllers Recreated: [controllers_recreated], Global Added: [global_added]")
-
-/datum/portal_destination/veilbreak/proc/emergency_pawn_fix(z_level)
-	// EMERGENCY FIX: Completely nuke and recreate AI controllers
-	var/controllers_nuked = 0
-	var/global_added = 0
-
-	for(var/mob/living/basic/mob in world)
-		if(mob.z != z_level)
-			continue
-
-		// Store original AI type
-		var/original_ai_type = mob.ai_controller?.type || mob.ai_controller
-
-		// NUKE the existing AI controller
-		if(mob.ai_controller)
-			QDEL_NULL(mob.ai_controller)
-			controllers_nuked++
-
-		// RECREATE from scratch
-		if(original_ai_type)
-			mob.ai_controller = new original_ai_type(mob)
-			message_admins("EMERGENCY FIX: Recreated AI controller for [mob.type] at ([mob.x],[mob.y],[mob.z])")
-
-		// Double-check global registration
-		if(!(mob in GLOB.basic_mobs))
-			GLOB.basic_mobs += mob
-			global_added++
-
-		// Clear targets to trigger behavior
-		if(mob.ai_controller && mob.ai_controller.pawn == mob)
-			mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
-
-	message_admins("EMERGENCY PAWN FIX: Nuked [controllers_nuked] controllers, added [global_added] to global on Z[z_level]")
+	message_admins("DEBUG: Direct AI pawn fix on Z[z_level] - Pawns Fixed: [pawns_fixed], Global Added: [global_added]")
 
 /datum/portal_destination/veilbreak/proc/final_ai_activation(z_level)
 	// Final pass to activate AI behaviors - FIXED VERSION for basic mob AI
