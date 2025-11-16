@@ -42,8 +42,14 @@
 	if(!ai_controller)
 		setup_ai_controller()
 
-	// CRITICAL: Ensure this mob is properly registered with AI systems
-	register_with_ai_subsystems()
+	// Use a timer to ensure AI system is fully ready before activation
+	addtimer(CALLBACK(src, .proc/delayed_ai_activation), 1 SECONDS)
+
+/mob/living/basic/void_creature/proc/delayed_ai_activation()
+	// Safely activate AI after initialization is complete
+	if(ai_controller && !QDELETED(ai_controller))
+		// Use the AI controller's own status management
+		ai_controller.reset_ai_status()
 
 /mob/living/basic/void_creature/proc/setup_ai_controller()
 	// Set up default AI controller based on type
@@ -58,12 +64,6 @@
 	else
 		// Fallback for base type
 		ai_controller = new /datum/ai_controller/basic_controller/void(src)
-
-/mob/living/basic/void_creature/proc/register_with_ai_subsystems()
-	// CRITICAL: Ensure the AI controller is properly set up and active
-	if(ai_controller)
-		// CRITICAL: Set AI status to ON to ensure it gets processed
-		ai_controller.set_ai_status(AI_STATUS_ON)
 
 /mob/living/basic/void_creature/Destroy()
 	return ..()

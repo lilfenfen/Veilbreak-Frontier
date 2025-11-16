@@ -200,9 +200,9 @@
 			mob.setup_ai_controller()
 			mobs_with_ai++
 
-		// CRITICAL: Force AI registration and processing
-		if(mob.ai_controller)
-			mob.register_with_ai_subsystems()
+		// CRITICAL: Use the AI controller's own status management instead of direct calls
+		if(mob.ai_controller && !QDELETED(mob.ai_controller))
+			mob.ai_controller.reset_ai_status()
 			mobs_with_ai++
 
 		if(mobs_processed % 25 == 0)
@@ -210,7 +210,6 @@
 
 	// Debug info
 	message_admins("DEBUG: Activated AI for [mobs_processed] void creatures, [mobs_with_ai] with AI controllers on Z-level [z_level]")
-
 
 /datum/portal_destination/veilbreak/proc/initialize_atoms_on_z_level(z_level)
 	// CRITICAL: Force SSatoms to initialize all atoms on the new Z-level
@@ -445,9 +444,9 @@
 			// Emergency fallback: Create basic AI controller
 			mob.setup_ai_controller()
 
-		// Force AI registration one more time
-		if(mob.ai_controller)
-			mob.register_with_ai_subsystems()
+		// Force AI registration one more time using safe method
+		if(mob.ai_controller && !QDELETED(mob.ai_controller))
+			mob.ai_controller.reset_ai_status()
 
 		CHECK_TICK
 
