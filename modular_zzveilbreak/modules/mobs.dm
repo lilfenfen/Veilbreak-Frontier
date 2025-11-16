@@ -44,6 +44,28 @@
 	. = ..()
 	AddElement(/datum/element/simple_flying)
 
+	// CRITICAL: Ensure AI controller is properly initialized for map-loaded mobs
+	if(ai_controller && !src.ai_controller)
+		src.ai_controller = new ai_controller(src)
+
+	// Force global registration for processing
+	if(!(src in GLOB.basic_mobs))
+		GLOB.basic_mobs += src
+
+	// Force hostility setup
+	ensure_hostility()
+
+/mob/living/basic/void_creature/proc/ensure_hostility()
+	// Ensure faction is properly set to be hostile to players
+	if(!faction)
+		faction = list(FACTION_VOID, "hostile")
+	else if(FACTION_VOID in faction)
+		// Already has void faction, ensure hostile
+		faction |= "hostile"
+	else
+		// Add both void and hostile factions
+		faction = list(FACTION_VOID, "hostile")
+
 /mob/living/basic/void_creature/proc/void_death(message, loot_table)
 	if(QDELETED(src))
 		return

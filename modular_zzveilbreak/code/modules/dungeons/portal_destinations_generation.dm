@@ -147,8 +147,8 @@
 	initialize_atoms_on_z_level(z_level)
 	CHECK_TICK
 
-	// CRITICAL: Initialize dungeon mobs for AI processing
-	initialize_dungeon_mobs(z_level)
+	// CRITICAL: Force AI initialization for all basic mobs
+	force_ai_initialization(z_level)
 	CHECK_TICK
 
 	// CRITICAL: Ensure mobs are hostile to players
@@ -182,11 +182,52 @@
 	// Final check to ensure AI systems are running
 	addtimer(CALLBACK(src, .proc/final_ai_verification, z_level), 2 SECONDS)
 
-	// Force mob processing - FIXED: Use SSmobs instead of SSbasic_mobs
-	addtimer(CALLBACK(src, .proc/force_mob_processing, z_level), 3 SECONDS)
+	// Force one more AI activation pass after everything is settled
+	addtimer(CALLBACK(src, .proc/final_ai_activation, z_level), 3 SECONDS)
+
+/datum/portal_destination/veilbreak/proc/force_ai_initialization(z_level)
+	// CRITICAL: Force AI controller creation for all basic mobs on this z-level
+	var/mobs_processed = 0
+	for(var/mob/living/basic/mob in world)
+		if(mob.z != z_level)
+			continue
+
+		// Force AI controller creation if it doesn't exist
+		if(!mob.ai_controller && mob.ai_controller)
+			mob.ai_controller = new mob.ai_controller(mob)
+			mobs_processed++
+
+		// Ensure mob is in the global processing list
+		if(!(mob in GLOB.basic_mobs))
+			GLOB.basic_mobs += mob
+			mobs_processed++
+
+		if(mobs_processed % 25 == 0)
+			CHECK_TICK
+
+	message_admins("DEBUG: Force AI initialization - processed [mobs_processed] mobs on Z-level [z_level]")
+
+/datum/portal_destination/veilbreak/proc/final_ai_activation(z_level)
+	// Final pass to activate AI behaviors
+	var/ai_activated = 0
+	for(var/mob/living/basic/mob in world)
+		if(mob.z != z_level)
+			continue
+
+		// Force AI to start processing by triggering a behavior selection
+		if(mob.ai_controller)
+			// Clear any stale targets and force re-evaluation
+			mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
+			ai_activated++
+
+		if(ai_activated % 25 == 0)
+			CHECK_TICK
+
+	message_admins("DEBUG: Final AI activation - activated [ai_activated] AI controllers on Z-level [z_level]")
 
 /datum/portal_destination/veilbreak/proc/ensure_mob_hostility(z_level)
 	// Force all void creatures to be hostile to players
+	var/hostile_mobs = 0
 	for(var/mob/living/basic/void_creature/mob in world)
 		if(mob.z != z_level)
 			continue
@@ -204,16 +245,11 @@
 		// Force AI controller to re-evaluate targets
 		if(mob.ai_controller)
 			mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
+			hostile_mobs++
 
 		CHECK_TICK
 
-/datum/portal_destination/veilbreak/proc/force_mob_processing(z_level)
-	// Force mobs to be processed - FIXED: Use proper subsystem
-	for(var/mob/living/basic/mob in world)
-		if(mob.z == z_level && mob.ai_controller)
-			// Basic mobs are automatically processed by their AI controllers
-			// This just ensures they're in the right state
-			continue
+	message_admins("DEBUG: Mob hostility - set [hostile_mobs] void creatures as hostile on Z-level [z_level]")
 
 /datum/portal_destination/veilbreak/proc/initialize_atoms_on_z_level(z_level)
 	// CRITICAL: Force SSatoms to initialize all atoms on the new Z-level
@@ -448,8 +484,6 @@
 
 		total_mobs++
 
-		// FIXED: Basic mobs automatically get AI controllers from their ai_controller type
-		// No need for manual setup_ai_controller() calls
 		if(mob.ai_controller)
 			mobs_with_ai++
 
@@ -463,17 +497,15 @@
 		return
 
 	var/mobs_initialized = 0
-	for(var/mob/living/mob in world)
+	for(var/mob/living/basic/mob in world)
 		if(mob.z != z_level)
 			continue
 
-		// Add to mobs subsystem for general mob processing if not already there
-		if(!(mob in GLOB.mob_living_list))
-			GLOB.mob_living_list += mob
-			mobs_initialized++
+		// Ensure AI controller is properly set up
+		if(mob.ai_controller && !mob.ai_controller.pawn)
+			mob.ai_controller.pawn = mob
 
-		// Basic mobs with ai_controllers are automatically processed by SSbasic_mobs
-		// No need to manually add them to simple_animals list
+		mobs_initialized++
 
 		if(mobs_initialized % 25 == 0)
 			CHECK_TICK
