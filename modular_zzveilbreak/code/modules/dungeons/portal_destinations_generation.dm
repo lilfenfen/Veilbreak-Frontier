@@ -151,8 +151,8 @@
 	debug_mob_state("BEFORE AI INIT", z_level)
 	CHECK_TICK
 
-	// CRITICAL: Force AI initialization for all basic mobs
-	force_ai_initialization(z_level)
+	// CRITICAL: Force AI initialization for all basic mobs - FIXED VERSION
+	force_ai_initialization_fixed(z_level)
 	CHECK_TICK
 
 	// CRITICAL: Debug mob state AFTER AI initialization
@@ -244,37 +244,30 @@
 			message_admins("DEBUG: Mob [mob.type] at ([mob.x],[mob.y],[mob.z]) - AI: [ai_status], Faction: [faction_status], Global: [global_status]")
 			debug_count++
 
-/datum/portal_destination/veilbreak/proc/force_ai_initialization(z_level)
-	// CRITICAL: Force AI controller creation for all basic mobs on this z-level
-	var/mobs_processed = 0
-	var/controllers_created = 0
+/datum/portal_destination/veilbreak/proc/force_ai_initialization_fixed(z_level)
+	// CRITICAL FIX: Force AI controller pawn assignment for all basic mobs on this z-level
+	var/pawns_set = 0
 	var/global_added = 0
 
 	for(var/mob/living/basic/mob in world)
 		if(mob.z != z_level)
 			continue
 
-		// Force AI controller creation if it doesn't exist
-		if(!mob.ai_controller && mob.ai_controller)
-			mob.ai_controller = new mob.ai_controller(mob)
-			controllers_created++
-			mobs_processed++
-
-		// Ensure AI controller has pawn set
-		if(mob.ai_controller && !mob.ai_controller.pawn)
+		// CRITICAL: Set the pawn for existing AI controllers
+		if(mob.ai_controller && mob.ai_controller.pawn != mob)
 			mob.ai_controller.pawn = mob
-			mobs_processed++
+			pawns_set++
+			message_admins("DEBUG: Set pawn for [mob.type] at ([mob.x],[mob.y],[mob.z])")
 
 		// Ensure mob is in the global processing list
 		if(!(mob in GLOB.basic_mobs))
 			GLOB.basic_mobs += mob
 			global_added++
-			mobs_processed++
 
-		if(mobs_processed % 25 == 0)
+		if((pawns_set + global_added) % 25 == 0)
 			CHECK_TICK
 
-	message_admins("DEBUG: Force AI initialization on Z[z_level] - Processed: [mobs_processed], Controllers: [controllers_created], Global: [global_added]")
+	message_admins("DEBUG: Fixed AI initialization on Z[z_level] - Pawns Set: [pawns_set], Global Added: [global_added]")
 
 /datum/portal_destination/veilbreak/proc/final_ai_activation(z_level)
 	// Final pass to activate AI behaviors
