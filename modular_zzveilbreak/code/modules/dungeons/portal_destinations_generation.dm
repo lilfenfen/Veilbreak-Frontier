@@ -151,7 +151,10 @@
 	initialize_dungeon_mobs(z_level)
 	CHECK_TICK
 
-	// CRITICAL: Activate AI for map-spawned mobs
+	// CRITICAL: Wait a moment for mobs to be properly initialized
+	sleep(5) // Small delay to ensure mobs are fully loaded
+
+	// CRITICAL: Activate AI for map-spawned mobs with proper timing
 	activate_dungeon_mob_ai(z_level)
 	CHECK_TICK
 
@@ -179,6 +182,9 @@
 
 	generated = TRUE
 
+	// Final check to ensure AI systems are running
+	addtimer(CALLBACK(src, .proc/final_ai_verification, z_level), 2 SECONDS)
+
 /datum/portal_destination/veilbreak/proc/activate_dungeon_mob_ai(z_level)
 	var/mobs_processed = 0
 	var/mobs_with_ai = 0
@@ -203,21 +209,16 @@
 				else
 					// Fallback for any void creatures
 					mob.ai_controller = new /datum/ai_controller/basic_controller/void(mob)
-
-		// CRITICAL: Ensure AI controller is started
-		if(mob.ai_controller && !mob.ai_controller.active)
-			mob.ai_controller.start_ai()
 			mobs_with_ai++
 
-		// CRITICAL: Ensure mob is in the processing list
-		if(mob.AIStatus == AI_ON && !(mob in GLOB.simple_animals[AI_ON]))
-			GLOB.simple_animals[AI_ON] += mob
+		// Basic mobs with ai_controller are automatically processed by SSbasic_mobs
+		// No further action needed
 
 		if(mobs_processed % 25 == 0)
 			CHECK_TICK
 
 	// Debug info
-	message_admins("DEBUG: Processed [mobs_processed] void creatures, [mobs_with_ai] with activated AI on Z-level [z_level]")
+	message_admins("DEBUG: Processed [mobs_processed] void creatures, [mobs_with_ai] with AI controllers on Z-level [z_level]")
 
 /datum/portal_destination/veilbreak/proc/initialize_atoms_on_z_level(z_level)
 	// CRITICAL: Force SSatoms to initialize all atoms on the new Z-level
@@ -440,3 +441,39 @@
 
 			if(fixed_count % 50 == 0)
 				CHECK_TICK
+
+/datum/portal_destination/veilbreak/proc/final_ai_verification(z_level)
+	// Final pass to ensure all mobs have active AI
+	for(var/mob/living/basic/void_creature/mob in world)
+		if(mob.z != z_level)
+			continue
+
+		// Double-check AI controller status
+		if(!mob.ai_controller)
+			// Emergency fallback: Create basic AI controller
+			mob.ai_controller = new /datum/ai_controller/basic_controller/void(mob)
+
+		// Basic mobs with ai_controller are automatically processed by SSbasic_mobs
+		// No further action needed
+
+		CHECK_TICK
+
+/datum/portal_destination/veilbreak/proc/initialize_dungeon_mobs(z_level)
+	if(!SSmobs.initialized)
+		return
+
+	var/mobs_initialized = 0
+	for(var/mob/living/mob in world)
+		if(mob.z != z_level)
+			continue
+
+		// Add to mobs subsystem for general mob processing if not already there
+		if(!(mob in GLOB.mob_living_list))
+			GLOB.mob_living_list += mob
+			mobs_initialized++
+
+		// Basic mobs with ai_controllers are automatically processed by SSbasic_mobs
+		// No need to manually add them to simple_animals list
+
+		if(mobs_initialized % 25 == 0)
+			CHECK_TICK

@@ -33,7 +33,7 @@
 	status_flags = CANPUSH
 	obj_damage = 30
 	movement_type = GROUND
-	AIStatus = AI_ON // CRITICAL: Ensure AI is enabled by default
+	basic_mob_flags = DEL_ON_DEATH
 
 /mob/living/basic/void_creature/Initialize(mapload)
 	. = ..()
@@ -51,14 +51,6 @@
 		else
 			// Fallback for base type
 			ai_controller = new /datum/ai_controller/basic_controller/void(src)
-
-	// CRITICAL: Start AI immediately for map-spawned mobs
-	if(ai_controller && !ai_controller.active)
-		ai_controller.start_ai()
-
-	// CRITICAL: Ensure we're in the simple_animals list for processing
-	if(AIStatus == AI_ON && !(src in GLOB.simple_animals[AI_ON]))
-		GLOB.simple_animals[AI_ON] += src
 
 /mob/living/basic/void_creature/Destroy()
 	return ..()

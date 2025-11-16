@@ -73,7 +73,7 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 			world.time > 30 SECONDS) // Give subsystems time to settle after round start.
 
 // Initialize dungeon mobs for AI processing
-/datum/portal_destination/veilbreak/proc/initialize_dungeon_mobs(z_level)
+/proc/initialize_dungeon_mobs(z_level)
 	if(!SSmobs.initialized)
 		return
 
@@ -82,17 +82,13 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 		if(mob.z != z_level)
 			continue
 
-		// Add to mobs subsystem for AI processing if not already there
+		// Add to mobs subsystem for general mob processing if not already there
 		if(!(mob in GLOB.mob_living_list))
 			GLOB.mob_living_list += mob
 			mobs_initialized++
 
-		// Specifically handle void creatures
-		if(istype(mob, /mob/living/basic/void_creature))
-			var/mob/living/basic/void_creature/void_mob = mob
-			if(void_mob.AIStatus == AI_ON && !(void_mob in GLOB.simple_animals[AI_ON]))
-				GLOB.simple_animals[AI_ON] += void_mob
-				mobs_initialized++
+		// Basic mobs with ai_controllers are automatically processed by SSbasic_mobs
+		// No need to manually add them to simple_animals list
 
 		if(mobs_initialized % 25 == 0)
 			CHECK_TICK
