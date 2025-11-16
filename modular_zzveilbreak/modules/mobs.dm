@@ -34,33 +34,11 @@
 	obj_damage = 30
 	movement_type = GROUND
 	basic_mob_flags = DEL_ON_DEATH
+	ai_controller = /datum/ai_controller/basic_controller/void
 
 /mob/living/basic/void_creature/Initialize(mapload)
 	. = ..()
-
-	// CRITICAL: Force AI controller creation for ALL void creatures
-	if(!ai_controller)
-		setup_ai_controller()
-
-/mob/living/basic/void_creature/proc/setup_ai_controller()
-	// Set up default AI controller based on type
-	if(istype(src, /mob/living/basic/void_creature/voidling))
-		ai_controller = new /datum/ai_controller/basic_controller/void/voidling(src)
-	else if(istype(src, /mob/living/basic/void_creature/consumed_pathfinder))
-		ai_controller = new /datum/ai_controller/basic_controller/void_pathfinder(src)
-	else if(istype(src, /mob/living/basic/void_creature/voidbug))
-		ai_controller = new /datum/ai_controller/basic_controller/void/voidbug(src)
-	else if(istype(src, /mob/living/basic/void_creature/void_healer))
-		ai_controller = new /datum/ai_controller/basic_controller/void_healer(src)
-	else
-		// Fallback for base type
-		ai_controller = new /datum/ai_controller/basic_controller/void(src)
-
-/mob/living/basic/void_creature/Destroy()
-	// Clean up AI controller properly to prevent bad del
-	if(ai_controller)
-		QDEL_NULL(ai_controller)
-	return ..()
+	AddElement(/datum/element/simple_flying)
 
 /mob/living/basic/void_creature/proc/void_death(message, loot_table)
 	if(QDELETED(src))
@@ -92,10 +70,6 @@
 	speed = 1
 	ai_controller = /datum/ai_controller/basic_controller/void/voidling
 
-/mob/living/basic/void_creature/voidling/Initialize(mapload)
-	. = ..()
-	AddElement(/datum/element/simple_flying)
-
 /mob/living/basic/void_creature/voidling/Move()
 	. = ..()
 	if(.)
@@ -122,7 +96,6 @@
 
 /mob/living/basic/void_creature/consumed_pathfinder/Initialize(mapload)
 	. = ..()
-	AddElement(/datum/element/simple_flying)
 	// Set up ranged attacks using the basic mob's built-in ranged system
 	AddComponent(/datum/component/ranged_attacks, /obj/projectile/magic/voidbolt)
 
@@ -146,10 +119,6 @@
 	attack_verb_simple = "bite"
 	ai_controller = /datum/ai_controller/basic_controller/void/voidbug
 	var/block_chance = 30
-
-/mob/living/basic/void_creature/voidbug/Initialize(mapload)
-	. = ..()
-	AddElement(/datum/element/simple_flying)
 
 /mob/living/basic/void_creature/voidbug/bullet_act(obj/projectile/P, def_zone, piercing_hit)
 	if(prob(block_chance))
@@ -178,10 +147,6 @@
 	environment_smash = ENVIRONMENT_SMASH_NONE
 	ai_controller = /datum/ai_controller/basic_controller/void_healer
 
-/mob/living/basic/void_creature/void_healer/Initialize(mapload)
-	. = ..()
-	AddElement(/datum/element/simple_flying)
-
 /mob/living/basic/void_creature/void_healer/death(gibbed)
 	void_death("[src] fades into nothingness.", void_healer_table)
 
@@ -208,6 +173,18 @@
 		/datum/ai_planning_subtree/simple_find_target,
 		/datum/ai_planning_subtree/basic_melee_attack_subtree,
 	)
+
+// Targeting strategy for basic void creatures
+/datum/targeting_strategy/basic
+	/// Range we can attack from
+	var/range = 1
+
+/datum/targeting_strategy/basic/can_attack(mob/living/owner, atom/target, vision_range)
+	if(!ismob(target))
+		return FALSE
+	if(get_dist(owner, target) > range)
+		return FALSE
+	return TRUE
 
 // Voidling specific AI - aggressive melee attacker
 /datum/ai_controller/basic_controller/void/voidling

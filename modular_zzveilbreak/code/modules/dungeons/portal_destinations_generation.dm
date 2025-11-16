@@ -411,12 +411,8 @@
 
 		total_mobs++
 
-		// Double-check AI controller status
-		if(!mob.ai_controller)
-			// Emergency fallback: Create basic AI controller
-			mob.setup_ai_controller()
-			mobs_with_ai++
-
+		// FIXED: Basic mobs automatically get AI controllers from their ai_controller type
+		// No need for manual setup_ai_controller() calls
 		if(mob.ai_controller)
 			mobs_with_ai++
 
