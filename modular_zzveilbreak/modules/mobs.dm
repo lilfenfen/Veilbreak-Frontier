@@ -37,20 +37,36 @@
 
 /mob/living/basic/void_creature/Initialize(mapload)
 	. = ..()
-	// CRITICAL: Ensure AI controller is properly initialized for both map-spawned and manually spawned mobs
+
+	// CRITICAL: Force AI controller creation for ALL void creatures
 	if(!ai_controller)
-		// Set up default AI controller based on type
-		if(istype(src, /mob/living/basic/void_creature/voidling))
-			ai_controller = new /datum/ai_controller/basic_controller/void/voidling(src)
-		else if(istype(src, /mob/living/basic/void_creature/consumed_pathfinder))
-			ai_controller = new /datum/ai_controller/basic_controller/void_pathfinder(src)
-		else if(istype(src, /mob/living/basic/void_creature/voidbug))
-			ai_controller = new /datum/ai_controller/basic_controller/void/voidbug(src)
-		else if(istype(src, /mob/living/basic/void_creature/void_healer))
-			ai_controller = new /datum/ai_controller/basic_controller/void_healer(src)
-		else
-			// Fallback for base type
-			ai_controller = new /datum/ai_controller/basic_controller/void(src)
+		setup_ai_controller()
+
+	// CRITICAL: Ensure this mob is properly registered with AI systems
+	register_with_ai_subsystems()
+
+/mob/living/basic/void_creature/proc/setup_ai_controller()
+	// Set up default AI controller based on type
+	if(istype(src, /mob/living/basic/void_creature/voidling))
+		ai_controller = new /datum/ai_controller/basic_controller/void/voidling(src)
+	else if(istype(src, /mob/living/basic/void_creature/consumed_pathfinder))
+		ai_controller = new /datum/ai_controller/basic_controller/void_pathfinder(src)
+	else if(istype(src, /mob/living/basic/void_creature/voidbug))
+		ai_controller = new /datum/ai_controller/basic_controller/void/voidbug(src)
+	else if(istype(src, /mob/living/basic/void_creature/void_healer))
+		ai_controller = new /datum/ai_controller/basic_controller/void_healer(src)
+	else
+		// Fallback for base type
+		ai_controller = new /datum/ai_controller/basic_controller/void(src)
+
+/mob/living/basic/void_creature/proc/register_with_ai_subsystems()
+	// CRITICAL: Ensure the AI controller is properly set up
+	if(ai_controller)
+		// Ensure the AI controller knows about its pawn
+		ai_controller.pawn = src
+
+		// CRITICAL: Set AI status to ON to ensure it gets processed
+		ai_controller.set_ai_status(AI_STATUS_ON)
 
 /mob/living/basic/void_creature/Destroy()
 	return ..()

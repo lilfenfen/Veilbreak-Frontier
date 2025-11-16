@@ -154,8 +154,8 @@
 	// CRITICAL: Wait a moment for mobs to be properly initialized
 	sleep(5) // Small delay to ensure mobs are fully loaded
 
-	// CRITICAL: Activate AI for map-spawned mobs with proper timing
-	activate_dungeon_mob_ai(z_level)
+	// CRITICAL: Force AI activation for all mobs
+	force_ai_activation(z_level)
 	CHECK_TICK
 
 	// Initialize areas and power
@@ -185,7 +185,7 @@
 	// Final check to ensure AI systems are running
 	addtimer(CALLBACK(src, .proc/final_ai_verification, z_level), 2 SECONDS)
 
-/datum/portal_destination/veilbreak/proc/activate_dungeon_mob_ai(z_level)
+/datum/portal_destination/veilbreak/proc/force_ai_activation(z_level)
 	var/mobs_processed = 0
 	var/mobs_with_ai = 0
 
@@ -197,28 +197,20 @@
 
 		// CRITICAL: Force AI controller creation if it doesn't exist
 		if(!mob.ai_controller)
-			switch(mob.type)
-				if(/mob/living/basic/void_creature/voidling)
-					mob.ai_controller = new /datum/ai_controller/basic_controller/void/voidling(mob)
-				if(/mob/living/basic/void_creature/consumed_pathfinder)
-					mob.ai_controller = new /datum/ai_controller/basic_controller/void_pathfinder(mob)
-				if(/mob/living/basic/void_creature/voidbug)
-					mob.ai_controller = new /datum/ai_controller/basic_controller/void/voidbug(mob)
-				if(/mob/living/basic/void_creature/void_healer)
-					mob.ai_controller = new /datum/ai_controller/basic_controller/void_healer(mob)
-				else
-					// Fallback for any void creatures
-					mob.ai_controller = new /datum/ai_controller/basic_controller/void(mob)
+			mob.setup_ai_controller()
 			mobs_with_ai++
 
-		// Basic mobs with ai_controller are automatically processed by SSbasic_mobs
-		// No further action needed
+		// CRITICAL: Force AI registration and processing
+		if(mob.ai_controller)
+			mob.register_with_ai_subsystems()
+			mobs_with_ai++
 
 		if(mobs_processed % 25 == 0)
 			CHECK_TICK
 
 	// Debug info
-	message_admins("DEBUG: Processed [mobs_processed] void creatures, [mobs_with_ai] with AI controllers on Z-level [z_level]")
+	message_admins("DEBUG: Activated AI for [mobs_processed] void creatures, [mobs_with_ai] with AI controllers on Z-level [z_level]")
+
 
 /datum/portal_destination/veilbreak/proc/initialize_atoms_on_z_level(z_level)
 	// CRITICAL: Force SSatoms to initialize all atoms on the new Z-level
@@ -451,10 +443,11 @@
 		// Double-check AI controller status
 		if(!mob.ai_controller)
 			// Emergency fallback: Create basic AI controller
-			mob.ai_controller = new /datum/ai_controller/basic_controller/void(mob)
+			mob.setup_ai_controller()
 
-		// Basic mobs with ai_controller are automatically processed by SSbasic_mobs
-		// No further action needed
+		// Force AI registration one more time
+		if(mob.ai_controller)
+			mob.register_with_ai_subsystems()
 
 		CHECK_TICK
 
