@@ -2,7 +2,10 @@
 	name = "Command"
 	icon_state = "command"
 	ambientsounds = list(
-		'sound/ambience/misc/signal.ogg',
+		'sound/ambience/engineering/ambitech.ogg',
+		'modular_skyrat/master_files/sound/ambience/ambigen1.ogg',
+		'modular_skyrat/master_files/sound/ambience/ambigen2.ogg',
+		'modular_skyrat/master_files/sound/ambience/ambigen3.ogg',
 		)
 	airlock_wires = /datum/wires/airlock/command
 	sound_environment = SOUND_AREA_STANDARD_STATION
@@ -10,6 +13,10 @@
 /area/station/command/bridge
 	name = "\improper Bridge"
 	icon_state = "bridge"
+	ambientsounds = list(
+	'sound/ambience/misc/signal.ogg',
+	'sound/ambience/engineering/ambitech.ogg',
+	)
 
 /area/station/command/meeting_room
 	name = "\improper Heads of Staff Meeting Room"
