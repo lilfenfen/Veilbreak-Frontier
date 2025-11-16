@@ -49,10 +49,11 @@
 
 	// CRITICAL: Ensure AI controller is properly initialized for map-loaded mobs
 	if(ai_controller && !src.ai_controller)
+		// AI controller type is defined but instance doesn't exist
 		src.ai_controller = new ai_controller(src)
 		debug_msg += "AI controller CREATED, "
 	else if(src.ai_controller)
-		// Ensure pawn is set
+		// AI controller exists, ensure pawn is set
 		if(src.ai_controller.pawn != src)
 			src.ai_controller.pawn = src
 			debug_msg += "AI controller PAWN SET, "
