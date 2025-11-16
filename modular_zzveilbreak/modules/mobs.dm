@@ -3,7 +3,7 @@
 // Define constants first
 #define HARD_CRIT 2
 #define BB_VOID_SUMMON_COOLDOWN "void_summon_cooldown"
-#define BB_VOID_HEAL_COOLDOWN "void_heal_coOLDOWN"
+#define BB_VOID_HEAL_COOLDOWN "void_heal_cooldown"
 
 // Define faction constants
 #define FACTION_VOID "void"
@@ -44,21 +44,18 @@
 	. = ..()
 	AddElement(/datum/element/simple_flying)
 
-	// CRITICAL: Debug initialization
-	var/debug_msg = "Void creature [type] initialized at ([x],[y],[z]) - "
+	// CRITICAL: Proper AI controller initialization for spawned mobs
+	var/debug_msg = "Void creature [type] spawned at ([x],[y],[z]) - "
 
-	// CRITICAL: DIRECT AI controller fix for map-loaded mobs
+	// Always create a fresh AI controller for spawned mobs
 	if(ai_controller)
-		// Ensure AI controller exists
-		if(!src.ai_controller)
-			src.ai_controller = new ai_controller(src)
-			debug_msg += "AI controller CREATED, "
-		else
-			debug_msg += "AI controller EXISTS, "
+		// Destroy any existing controller (shouldn't exist for newly spawned mobs)
+		if(src.ai_controller)
+			QDEL_NULL(src.ai_controller)
 
-		// DIRECT FIX: Force pawn assignment
-		src.ai_controller.pawn = src
-		debug_msg += "Pawn FORCE SET, "
+		// Create fresh controller
+		src.ai_controller = new ai_controller(src)
+		debug_msg += "AI controller FRESHLY CREATED, "
 
 		// Verify pawn is set
 		if(src.ai_controller.pawn == src)
