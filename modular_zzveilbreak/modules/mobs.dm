@@ -42,9 +42,6 @@
 	if(!ai_controller)
 		setup_ai_controller()
 
-	// Ensure AI controller is properly registered with the AI system
-	register_ai_controller()
-
 /mob/living/basic/void_creature/proc/setup_ai_controller()
 	// Set up default AI controller based on type
 	if(istype(src, /mob/living/basic/void_creature/voidling))
@@ -58,12 +55,6 @@
 	else
 		// Fallback for base type
 		ai_controller = new /datum/ai_controller/basic_controller/void(src)
-
-/mob/living/basic/void_creature/proc/register_ai_controller()
-	// Ensure the AI controller is properly set up in the SS13 AI system
-	if(ai_controller && !QDELETED(ai_controller))
-		// Force the AI controller to be active
-		ai_controller.set_ai_status(AI_STATUS_ON)
 
 /mob/living/basic/void_creature/Destroy()
 	// Clean up AI controller properly to prevent bad del
