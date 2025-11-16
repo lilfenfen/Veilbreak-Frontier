@@ -42,15 +42,6 @@
 	if(!ai_controller)
 		setup_ai_controller()
 
-	// Use a timer to ensure AI system is fully ready before activation
-	addtimer(CALLBACK(src, .proc/delayed_ai_activation), 1 SECONDS)
-
-/mob/living/basic/void_creature/proc/delayed_ai_activation()
-	// Safely activate AI after initialization is complete
-	if(ai_controller && !QDELETED(ai_controller))
-		// Use the AI controller's own status management
-		ai_controller.reset_ai_status()
-
 /mob/living/basic/void_creature/proc/setup_ai_controller()
 	// Set up default AI controller based on type
 	if(istype(src, /mob/living/basic/void_creature/voidling))
