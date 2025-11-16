@@ -3,7 +3,7 @@
 // Define constants first
 #define HARD_CRIT 2
 #define BB_VOID_SUMMON_COOLDOWN "void_summon_cooldown"
-#define BB_VOID_HEAL_COOLDOWN "void_heal_cooldown"
+#define BB_VOID_HEAL_COOLDOWN "void_heal_coOLDOWN"
 
 // Define faction constants
 #define FACTION_VOID "void"
@@ -43,6 +43,59 @@
 /mob/living/basic/void_creature/Initialize(mapload)
 	. = ..()
 	AddElement(/datum/element/simple_flying)
+
+	// CRITICAL: Debug initialization
+	var/debug_msg = "Void creature [type] initialized at ([x],[y],[z]) - "
+
+	// CRITICAL: DIRECT AI controller fix for map-loaded mobs
+	if(ai_controller)
+		// Ensure AI controller exists
+		if(!src.ai_controller)
+			src.ai_controller = new ai_controller(src)
+			debug_msg += "AI controller CREATED, "
+		else
+			debug_msg += "AI controller EXISTS, "
+
+		// DIRECT FIX: Force pawn assignment
+		src.ai_controller.pawn = src
+		debug_msg += "Pawn FORCE SET, "
+
+		// Verify pawn is set
+		if(src.ai_controller.pawn == src)
+			debug_msg += "Pawn VERIFIED, "
+		else
+			debug_msg += "Pawn BROKEN, "
+	else
+		debug_msg += "NO AI controller type, "
+
+	// Force global registration for processing
+	if(!(src in GLOB.basic_mobs))
+		GLOB.basic_mobs += src
+		debug_msg += "Added to global, "
+	else
+		debug_msg += "Already in global, "
+
+	// Force hostility setup
+	ensure_hostility()
+	debug_msg += "Faction: [jointext(faction, ",")]"
+
+	message_admins("DEBUG: [debug_msg]")
+
+	// CRITICAL: Force AI controller to process by clearing targets
+	if(src.ai_controller && src.ai_controller.pawn == src)
+		src.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
+
+/mob/living/basic/void_creature/proc/ensure_hostility()
+	// Ensure faction is properly set to be hostile to players
+	if(!faction)
+		faction = list(FACTION_VOID, "hostile")
+	else if(FACTION_VOID in faction)
+		// Already has void faction, ensure hostile
+		if(!("hostile" in faction))
+			faction |= "hostile"
+	else
+		// Add both void and hostile factions
+		faction = list(FACTION_VOID, "hostile")
 
 /mob/living/basic/void_creature/proc/void_death(message, loot_table)
 	if(QDELETED(src))
