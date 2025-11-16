@@ -151,6 +151,13 @@
 	initialize_dungeon_mobs(z_level)
 	CHECK_TICK
 
+	// CRITICAL: Wait a moment for mobs to be properly initialized
+	sleep(5) // Small delay to ensure mobs are fully loaded
+
+	// CRITICAL: Force AI activation for all mobs
+	force_ai_activation(z_level)
+	CHECK_TICK
+
 	// Initialize areas and power
 	initialize_areas_and_power(z_level)
 	CHECK_TICK
@@ -177,6 +184,32 @@
 
 	// Final check to ensure AI systems are running
 	addtimer(CALLBACK(src, .proc/final_ai_verification, z_level), 2 SECONDS)
+
+/datum/portal_destination/veilbreak/proc/force_ai_activation(z_level)
+	var/mobs_processed = 0
+	var/mobs_with_ai = 0
+
+	for(var/mob/living/basic/void_creature/mob in world)
+		if(mob.z != z_level)
+			continue
+
+		mobs_processed++
+
+		// CRITICAL: Force AI controller creation if it doesn't exist
+		if(!mob.ai_controller)
+			mob.setup_ai_controller()
+			mobs_with_ai++
+
+		// CRITICAL: Force AI registration and activation
+		if(mob.ai_controller && !QDELETED(mob.ai_controller))
+			mob.register_ai_controller()
+			mobs_with_ai++
+
+		if(mobs_processed % 25 == 0)
+			CHECK_TICK
+
+	// Debug info
+	message_admins("DEBUG: Activated AI for [mobs_processed] void creatures, [mobs_with_ai] with AI controllers on Z-level [z_level]")
 
 /datum/portal_destination/veilbreak/proc/initialize_atoms_on_z_level(z_level)
 	// CRITICAL: Force SSatoms to initialize all atoms on the new Z-level
@@ -401,7 +434,7 @@
 				CHECK_TICK
 
 /datum/portal_destination/veilbreak/proc/final_ai_verification(z_level)
-	// Final pass to ensure all mobs have AI controllers
+	// Final pass to ensure all mobs have active AI
 	var/mobs_with_ai = 0
 	var/total_mobs = 0
 
@@ -415,14 +448,15 @@
 		if(!mob.ai_controller)
 			// Emergency fallback: Create basic AI controller
 			mob.setup_ai_controller()
-			mobs_with_ai++
 
-		if(mob.ai_controller)
+		// Force AI registration one more time
+		if(mob.ai_controller && !QDELETED(mob.ai_controller))
+			mob.register_ai_controller()
 			mobs_with_ai++
 
 		CHECK_TICK
 
-	// Debug info - but don't try to manipulate AI controllers
+	// Debug info
 	message_admins("DEBUG: Final AI verification - [mobs_with_ai]/[total_mobs] void creatures with AI controllers on Z-level [z_level]")
 
 /datum/portal_destination/veilbreak/proc/initialize_dungeon_mobs(z_level)

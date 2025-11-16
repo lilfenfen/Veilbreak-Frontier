@@ -42,6 +42,9 @@
 	if(!ai_controller)
 		setup_ai_controller()
 
+	// Ensure AI controller is properly registered with the AI system
+	register_ai_controller()
+
 /mob/living/basic/void_creature/proc/setup_ai_controller()
 	// Set up default AI controller based on type
 	if(istype(src, /mob/living/basic/void_creature/voidling))
@@ -56,17 +59,32 @@
 		// Fallback for base type
 		ai_controller = new /datum/ai_controller/basic_controller/void(src)
 
+/mob/living/basic/void_creature/proc/register_ai_controller()
+	// Ensure the AI controller is properly set up in the SS13 AI system
+	if(ai_controller && !QDELETED(ai_controller))
+		// Force the AI controller to be active
+		ai_controller.set_ai_status(AI_STATUS_ON)
+
 /mob/living/basic/void_creature/Destroy()
+	// Clean up AI controller properly to prevent bad del
+	if(ai_controller)
+		QDEL_NULL(ai_controller)
 	return ..()
 
 /mob/living/basic/void_creature/proc/void_death(message, loot_table)
+	if(QDELETED(src))
+		return
+
 	if(loot_table)
 		var/loot = pick_loot_from_table(loot_table)
 		if(loot)
 			new loot(loc)
 	if(message)
 		visible_message(span_danger("[message]"))
-	qdel(src)
+
+	// Use the standard mob deletion instead of qdel to prevent bad del
+	// The DEL_ON_DEATH flag will handle proper deletion
+	death()
 
 // Voidling - Basic melee attacker
 /mob/living/basic/void_creature/voidling
