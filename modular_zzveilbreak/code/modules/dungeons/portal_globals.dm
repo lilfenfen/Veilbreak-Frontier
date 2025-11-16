@@ -75,6 +75,10 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 
 // Force AI initialization for all basic mobs on a z-level
 /proc/force_ai_initialization(z_level)
+	var/processed = 0
+	var/controllers_created = 0
+	var/global_added = 0
+
 	for(var/mob/living/basic/mob in world)
 		if(mob.z != z_level)
 			continue
@@ -82,12 +86,23 @@ GLOBAL_DATUM_INIT(dungeon_generator, /datum/http_dungeon_generator, new)
 		// CRITICAL: Create AI controller if it doesn't exist
 		if(!mob.ai_controller && mob.ai_controller)
 			mob.ai_controller = new mob.ai_controller(mob)
+			controllers_created++
+			processed++
+
+		// Ensure AI controller has pawn set
+		if(mob.ai_controller && !mob.ai_controller.pawn)
+			mob.ai_controller.pawn = mob
+			processed++
 
 		// Ensure global registration
 		if(!(mob in GLOB.basic_mobs))
 			GLOB.basic_mobs += mob
+			global_added++
+			processed++
 
 		CHECK_TICK
+
+	message_admins("DEBUG: Global AI init on Z[z_level] - Processed: [processed], Controllers: [controllers_created], Global: [global_added]")
 
 // Initialize dungeon mobs for AI processing
 /proc/initialize_dungeon_mobs(z_level)

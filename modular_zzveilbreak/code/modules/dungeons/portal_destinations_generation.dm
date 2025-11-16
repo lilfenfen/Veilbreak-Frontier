@@ -147,8 +147,16 @@
 	initialize_atoms_on_z_level(z_level)
 	CHECK_TICK
 
+	// CRITICAL: Debug mob state BEFORE AI initialization
+	debug_mob_state("BEFORE AI INIT", z_level)
+	CHECK_TICK
+
 	// CRITICAL: Force AI initialization for all basic mobs
 	force_ai_initialization(z_level)
+	CHECK_TICK
+
+	// CRITICAL: Debug mob state AFTER AI initialization
+	debug_mob_state("AFTER AI INIT", z_level)
 	CHECK_TICK
 
 	// CRITICAL: Ensure mobs are hostile to players
@@ -179,15 +187,69 @@
 
 	generated = TRUE
 
+	// Debug mob state after all systems are initialized
+	debug_mob_state("AFTER ALL SYSTEMS", z_level)
+	CHECK_TICK
+
 	// Final check to ensure AI systems are running
 	addtimer(CALLBACK(src, .proc/final_ai_verification, z_level), 2 SECONDS)
 
 	// Force one more AI activation pass after everything is settled
 	addtimer(CALLBACK(src, .proc/final_ai_activation, z_level), 3 SECONDS)
 
+/datum/portal_destination/veilbreak/proc/debug_mob_state(stage, z_level)
+	var/total_mobs = 0
+	var/mobs_with_ai = 0
+	var/mobs_with_controller = 0
+	var/mobs_in_global = 0
+	var/mobs_hostile = 0
+
+	for(var/mob/living/basic/mob in world)
+		if(mob.z != z_level)
+			continue
+
+		total_mobs++
+
+		if(mob.ai_controller)
+			mobs_with_controller++
+			// Check if AI controller has pawn set
+			if(mob.ai_controller.pawn == mob)
+				mobs_with_ai++
+
+		if(mob in GLOB.basic_mobs)
+			mobs_in_global++
+
+		// Check if mob is hostile
+		if(mob.faction && ("hostile" in mob.faction))
+			mobs_hostile++
+
+		CHECK_TICK
+
+	message_admins("DEBUG: [stage] on Z[z_level] - Mobs: [total_mobs], Controllers: [mobs_with_controller], AI Ready: [mobs_with_ai], Global: [mobs_in_global], Hostile: [mobs_hostile]")
+
+	// Detailed debug for first few mobs
+	if(total_mobs > 0)
+		var/debug_count = 0
+		for(var/mob/living/basic/mob in world)
+			if(mob.z != z_level || debug_count >= 3)
+				continue
+
+			var/ai_status = "NO_CONTROLLER"
+			if(mob.ai_controller)
+				ai_status = mob.ai_controller.pawn == mob ? "ACTIVE" : "NO_PAWN"
+
+			var/faction_status = mob.faction ? jointext(mob.faction, ",") : "NO_FACTION"
+			var/global_status = (mob in GLOB.basic_mobs) ? "IN_GLOBAL" : "NOT_IN_GLOBAL"
+
+			message_admins("DEBUG: Mob [mob.type] at ([mob.x],[mob.y],[mob.z]) - AI: [ai_status], Faction: [faction_status], Global: [global_status]")
+			debug_count++
+
 /datum/portal_destination/veilbreak/proc/force_ai_initialization(z_level)
 	// CRITICAL: Force AI controller creation for all basic mobs on this z-level
 	var/mobs_processed = 0
+	var/controllers_created = 0
+	var/global_added = 0
+
 	for(var/mob/living/basic/mob in world)
 		if(mob.z != z_level)
 			continue
@@ -195,61 +257,89 @@
 		// Force AI controller creation if it doesn't exist
 		if(!mob.ai_controller && mob.ai_controller)
 			mob.ai_controller = new mob.ai_controller(mob)
+			controllers_created++
+			mobs_processed++
+
+		// Ensure AI controller has pawn set
+		if(mob.ai_controller && !mob.ai_controller.pawn)
+			mob.ai_controller.pawn = mob
 			mobs_processed++
 
 		// Ensure mob is in the global processing list
 		if(!(mob in GLOB.basic_mobs))
 			GLOB.basic_mobs += mob
+			global_added++
 			mobs_processed++
 
 		if(mobs_processed % 25 == 0)
 			CHECK_TICK
 
-	message_admins("DEBUG: Force AI initialization - processed [mobs_processed] mobs on Z-level [z_level]")
+	message_admins("DEBUG: Force AI initialization on Z[z_level] - Processed: [mobs_processed], Controllers: [controllers_created], Global: [global_added]")
 
 /datum/portal_destination/veilbreak/proc/final_ai_activation(z_level)
 	// Final pass to activate AI behaviors
 	var/ai_activated = 0
+	var/targets_cleared = 0
+
 	for(var/mob/living/basic/mob in world)
 		if(mob.z != z_level)
 			continue
 
 		// Force AI to start processing by triggering a behavior selection
-		if(mob.ai_controller)
+		if(mob.ai_controller && mob.ai_controller.pawn == mob)
 			// Clear any stale targets and force re-evaluation
 			mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
+			targets_cleared++
 			ai_activated++
+
+			// Debug the AI controller state
+			var/controller_type = mob.ai_controller.type
+			var/has_target = !isnull(mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET])
+			var/pawn_set = mob.ai_controller.pawn == mob
+			message_admins("DEBUG: AI Controller [controller_type] - Has Target: [has_target], Pawn Set: [pawn_set]")
 
 		if(ai_activated % 25 == 0)
 			CHECK_TICK
 
-	message_admins("DEBUG: Final AI activation - activated [ai_activated] AI controllers on Z-level [z_level]")
+	message_admins("DEBUG: Final AI activation on Z[z_level] - Activated: [ai_activated], Targets Cleared: [targets_cleared]")
 
 /datum/portal_destination/veilbreak/proc/ensure_mob_hostility(z_level)
 	// Force all void creatures to be hostile to players
 	var/hostile_mobs = 0
+	var/faction_changes = 0
+
 	for(var/mob/living/basic/void_creature/mob in world)
 		if(mob.z != z_level)
 			continue
 
+		var/original_faction = mob.faction ? jointext(mob.faction, ",") : "NONE"
+
 		// Ensure faction is properly set to be hostile to players
 		if(!mob.faction)
 			mob.faction = list(FACTION_VOID, "hostile")
+			faction_changes++
 		else if(FACTION_VOID in mob.faction)
 			// Already has void faction, ensure hostile
-			mob.faction |= "hostile"
+			if(!("hostile" in mob.faction))
+				mob.faction |= "hostile"
+				faction_changes++
 		else
 			// Add both void and hostile factions
 			mob.faction = list(FACTION_VOID, "hostile")
+			faction_changes++
 
 		// Force AI controller to re-evaluate targets
 		if(mob.ai_controller)
 			mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
 			hostile_mobs++
 
+		var/new_faction = jointext(mob.faction, ",")
+		if(original_faction != new_faction)
+			message_admins("DEBUG: Faction change for [mob.type] - From: [original_faction] To: [new_faction]")
+
 		CHECK_TICK
 
-	message_admins("DEBUG: Mob hostility - set [hostile_mobs] void creatures as hostile on Z-level [z_level]")
+	message_admins("DEBUG: Mob hostility on Z[z_level] - Hostile: [hostile_mobs], Faction Changes: [faction_changes]")
 
 /datum/portal_destination/veilbreak/proc/initialize_atoms_on_z_level(z_level)
 	// CRITICAL: Force SSatoms to initialize all atoms on the new Z-level

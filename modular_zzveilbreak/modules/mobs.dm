@@ -3,7 +3,7 @@
 // Define constants first
 #define HARD_CRIT 2
 #define BB_VOID_SUMMON_COOLDOWN "void_summon_cooldown"
-#define BB_VOID_HEAL_COOLDOWN "void_heal_cooldown"
+#define BB_VOID_HEAL_COOLDOWN "void_heal_coOLDOWN"
 
 // Define faction constants
 #define FACTION_VOID "void"
@@ -44,16 +44,30 @@
 	. = ..()
 	AddElement(/datum/element/simple_flying)
 
+	// CRITICAL: Debug initialization
+	var/debug_msg = "Void creature [type] initialized at ([x],[y],[z]) - "
+
 	// CRITICAL: Ensure AI controller is properly initialized for map-loaded mobs
 	if(ai_controller && !src.ai_controller)
 		src.ai_controller = new ai_controller(src)
+		debug_msg += "AI controller CREATED, "
+	else if(src.ai_controller)
+		debug_msg += "AI controller EXISTS, "
+	else
+		debug_msg += "NO AI controller, "
 
 	// Force global registration for processing
 	if(!(src in GLOB.basic_mobs))
 		GLOB.basic_mobs += src
+		debug_msg += "Added to global, "
+	else
+		debug_msg += "Already in global, "
 
 	// Force hostility setup
 	ensure_hostility()
+	debug_msg += "Faction: [jointext(faction, ",")]"
+
+	message_admins("DEBUG: [debug_msg]")
 
 /mob/living/basic/void_creature/proc/ensure_hostility()
 	// Ensure faction is properly set to be hostile to players
@@ -61,7 +75,8 @@
 		faction = list(FACTION_VOID, "hostile")
 	else if(FACTION_VOID in faction)
 		// Already has void faction, ensure hostile
-		faction |= "hostile"
+		if(!("hostile" in faction))
+			faction |= "hostile"
 	else
 		// Add both void and hostile factions
 		faction = list(FACTION_VOID, "hostile")
