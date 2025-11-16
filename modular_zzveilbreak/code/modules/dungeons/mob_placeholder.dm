@@ -17,4 +17,27 @@
 
 /obj/effect/mob_placeholder/Initialize(mapload)
 	. = ..()
-	// The actual spawning will be handled by the dungeon generation process
+
+	// If mob_type isn't set, try to determine it from our name or other properties
+	if(!mob_type)
+		determine_mob_type_from_self()
+
+/obj/effect/mob_placeholder/proc/determine_mob_type_from_self()
+	// Try to determine mob type based on our own properties
+	if(name && name != "mob placeholder")
+		var/name_lower = lowertext(name)
+		switch(name_lower)
+			if("void healer", "healer")
+				mob_type = /mob/living/basic/void_creature/void_healer
+			if("voidbug", "bug")
+				mob_type = /mob/living/basic/void_creature/voidbug
+			if("consumed pathfinder", "pathfinder")
+				mob_type = /mob/living/basic/void_creature/consumed_pathfinder
+			if("voidling")
+				mob_type = /mob/living/basic/void_creature/voidling
+			if("boss", "megafauna", "inai")
+				mob_type = /mob/living/simple_animal/hostile/megafauna/inai
+
+	// If we still don't have a type, set a default
+	if(!mob_type)
+		mob_type = /mob/living/basic/void_creature/voidling

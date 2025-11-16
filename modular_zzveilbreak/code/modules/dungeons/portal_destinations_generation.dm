@@ -147,19 +147,15 @@
 	initialize_atoms_on_z_level(z_level)
 	CHECK_TICK
 
-	// CRITICAL: Debug mob state BEFORE replacement
-	debug_mob_state("BEFORE MOB REPLACEMENT", z_level)
+	// DEBUG: Check what's actually on the Z-level
+	debug_z_level_contents(z_level)
 	CHECK_TICK
 
-	// STEP 1: Replace all map-loaded mobs with placeholders
+	// STEP 1: Check for placeholders (map generator should have placed these)
 	replace_map_mobs_with_placeholders(z_level)
 	CHECK_TICK
 
-	// STEP 2: Wait a moment for cleanup
-	sleep(1)
-	CHECK_TICK
-
-	// STEP 3: Spawn properly initialized mobs from placeholders
+	// STEP 2: Spawn properly initialized mobs from placeholders
 	spawn_mobs_from_placeholders(z_level)
 	CHECK_TICK
 
@@ -213,6 +209,40 @@
 	// Force one more AI activation pass after everything is settled
 	addtimer(CALLBACK(src, .proc/final_ai_activation, z_level), 3 SECONDS)
 
+/datum/portal_destination/veilbreak/proc/debug_z_level_contents(z_level)
+	// Debug what's actually on the Z-level
+	message_admins("DEBUG Z[z_level] CONTENTS: Starting comprehensive scan")
+
+	var/total_turfs = 0
+	var/total_objs = 0
+	var/total_mobs = 0
+	var/total_placeholders = 0
+	var/other_objects = 0
+
+	for(var/turf/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
+		total_turfs++
+
+		for(var/atom/A in T.contents)
+			if(ismob(A))
+				total_mobs++
+				var/mob/M = A
+				message_admins("DEBUG: Found mob [M.type] at ([T.x],[T.y],[T.z]) - AI: [M.ai_controller ? "YES" : "NO"]")
+			else if(istype(A, /obj/effect/mob_placeholder))
+				total_placeholders++
+				var/obj/effect/mob_placeholder/P = A
+				message_admins("DEBUG: Found placeholder at ([T.x],[T.y],[T.z]) - Type: [P.mob_type], Name: [P.name]")
+			else if(isobj(A))
+				total_objs++
+				if(total_objs < 10) // Only log first few objects to avoid spam
+					message_admins("DEBUG: Found object [A.type] at ([T.x],[T.y],[T.z])")
+			else
+				other_objects++
+
+		if(total_turfs % 1000 == 0)
+			CHECK_TICK
+
+	message_admins("DEBUG Z[z_level] CONTENTS: Turfs: [total_turfs], Objects: [total_objs], Mobs: [total_mobs], Placeholders: [total_placeholders], Other: [other_objects]")
+
 /datum/portal_destination/veilbreak/proc/debug_mob_state(stage, z_level)
 	var/total_mobs = 0
 	var/mobs_with_ai = 0
@@ -261,39 +291,18 @@
 			debug_count++
 
 /datum/portal_destination/veilbreak/proc/replace_map_mobs_with_placeholders(z_level)
-	// Replace all mobs on the Z-level with placeholders that will spawn proper mobs
-	message_admins("MOB REPLACEMENT: Starting mob replacement for Z[z_level]")
+	// This function is no longer needed since the map generator already uses placeholders
+	// Instead, we'll just verify that placeholders exist and prepare for spawning
+	message_admins("PLACEHOLDER CHECK: Checking for mob placeholders on Z[z_level]")
 
-	var/mobs_replaced = 0
-	var/mobs_processed = 0
+	var/placeholders_found = 0
 
-	for(var/mob/living/basic/mob in world)
-		if(mob.z != z_level)
+	for(var/obj/effect/mob_placeholder/placeholder in world)
+		if(placeholder.z != z_level)
 			continue
+		placeholders_found++
 
-		mobs_processed++
-
-		// Store mob data for respawning
-		var/mob_type = mob.type
-		var/turf/mob_turf = get_turf(mob)
-		var/mob_faction = mob.faction?.Copy()
-		var/mob_name = mob.name
-
-		// Create a placeholder that will spawn the real mob
-		var/obj/effect/mob_placeholder/placeholder = new(mob_turf)
-		placeholder.mob_type = mob_type
-		placeholder.mob_faction = mob_faction
-		placeholder.mob_name = mob_name
-		placeholder.spawn_z_level = z_level
-
-		// Delete the original mob
-		qdel(mob)
-		mobs_replaced++
-
-		if(mobs_processed % 50 == 0)
-			CHECK_TICK
-
-	message_admins("MOB REPLACEMENT: Replaced [mobs_replaced] mobs with placeholders on Z[z_level]")
+	message_admins("PLACEHOLDER CHECK: Found [placeholders_found] mob placeholders on Z[z_level]")
 
 /datum/portal_destination/veilbreak/proc/spawn_mobs_from_placeholders(z_level)
 	// Spawn properly initialized mobs from placeholders
@@ -308,29 +317,94 @@
 
 		placeholders_processed++
 
-		// Spawn the real mob
-		var/mob/living/basic/new_mob = new placeholder.mob_type(placeholder.loc)
+		var/mob/living/basic/new_mob
+		var/turf/spawn_turf = get_turf(placeholder)
+
+		if(!spawn_turf)
+			message_admins("MOB SPAWNING: WARNING - Invalid spawn turf for placeholder at ([placeholder.x],[placeholder.y],[placeholder.z])")
+			continue
+
+		// Determine which mob type to spawn
+		if(placeholder.mob_type)
+			// Use the stored mob type if available
+			new_mob = new placeholder.mob_type(spawn_turf)
+			message_admins("MOB SPAWNING: Spawned [placeholder.mob_type] at ([spawn_turf.x],[spawn_turf.y],[spawn_turf.z])")
+		else
+			// Fallback: try to determine mob type from placeholder name or other properties
+			new_mob = determine_mob_type_from_placeholder(placeholder, spawn_turf)
+
+		if(!new_mob)
+			message_admins("MOB SPAWNING: FAILED to spawn mob from placeholder at ([spawn_turf.x],[spawn_turf.y],[spawn_turf.z])")
+			continue
 
 		// Apply stored properties
 		if(placeholder.mob_faction)
 			new_mob.faction = placeholder.mob_faction.Copy()
 
-		if(placeholder.mob_name)
+		if(placeholder.mob_name && placeholder.mob_name != "mob placeholder")
 			new_mob.name = placeholder.mob_name
 
-		// Ensure proper initialization
+		// Ensure proper initialization for void creatures
 		if(istype(new_mob, /mob/living/basic/void_creature))
 			var/mob/living/basic/void_creature/void_mob = new_mob
 			void_mob.ensure_hostility()
 
+		mobs_spawned++
+
 		// Delete the placeholder
 		qdel(placeholder)
-		mobs_spawned++
 
 		if(placeholders_processed % 50 == 0)
 			CHECK_TICK
 
-	message_admins("MOB SPAWNING: Spawned [mobs_spawned] mobs from placeholders on Z[z_level]")
+	message_admins("MOB SPAWNING: Successfully spawned [mobs_spawned] mobs from [placeholders_processed] placeholders on Z[z_level]")
+
+/datum/portal_destination/veilbreak/proc/determine_mob_type_from_placeholder(obj/effect/mob_placeholder/placeholder, turf/spawn_turf)
+	// Try to determine mob type based on placeholder properties
+	// This is a fallback if mob_type isn't set
+
+	// Check if the placeholder has any identifying properties
+	if(placeholder.name && placeholder.name != "mob placeholder")
+		var/name_lower = lowertext(placeholder.name)
+		switch(name_lower)
+			if("void healer", "healer")
+				return new /mob/living/basic/void_creature/void_healer(spawn_turf)
+			if("voidbug", "bug")
+				return new /mob/living/basic/void_creature/voidbug(spawn_turf)
+			if("consumed pathfinder", "pathfinder")
+				return new /mob/living/basic/void_creature/consumed_pathfinder(spawn_turf)
+			if("voidling")
+				return new /mob/living/basic/void_creature/voidling(spawn_turf)
+			if("boss", "megafauna", "inai")
+				return new /mob/living/simple_animal/hostile/megafauna/inai(spawn_turf)
+
+	// Default fallback - spawn a random void mob
+	return spawn_random_void_mob(spawn_turf)
+
+/datum/portal_destination/veilbreak/proc/spawn_random_void_mob(turf/spawn_turf)
+	// Fallback method to spawn a random void mob
+	var/static/list/void_mob_types = list(
+		/mob/living/basic/void_creature/void_healer = 1,
+		/mob/living/basic/void_creature/voidbug = 2,
+		/mob/living/basic/void_creature/consumed_pathfinder = 1,
+		/mob/living/basic/void_creature/voidling = 3
+	)
+
+	// Manual weighted selection since pickweight doesn't exist
+	var/total_weight = 0
+	for(var/mob_type in void_mob_types)
+		total_weight += void_mob_types[mob_type]
+
+	var/selected_weight = rand(1, total_weight)
+	var/current_weight = 0
+
+	for(var/mob_type in void_mob_types)
+		current_weight += void_mob_types[mob_type]
+		if(selected_weight <= current_weight)
+			return new mob_type(spawn_turf)
+
+	// Fallback if something goes wrong
+	return new /mob/living/basic/void_creature/voidling(spawn_turf)
 
 /datum/portal_destination/veilbreak/proc/force_ai_initialization_fixed(z_level)
 	// SIMPLE FIX: Just ensure pawns are set and clear targets for freshly spawned mobs
