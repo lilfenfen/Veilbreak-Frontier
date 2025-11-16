@@ -52,7 +52,12 @@
 		src.ai_controller = new ai_controller(src)
 		debug_msg += "AI controller CREATED, "
 	else if(src.ai_controller)
-		debug_msg += "AI controller EXISTS, "
+		// Ensure pawn is set
+		if(src.ai_controller.pawn != src)
+			src.ai_controller.pawn = src
+			debug_msg += "AI controller PAWN SET, "
+		else
+			debug_msg += "AI controller EXISTS, "
 	else
 		debug_msg += "NO AI controller, "
 
@@ -68,6 +73,10 @@
 	debug_msg += "Faction: [jointext(faction, ",")]"
 
 	message_admins("DEBUG: [debug_msg]")
+
+	// CRITICAL: Force AI controller to process by clearing targets
+	if(src.ai_controller && src.ai_controller.pawn == src)
+		src.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
 
 /mob/living/basic/void_creature/proc/ensure_hostility()
 	// Ensure faction is properly set to be hostile to players

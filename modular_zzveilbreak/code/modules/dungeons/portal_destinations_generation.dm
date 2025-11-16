@@ -248,6 +248,7 @@
 	// CRITICAL FIX: Force AI controller pawn assignment for all basic mobs on this z-level
 	var/pawns_set = 0
 	var/global_added = 0
+	var/controllers_recreated = 0
 
 	message_admins("DEBUG: Starting force_ai_initialization_fixed on Z[z_level]")
 
@@ -255,16 +256,25 @@
 		if(mob.z != z_level)
 			continue
 
-		// CRITICAL: Set the pawn for existing AI controllers
-		if(mob.ai_controller)
-			if(mob.ai_controller.pawn != mob)
-				mob.ai_controller.pawn = mob
-				pawns_set++
-				message_admins("DEBUG: Set pawn for [mob.type] at ([mob.x],[mob.y],[mob.z]) - Controller: [mob.ai_controller.type]")
-			else
-				message_admins("DEBUG: Pawn already set for [mob.type] at ([mob.x],[mob.y],[mob.z])")
+		// CRITICAL FIX: Check if AI controller type is defined but controller doesn't exist
+		if(mob.ai_controller && !mob.ai_controller.pawn)
+			// The controller exists but pawn isn't set - this is the main issue
+			mob.ai_controller.pawn = mob
+			pawns_set++
+			message_admins("DEBUG: Set pawn for [mob.type] at ([mob.x],[mob.y],[mob.z]) - Controller: [mob.ai_controller.type]")
+
+		else if(mob.ai_controller && mob.ai_controller.pawn == mob)
+			// Already properly set
+			message_admins("DEBUG: Pawn already set for [mob.type] at ([mob.x],[mob.y],[mob.z])")
+
+		else if(!mob.ai_controller && mob.ai_controller)
+			// Controller type is defined but controller doesn't exist - recreate it
+			mob.ai_controller = new mob.ai_controller(mob)
+			controllers_recreated++
+			message_admins("DEBUG: Recreated AI controller for [mob.type] at ([mob.x],[mob.y],[mob.z])")
+
 		else
-			message_admins("DEBUG: No AI controller for [mob.type] at ([mob.x],[mob.y],[mob.z])")
+			message_admins("DEBUG: No AI controller defined for [mob.type] at ([mob.x],[mob.y],[mob.z])")
 
 		// Ensure mob is in the global processing list
 		if(!(mob in GLOB.basic_mobs))
@@ -272,13 +282,18 @@
 			global_added++
 			message_admins("DEBUG: Added [mob.type] to global list")
 
-		if((pawns_set + global_added) % 50 == 0)
+		// CRITICAL: Force AI controller to start processing by clearing targets
+		if(mob.ai_controller && mob.ai_controller.pawn == mob)
+			mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
+			// Basic mob AI controllers automatically start processing when pawn is set
+
+		if((pawns_set + global_added + controllers_recreated) % 50 == 0)
 			CHECK_TICK
 
-	message_admins("DEBUG: Fixed AI initialization on Z[z_level] - Pawns Set: [pawns_set], Global Added: [global_added]")
+	message_admins("DEBUG: Fixed AI initialization on Z[z_level] - Pawns Set: [pawns_set], Controllers Recreated: [controllers_recreated], Global Added: [global_added]")
 
 /datum/portal_destination/veilbreak/proc/final_ai_activation(z_level)
-	// Final pass to activate AI behaviors
+	// Final pass to activate AI behaviors - FIXED VERSION for basic mob AI
 	var/ai_activated = 0
 	var/targets_cleared = 0
 
@@ -291,6 +306,9 @@
 			// Clear any stale targets and force re-evaluation
 			mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
 			targets_cleared++
+
+			// Basic mob AI controllers process automatically when pawn is set
+			// We just need to ensure they're in the right state
 			ai_activated++
 
 			// Debug the AI controller state
@@ -298,6 +316,8 @@
 			var/has_target = !isnull(mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET])
 			var/pawn_set = mob.ai_controller.pawn == mob
 			message_admins("DEBUG: AI Controller [controller_type] - Has Target: [has_target], Pawn Set: [pawn_set]")
+
+		ai_activated++
 
 		if(ai_activated % 25 == 0)
 			CHECK_TICK
