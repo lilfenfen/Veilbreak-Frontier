@@ -47,20 +47,28 @@
 	// CRITICAL: Debug initialization
 	var/debug_msg = "Void creature [type] initialized at ([x],[y],[z]) - "
 
-	// CRITICAL: Ensure AI controller is properly initialized for map-loaded mobs
-	if(ai_controller && !src.ai_controller)
-		// AI controller type is defined but instance doesn't exist
-		src.ai_controller = new ai_controller(src)
-		debug_msg += "AI controller CREATED, "
-	else if(src.ai_controller)
-		// AI controller exists, ensure pawn is set
-		if(src.ai_controller.pawn != src)
-			src.ai_controller.pawn = src
-			debug_msg += "AI controller PAWN SET, "
+	// CRITICAL: AGGRESSIVE AI controller initialization for map-loaded mobs
+	// Always recreate the AI controller to ensure it's properly set up
+	if(ai_controller)
+		// Store the type before we potentially destroy it
+		var/ai_type = ai_controller
+
+		// Destroy any existing controller (in case it's malformed from map loading)
+		if(src.ai_controller)
+			QDEL_NULL(src.ai_controller)
+			debug_msg += "OLD CONTROLLER DESTROYED, "
+
+		// Create fresh controller
+		src.ai_controller = new ai_type(src)
+		debug_msg += "AI controller RECREATED, "
+
+		// Verify pawn is set
+		if(src.ai_controller.pawn == src)
+			debug_msg += "Pawn VERIFIED, "
 		else
-			debug_msg += "AI controller EXISTS, "
+			debug_msg += "Pawn MISMATCH, "
 	else
-		debug_msg += "NO AI controller, "
+		debug_msg += "NO AI controller type, "
 
 	// Force global registration for processing
 	if(!(src in GLOB.basic_mobs))
