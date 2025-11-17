@@ -43,6 +43,32 @@ export const PortalControl = (props, context) => {
     portal_name,
   } = data;
 
+  // Enhanced state detection to prevent UI flashing
+  const isInTransitionState = () => {
+    // If any of these are true, we're in a transitional state
+    return cleanup_in_progress || generation_in_progress;
+  };
+
+  const isPortalStable = () => {
+    // Portal is considered stable when it's active and not in any transitional state
+    return portal_active && !isInTransitionState();
+  };
+
+  const isReadyForNewGeneration = () => {
+    // Only show generate button when:
+    // - Not in any transitional state
+    // - Portal is not active
+    // - Can generate is true
+    // - Portal is present and powered
+    return (
+      can_generate &&
+      !isInTransitionState() &&
+      !portal_active &&
+      portal_present &&
+      portal_status
+    );
+  };
+
   // Enhanced status indicators with void-space theme
   const getPortalStatus = () => {
     if (cleanup_in_progress) {
@@ -142,7 +168,23 @@ export const PortalControl = (props, context) => {
       );
     }
 
-    if (can_generate) {
+    // NEW: Check if we're in a post-generation but pre-activation state
+    if (generation_status === 'generating' && !generation_in_progress) {
+      return (
+        <Box textAlign="center">
+          <Icon name="cog" spin size={3} color="blue" />
+          <Box bold fontSize="1.2rem" color="blue" mt={1}>
+            FINALIZING CONNECTION
+          </Box>
+          <Box fontSize="0.9rem" mt={1} color="label">
+            Establishing dimensional bridge...
+          </Box>
+        </Box>
+      );
+    }
+
+    // UPDATED: Use the new ready check instead of can_generate
+    if (isReadyForNewGeneration()) {
       return (
         <Box
           textAlign="center"
@@ -219,6 +261,7 @@ export const PortalControl = (props, context) => {
     }
 
     // Ready state - portal present, powered, but not active
+    // This state should only show when we're truly ready, not during transitions
     return (
       <Box textAlign="center" color="blue">
         <Icon name="check-circle" size={3} />
@@ -323,6 +366,16 @@ export const PortalControl = (props, context) => {
                     {portal_status ? 'QUANTUM STABILIZED' : 'FLUCTUATING'}
                   </Box>
                 </LabeledList.Item>
+                {/* Show generation status during transitions */}
+                {(generation_in_progress ||
+                  generation_status === 'generating') && (
+                  <LabeledList.Item label="DIMENSIONAL STABILITY">
+                    <Box color="blue">
+                      <Icon name="cog" spin mr={1} />
+                      REALITY CALIBRATION: {generation_progress}%
+                    </Box>
+                  </LabeledList.Item>
+                )}
                 {/* DIMENSIONAL ANCHOR shows "Quantum Pocket Space" */}
                 {current_target?.name &&
                 current_target.name !== '0' &&
