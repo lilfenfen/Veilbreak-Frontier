@@ -114,11 +114,10 @@
 	AddComponent(/datum/component/ranged_attacks, /obj/projectile/magic/voidbolt, null, null, null, null, 6)
 
 /mob/living/basic/void_creature/consumed_pathfinder/drop_loot()
-	if(prob(80)) // 80% chance to drop loot
-		var/loot_type = pick_loot_from_table(consumed_pathfinder_drops)
-		if(loot_type)
-			new loot_type(loc)
-			visible_message(span_notice("Something drops from the void dust!"))
+	var/loot_type = pick_loot_from_table(consumed_pathfinder_drops)
+	if(loot_type)
+		new loot_type(loc)
+		visible_message(span_notice("Something drops from the void dust!"))
 
 // Voidbug - Defensive tank that protects allies
 /mob/living/basic/void_creature/voidbug

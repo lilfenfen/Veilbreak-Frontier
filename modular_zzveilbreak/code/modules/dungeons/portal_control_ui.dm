@@ -37,8 +37,8 @@
 		data["generation_status"] = veil_dest.generating ? "generating" : (veil_dest.generated ? "ready" : "idle")
 		data["generation_progress"] = veil_dest.generation_progress
 
-	// Update can_generate to include power check
-	data["can_generate"] = !generation_in_progress && !cleanup_in_progress && data["portal_present"] && linked_portal.destination && !data["portal_active"] && data["portal_status"] && !data["power_failure"]  // NEW: Prevent generation during power failure
+	// CRITICAL FIX: Update can_generate to be more strict
+	data["can_generate"] = !generation_in_progress && !cleanup_in_progress && data["portal_present"] && linked_portal.destination && !data["portal_active"] && data["portal_status"] && !data["power_failure"] && (data["generation_status"] == "idle")
 
 	// Better portal name handling - ensure we always have the correct name when portal is active
 	data["portal_name"] = null
@@ -64,6 +64,11 @@
 
 	switch(action)
 		if("generate_new")
+			// CRITICAL FIX: Double-check generation state before proceeding
+			if(generation_in_progress || cleanup_in_progress)
+				to_chat(user, span_warning("Portal operation already in progress!"))
+				return TRUE
+
 			if(!linked_portal)
 				to_chat(user, span_warning("No portal linked! Use the linkup button first."))
 				return TRUE
@@ -73,6 +78,11 @@
 				return TRUE
 
 			var/datum/portal_destination/veilbreak/veil_dest = linked_portal.destination
+
+			// CRITICAL FIX: Additional backend state validation
+			if(veil_dest.generating || veil_dest.generated)
+				to_chat(user, span_warning("Portal destination is already being generated or is active!"))
+				return TRUE
 
 			if(generation_in_progress)
 				to_chat(user, span_warning("Portal stabilization is already in progress!"))
@@ -94,9 +104,10 @@
 				to_chat(user, span_warning("Portal has no power! Check power connections."))
 				return TRUE
 
+			// CRITICAL FIX: Set generation_in_progress IMMEDIATELY to prevent multiple clicks
+			generation_in_progress = TRUE
 			cached_portal_name = null
 
-			generation_in_progress = TRUE
 			start_generation_monitoring()
 			force_ui_update()
 

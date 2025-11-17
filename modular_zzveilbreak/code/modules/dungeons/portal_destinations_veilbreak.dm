@@ -58,24 +58,7 @@
 
 	return TRUE
 
-/datum/portal_destination/veilbreak/proc/generation_failed(reason)
-	generating = FALSE
-	generated = FALSE
-	generation_progress = 0
-	actual_dungeon_portal_location = null
-
-	// Clean up the Z-level if we created one but failed to generate
-	if(dungeon_z_level && !generated)
-		GLOB.portal_dungeon_z_level = null
-		// Note: We don't remove the Z-level from SSmapping because it's complex and might be in use.
-		// Instead, we'll mark it as unused and avoid using it again.
-
-	if(connected_portal && !QDELETED(connected_portal))
-		connected_portal.say("Dungeon generation failed: [reason]")
-
-	if(connected_control_computer && !QDELETED(connected_control_computer))
-		connected_control_computer.on_generation_failed(reason)
-		connected_control_computer = null
+// REMOVED: generation_failed proc from this file since it's defined in portal_destinations_generation.dm
 
 /datum/portal_destination/veilbreak/proc/ensure_portal_connection()
 	if(!dungeon_z_level)

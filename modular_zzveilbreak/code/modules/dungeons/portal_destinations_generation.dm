@@ -4,6 +4,10 @@
 	if(generating)
 		return FALSE
 
+	// CRITICAL FIX: Additional validation to prevent duplicate generation
+	if(generated || current_request_id)
+		return FALSE
+
 	// Check subsystem readiness
 	if(!subsystems_ready_for_portals())
 		generation_failed("Subsystems not ready")
@@ -234,9 +238,8 @@
 		if(placeholder.mob_name && placeholder.mob_name != "mob placeholder")
 			new_mob.name = placeholder.mob_name
 
-		// Ensure proper initialization for void creatures
-		if(istype(new_mob, /mob/living/basic/void_creature))
-			var/mob/living/basic/void_creature/void_mob = new_mob
+		// Void creatures are properly initialized by their New() proc
+		// No need for additional initialization code here
 
 		// Delete the placeholder
 		qdel(placeholder)
@@ -261,7 +264,11 @@
 			if("voidling")
 				return new /mob/living/basic/void_creature/voidling(spawn_turf)
 			if("boss", "megafauna", "inai")
-				return new /mob/living/simple_animal/hostile/megafauna/inai(spawn_turf)
+				// 50/50 chance between the two bosses
+				if(prob(50))
+					return new /mob/living/simple_animal/hostile/megafauna/inai(spawn_turf)
+				else
+					return new /mob/living/simple_animal/hostile/megafauna/melos_vecare(spawn_turf)
 
 	// Default fallback - spawn a random void mob
 	return spawn_random_void_mob(spawn_turf)
@@ -272,7 +279,9 @@
 		/mob/living/basic/void_creature/void_healer = 1,
 		/mob/living/basic/void_creature/voidbug = 2,
 		/mob/living/basic/void_creature/consumed_pathfinder = 1,
-		/mob/living/basic/void_creature/voidling = 3
+		/mob/living/basic/void_creature/voidling = 3,
+		/mob/living/simple_animal/hostile/megafauna/inai = 1,
+		/mob/living/simple_animal/hostile/megafauna/melos_vecare = 1
 	)
 
 	// Manual weighted selection
@@ -590,3 +599,24 @@
 
 		if(mobs_initialized % 25 == 0)
 			CHECK_TICK
+
+/datum/portal_destination/veilbreak/proc/generation_failed(reason)
+	generating = FALSE
+	generated = FALSE
+	generation_progress = 0
+	current_request_id = 0
+	actual_dungeon_portal_location = null
+
+	// Notify control computer of failure
+	if(connected_control_computer && !QDELETED(connected_control_computer))
+		connected_control_computer.on_generation_failed(reason)
+		connected_control_computer = null
+
+	// Clean up the Z-level if we created one but failed to generate
+	if(dungeon_z_level && !generated)
+		GLOB.portal_dungeon_z_level = null
+		// Note: We don't remove the Z-level from SSmapping because it's complex and might be in use.
+		// Instead, we'll mark it as unused and avoid using it again.
+
+	if(connected_portal && !QDELETED(connected_portal))
+		connected_portal.say("Dungeon generation failed: [reason]")

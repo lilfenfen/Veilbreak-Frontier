@@ -87,7 +87,7 @@
 	// Alert nearby void faction members to attack the same target
 	var/pack_called = FALSE
 	for(var/mob/living/simple_animal/hostile/void_mob in view(7, living_pawn))
-		if(void_mob.faction.Find("Void") && void_mob != living_pawn && !void_mob.ai_controller?.blackboard_key_exists(BB_BASIC_MOB_CURRENT_TARGET))
+		if(void_mob.faction.Find(FACTION_VOID) && void_mob != living_pawn && !void_mob.ai_controller?.blackboard_key_exists(BB_BASIC_MOB_CURRENT_TARGET))
 			void_mob.GiveTarget(target)
 			pack_called = TRUE
 
@@ -100,6 +100,10 @@
 	return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_SUCCEEDED
 
 // ===== AGGRESSIVE FIND TARGET SUBTREE =====
+/datum/ai_planning_subtree/void_aggressive_find_target
+	/// Range to find targets
+	var/target_range = 7
+
 /datum/ai_planning_subtree/void_aggressive_find_target/SelectBehaviors(datum/ai_controller/controller, seconds_per_tick)
 	if(controller.blackboard_key_exists(BB_BASIC_MOB_CURRENT_TARGET))
 		return
@@ -108,16 +112,27 @@
 	if(!pawn_mob)
 		return
 
-	var/datum/ai_controller/basic_controller/void/void_controller = controller
-	var/aggro_range = 7
-	if(istype(void_controller))
+	// Use controller's aggro range if available, otherwise use default
+	var/aggro_range = target_range
+	if(istype(controller, /datum/ai_controller/basic_controller/void))
+		var/datum/ai_controller/basic_controller/void/void_controller = controller
 		aggro_range = void_controller.aggro_range
 
 	var/mob/living/target
 	var/min_dist = INFINITY
 
-	for(var/mob/living/L in range(aggro_range, pawn_mob))
-		if(L.stat == DEAD || (pawn_mob.faction & L.faction).len)
+	for(var/mob/living/L in view(aggro_range, pawn_mob))
+		if(L.stat == DEAD)
+			continue
+
+		// Check if target is in same faction
+		var/same_faction = FALSE
+		for(var/faction in L.faction)
+			if(faction in pawn_mob.faction)
+				same_faction = TRUE
+				break
+
+		if(same_faction)
 			continue
 
 		var/dist = get_dist(pawn_mob, L)
@@ -126,13 +141,17 @@
 			target = L
 
 	if(target)
-		SEND_SIGNAL(pawn_mob, COMSIG_MOB_GIVE_TARGET, target)
+		controller.set_blackboard_key(BB_BASIC_MOB_CURRENT_TARGET, target)
+		return SUBTREE_RETURN_FINISH_PLANNING
 
 // ===== VOID HEALER CONTROLLER (Support) =====
 /datum/ai_controller/basic_controller/void_healer
 	planning_subtrees = list(
 		/datum/ai_planning_subtree/void_healer_heal_allies,
 		/datum/ai_planning_subtree/void_healer_avoid_enemies,
+		/datum/ai_planning_subtree/void_aggressive_find_target, // Can still find targets if needed
+		/datum/ai_planning_subtree/attack_obstacle_in_path,
+		/datum/ai_planning_subtree/basic_melee_attack_subtree,
 	)
 	ai_movement = /datum/ai_movement/basic_avoidance
 
@@ -149,8 +168,19 @@
 	var/mob/living/wounded_ally
 	var/most_damaged_ratio = 0.3 // Only heal allies below 70% health
 
-	for(var/mob/living/ally in view(4, controller.pawn))
-		if(ally.faction.Find("Void") && ally != controller.pawn && ally.health < ally.maxHealth)
+	var/mob/living/pawn_mob = controller.pawn
+	if(!pawn_mob)
+		return
+
+	for(var/mob/living/ally in view(4, pawn_mob))
+		// Check if ally is in same faction
+		var/same_faction = FALSE
+		for(var/faction in ally.faction)
+			if(faction in pawn_mob.faction)
+				same_faction = TRUE
+				break
+
+		if(same_faction && ally != pawn_mob && ally.health < ally.maxHealth)
 			var/health_ratio = ally.health / ally.maxHealth
 			if(health_ratio < most_damaged_ratio || (health_ratio < 0.7 && !wounded_ally))
 				wounded_ally = ally
@@ -176,6 +206,7 @@
 	var/mob/living/target = controller.blackboard[target_key]
 
 	if(!target || target.health >= target.maxHealth)
+		controller.blackboard[BB_VOID_HEALER_CURRENT_TARGET] = null
 		return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_FAILED
 
 	// Heal the target
@@ -191,7 +222,7 @@
 	var/obj/effect/temp_visual/heal_effect = new(get_turf(target))
 	heal_effect.icon = 'modular_zzveilbreak/icons/mob/effects.dmi'
 	heal_effect.icon_state = "heal"
-	QDEL_IN(heal_effect, 60)
+	QDEL_IN(heal_effect, 1 SECONDS)
 
 	controller.blackboard[BB_VOID_HEALER_LAST_HEAL] = world.time
 	controller.blackboard[BB_VOID_HEALER_CURRENT_TARGET] = null
@@ -202,13 +233,25 @@
 
 /datum/ai_planning_subtree/void_healer_avoid_enemies/SelectBehaviors(datum/ai_controller/controller, seconds_per_tick)
 	var/mob/living/living_pawn = controller.pawn
+	if(!living_pawn)
+		return
 
 	// Find closest enemy
 	var/mob/living/closest_enemy
 	var/closest_distance = 8 // Detection range
 
 	for(var/mob/living/enemy in view(7, living_pawn))
-		if(!enemy.faction.Find("Void") && !enemy.stat)
+		if(enemy.stat)
+			continue
+
+		// Check if enemy is NOT in same faction
+		var/same_faction = FALSE
+		for(var/faction in enemy.faction)
+			if(faction in living_pawn.faction)
+				same_faction = TRUE
+				break
+
+		if(!same_faction)
 			var/distance = get_dist(living_pawn, enemy)
 			if(distance < closest_distance)
 				closest_enemy = enemy
@@ -227,6 +270,7 @@
 	var/mob/living/enemy = controller.blackboard[target_key]
 
 	if(!enemy)
+		controller.blackboard[BB_VOID_HEALER_FLEE_TARGET] = null
 		return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_FAILED
 
 	// Move away from the enemy
@@ -236,14 +280,16 @@
 	if(escape_turf && living_pawn.Move(escape_turf, dir_away))
 		return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_SUCCEEDED
 
+	controller.blackboard[BB_VOID_HEALER_FLEE_TARGET] = null
 	return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_FAILED
 
 // ===== CONSUMED PATHFINDER CONTROLLER (Brute tank) =====
-/datum/ai_controller/basic_controller/void_pathfinder
+/datum/ai_controller/basic_controller/void/consumed_pathfinder
+	aggro_range = 10
 	planning_subtrees = list(
 		/datum/ai_planning_subtree/void_aggressive_find_target,
 		/datum/ai_planning_subtree/attack_obstacle_in_path,
-		/datum/ai_planning_subtree/basic_ranged_attack_subtree,
+		/datum/ai_planning_subtree/basic_melee_attack_subtree,
 		/datum/ai_planning_subtree/void_pathfinder_pursue,
 	)
 	ai_movement = /datum/ai_movement/basic_avoidance
@@ -278,6 +324,7 @@
 	return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_FAILED
 
 // ===== VISUAL EFFECTS =====
-/obj/effect/temp_visual
-	icon = 'icons/effects/effects.dmi'
+/obj/effect/temp_visual/heal_effect
+	icon = 'modular_zzveilbreak/icons/mob/effects.dmi'
+	icon_state = "heal"
 	duration = 1 SECONDS
