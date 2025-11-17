@@ -6,8 +6,8 @@
 	icon_living = "idle"
 	pixel_x = -16
 	pixel_y = -16
-	bound_width = 48
-	bound_height = 48
+	bound_width = 32
+	bound_height = 32
 	speak_chance = 0
 	maxHealth = 3000
 	health = 3000
