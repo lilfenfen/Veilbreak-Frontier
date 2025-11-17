@@ -24,7 +24,7 @@
 	del_on_death = TRUE
 	dodging = FALSE
 	var/ability_cooldown = 0
-	var/spell_range = 20
+	var/spell_range = 12
 	var/ability_uses_counter = 0
 	var/lyric_index = 1
 	anchored = TRUE

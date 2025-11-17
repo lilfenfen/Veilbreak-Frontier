@@ -46,18 +46,15 @@
 	AddElement(/datum/element/simple_flying)
 
 	// Ensure proper hostility
-	faction = list(FACTION_VOID, FACTION_HOSTILE)
+	faction |= FACTION_HOSTILE
 
 /mob/living/basic/void_creature/death(gibbed)
-	. = ..()
-	if(!.)
-		return FALSE
-
 	// Drop loot before dusting
 	if(!gibbed)
 		drop_loot()
 
-	// Dust immediately
+	. = ..()
+	// Dust immediately after parent death proc
 	visible_message(span_danger("[src] collapses into void dust!"))
 	dust(just_ash = FALSE, drop_items = FALSE)
 	return TRUE
