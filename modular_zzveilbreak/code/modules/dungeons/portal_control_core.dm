@@ -214,6 +214,22 @@
 /obj/machinery/computer/portal_control/proc/generate_fallback_name()
 	return "Quantum Pocket Space [rand(1000,9999)]"
 
+/obj/machinery/computer/portal_control/proc/on_power_failure()
+	if(!linked_portal)
+		return
+
+	// Update UI to reflect power loss
+	force_ui_update()
+
+	// Notify users
+	say("Warning: Portal power failure detected. Emergency shutdown initiated.")
+
+	// If generation was in progress, cancel it
+	if(generation_in_progress)
+		generation_in_progress = FALSE
+		stop_generation_monitoring()
+		say("Portal stabilization cancelled due to power failure.")
+
 /obj/machinery/computer/portal_control/on_construction()
 	. = ..()
 	linked_portal = null

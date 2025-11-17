@@ -7,6 +7,9 @@
 	data["portal_status"] = data["portal_present"] ? linked_portal.powered() : FALSE
 	data["portal_active"] = data["portal_present"] ? (linked_portal.transport_active ? TRUE : FALSE) : FALSE
 
+	// NEW: Add power failure state
+	data["power_failure"] = data["portal_present"] ? (linked_portal.machine_stat & NOPOWER) : FALSE
+
 	// Improved current target detection with better name handling
 	if(data["portal_present"] && linked_portal.target && !QDELETED(linked_portal.target))
 		var/target_name = linked_portal.target.name
@@ -34,7 +37,8 @@
 		data["generation_status"] = veil_dest.generating ? "generating" : (veil_dest.generated ? "ready" : "idle")
 		data["generation_progress"] = veil_dest.generation_progress
 
-	data["can_generate"] = !generation_in_progress && !cleanup_in_progress && data["portal_present"] && linked_portal.destination && !data["portal_active"] && data["portal_status"]
+	// Update can_generate to include power check
+	data["can_generate"] = !generation_in_progress && !cleanup_in_progress && data["portal_present"] && linked_portal.destination && !data["portal_active"] && data["portal_status"] && !data["power_failure"]  // NEW: Prevent generation during power failure
 
 	// Better portal name handling - ensure we always have the correct name when portal is active
 	data["portal_name"] = null

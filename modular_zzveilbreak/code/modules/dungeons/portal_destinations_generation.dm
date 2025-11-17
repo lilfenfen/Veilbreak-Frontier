@@ -275,7 +275,7 @@
 		/mob/living/basic/void_creature/voidling = 3
 	)
 
-	// Manual weighted selection since pickweight doesn't exist
+	// Manual weighted selection
 	var/total_weight = 0
 	for(var/mob_type in void_mob_types)
 		total_weight += void_mob_types[mob_type]

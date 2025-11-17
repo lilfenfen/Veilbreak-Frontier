@@ -19,7 +19,8 @@
 	if((machine_stat & NOPOWER) && use_power)
 		portal_possible = FALSE
 		if(target)
-			deactivate()
+			// NEW: Trigger cleanup on power failure
+			handle_power_failure_cleanup()
 		return
 
 	var/was_possible = portal_possible
@@ -51,3 +52,31 @@
 		if(valid_destination(possible_destination) && possible_destination.is_available())
 			activate(possible_destination)
 			break
+
+/obj/machinery/portal/proc/handle_power_failure_cleanup()
+	if(!target || cleanup_in_progress)
+		return
+
+	cleanup_in_progress = TRUE
+
+	// Notify anyone nearby
+	visible_message(span_danger("[src] shuts down due to power failure! Initiating emergency cleanup..."))
+	playsound(src, 'sound/machines/gateway/gateway_close.ogg', 100, TRUE)
+
+	// If it's a veilbreak destination, trigger proper cleanup with power_failure flag
+	if(istype(target, /datum/portal_destination/veilbreak))
+		var/datum/portal_destination/veilbreak/veil_dest = target
+		addtimer(CALLBACK(veil_dest, /datum/portal_destination/veilbreak.proc/cleanup_z_level_completely, veil_dest.dungeon_z_level, get_ejection_turf(), TRUE), 3 SECONDS)  // NEW: power_failure = TRUE
+
+	// Deactivate the portal after a short delay
+	addtimer(CALLBACK(src, .proc/deactivate_after_power_failure), 5 SECONDS)
+
+/obj/machinery/portal/proc/deactivate_after_power_failure()
+	deactivate()
+	cleanup_in_progress = FALSE
+
+/obj/machinery/portal/proc/get_ejection_turf()
+	var/turf/primary_turf = get_step(src, SOUTH)
+	if(!primary_turf)
+		primary_turf = get_turf(src)
+	return primary_turf

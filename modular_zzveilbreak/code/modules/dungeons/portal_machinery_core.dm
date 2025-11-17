@@ -203,6 +203,14 @@
 	if(panel_open)
 		. += span_notice("The maintenance panel is open.")
 
+/obj/machinery/portal/power_change()
+	. = ..()
+
+	// NEW: Handle power loss while portal is active
+	if(machine_stat & NOPOWER)
+		if(target && transport_active && !cleanup_in_progress)
+			handle_power_failure_cleanup()
+
 /obj/item/circuitboard/machine/portal
 	name = "Dimensional Portal"
 	desc = "A circuit board for a dimensional portal."

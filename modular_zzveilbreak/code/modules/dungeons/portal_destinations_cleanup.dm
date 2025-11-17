@@ -1,6 +1,6 @@
 // modular_zzveilbreak/code/modules/dungeons/portal_destinations_cleanup.dm
 
-/datum/portal_destination/veilbreak/proc/cleanup_z_level_completely(z_level, turf/ejection_turf = null)
+/datum/portal_destination/veilbreak/proc/cleanup_z_level_completely(z_level, turf/ejection_turf = null, power_failure = FALSE)
 	if(!z_level || z_level < 1 || z_level > world.maxz)
 		return
 
@@ -11,6 +11,14 @@
 	processing_disabled = TRUE
 
 	STOP_PROCESSING(SSobj, src)
+
+	// NEW: Different message for power failure
+	if(power_failure)
+		if(connected_portal && !QDELETED(connected_portal))
+			connected_portal.say("Emergency shutdown: Power failure detected!")
+	else
+		if(connected_portal && !QDELETED(connected_portal))
+			connected_portal.say("Initiating controlled shutdown...")
 
 	handle_mobs_optimized(z_level, ejection_turf)
 	CHECK_TICK
@@ -58,20 +66,31 @@
 			if(living_mob in GLOB.mob_living_list)
 				GLOB.mob_living_list -= living_mob
 
-			// Delete void faction mobs and hostile mobs
-			if(living_mob.faction == FACTION_VOID || is_hostile_or_void(mob))
+			// UPDATED: Check for ALL our specific void creatures and megafauna
+			if(is_our_void_mob(living_mob))
+				should_delete = TRUE
+			// Then check for void faction as backup
+			else if(living_mob.faction == FACTION_VOID)
+				should_delete = TRUE
+			// Then check for other hostile mobs
+			else if(is_hostile_mob(living_mob))
 				should_delete = TRUE
 			else
-				// Eject non-hostile, non-void mobs and corpses
+				// Only non-void, non-hostile mobs should be ejected
 				should_eject = TRUE
 
 		else
-			// For non-living mobs, eject them (includes simple animals, etc.)
-			should_eject = TRUE
+			// For non-living mobs, use simpler check
+			if(is_hostile_or_void(mob))
+				should_delete = TRUE
+			else
+				should_eject = TRUE
 
 		if(should_delete)
 			qdel(mob)
 			mobs_deleted++
+			if(mobs_deleted % 10 == 0)
+				CHECK_TICK
 
 		else if(should_eject && ejection_turf && !QDELETED(ejection_turf))
 			// CRITICAL: Ensure we're ejecting to the STATION side portal, not the dungeon portal
@@ -99,15 +118,61 @@
 				GLOB.mob_living_list += mob
 
 			mobs_ejected++
+			if(mobs_ejected % 10 == 0)
+				CHECK_TICK
 
-		// If no ejection turf provided and shouldn't delete, just leave them to be cleaned up with the level
-		else if(!should_delete && !should_eject)
-			// This handles edge cases - just delete them
+		else
+			// If we get here and shouldn't delete but can't eject, just delete to be safe
 			qdel(mob)
 			mobs_deleted++
 
-		if((mobs_deleted + mobs_ejected) % 25 == 0)
-			CHECK_TICK
+/datum/portal_destination/veilbreak/proc/is_our_void_mob(mob/living/mob)
+	// UPDATED: Direct type checking for ALL our specific void creatures and megafauna
+	if(istype(mob, /mob/living/basic/void_creature/void_healer))
+		return TRUE
+	if(istype(mob, /mob/living/basic/void_creature/voidbug))
+		return TRUE
+	if(istype(mob, /mob/living/basic/void_creature/consumed_pathfinder))
+		return TRUE
+	if(istype(mob, /mob/living/basic/void_creature/voidling))
+		return TRUE
+	if(istype(mob, /mob/living/simple_animal/hostile/megafauna/inai))
+		return TRUE
+	if(istype(mob, /mob/living/simple_animal/hostile/megafauna/melos_vecare))
+		return TRUE
+
+	// Also check parent types as fallback
+	if(istype(mob, /mob/living/basic/void_creature))
+		return TRUE
+
+	// Check for void in name as additional safety
+	if(findtext(lowertext(mob.name), "void"))
+		return TRUE
+	return FALSE
+
+/datum/portal_destination/veilbreak/proc/is_hostile_mob(mob/living/mob)
+	// Check if mob is naturally hostile
+	if(istype(mob, /mob/living/simple_animal/hostile))
+		return TRUE
+	// Check AI behavior
+	if(mob.ai_controller)
+		var/datum/ai_controller/controller = mob.ai_controller
+		if(controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET])
+			return TRUE
+	// Check if mob has attacked anyone recently - simplified check
+	if(mob.ckey && mob.client) // Player mobs - assume not hostile unless proven otherwise
+		return FALSE
+	// For non-player mobs, assume hostile if they're basic mobs without players
+	if(istype(mob, /mob/living/basic) && !mob.ckey)
+		return TRUE
+	return FALSE
+
+/datum/portal_destination/veilbreak/proc/is_hostile_or_void(mob/mob)
+	// Combined check for non-living mobs
+	if(isliving(mob))
+		var/mob/living/living_mob = mob
+		return is_our_void_mob(living_mob) || is_hostile_mob(living_mob)
+	return FALSE
 
 /datum/portal_destination/veilbreak/proc/find_station_ejection_turf()
 	// Find the station-side portal for ejection
