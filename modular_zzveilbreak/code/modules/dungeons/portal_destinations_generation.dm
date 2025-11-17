@@ -183,7 +183,6 @@
 
 	generated = TRUE
 
-
 	// Final check to ensure AI systems are running
 	addtimer(CALLBACK(src, .proc/final_ai_verification, z_level), 2 SECONDS)
 
@@ -193,22 +192,16 @@
 /datum/portal_destination/veilbreak/proc/replace_map_mobs_with_placeholders(z_level)
 	// This function is no longer needed since the map generator already uses placeholders
 	// Instead, we'll just verify that placeholders exist and prepare for spawning
-	message_admins("PLACEHOLDER CHECK: Checking for mob placeholders on Z[z_level]")
-
-	var/placeholders_found = 0
 
 	for(var/obj/effect/mob_placeholder/placeholder in world)
 		if(placeholder.z != z_level)
 			continue
-		placeholders_found++
-
-	message_admins("PLACEHOLDER CHECK: Found [placeholders_found] mob placeholders on Z[z_level]")
+		// Placeholder found, will be processed in spawn_mobs_from_placeholders
+		CHECK_TICK
 
 /datum/portal_destination/veilbreak/proc/spawn_mobs_from_placeholders(z_level)
 	// Spawn properly initialized mobs from placeholders
-	message_admins("MOB SPAWNING: Starting mob spawning from placeholders for Z[z_level]")
 
-	var/mobs_spawned = 0
 	var/placeholders_processed = 0
 
 	for(var/obj/effect/mob_placeholder/placeholder in world)
@@ -221,20 +214,17 @@
 		var/turf/spawn_turf = get_turf(placeholder)
 
 		if(!spawn_turf)
-			message_admins("MOB SPAWNING: WARNING - Invalid spawn turf for placeholder at ([placeholder.x],[placeholder.y],[placeholder.z])")
 			continue
 
 		// Determine which mob type to spawn
 		if(placeholder.mob_type)
 			// Use the stored mob type if available
 			new_mob = new placeholder.mob_type(spawn_turf)
-			message_admins("MOB SPAWNING: Spawned [placeholder.mob_type] at ([spawn_turf.x],[spawn_turf.y],[spawn_turf.z])")
 		else
 			// Fallback: try to determine mob type from placeholder name or other properties
 			new_mob = determine_mob_type_from_placeholder(placeholder, spawn_turf)
 
 		if(!new_mob)
-			message_admins("MOB SPAWNING: FAILED to spawn mob from placeholder at ([spawn_turf.x],[spawn_turf.y],[spawn_turf.z])")
 			continue
 
 		// Apply stored properties
@@ -248,15 +238,11 @@
 		if(istype(new_mob, /mob/living/basic/void_creature))
 			var/mob/living/basic/void_creature/void_mob = new_mob
 
-		mobs_spawned++
-
 		// Delete the placeholder
 		qdel(placeholder)
 
 		if(placeholders_processed % 50 == 0)
 			CHECK_TICK
-
-	message_admins("MOB SPAWNING: Successfully spawned [mobs_spawned] mobs from [placeholders_processed] placeholders on Z[z_level]")
 
 /datum/portal_destination/veilbreak/proc/determine_mob_type_from_placeholder(obj/effect/mob_placeholder/placeholder, turf/spawn_turf)
 	// Try to determine mob type based on placeholder properties
@@ -321,6 +307,8 @@
 				// Clear targets to trigger behavior
 				mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
 			else
+				// Pawn not set correctly
+				mob.ai_controller.pawn = mob
 
 		// Ensure mob is in the global processing list
 		if(!(mob in GLOB.basic_mobs))
@@ -330,11 +318,9 @@
 		if((pawns_verified + global_added) % 50 == 0)
 			CHECK_TICK
 
-
 /datum/portal_destination/veilbreak/proc/final_ai_activation(z_level)
 	// Final pass to activate AI behaviors
 	var/ai_activated = 0
-	var/targets_cleared = 0
 
 	for(var/mob/living/basic/mob in world)
 		if(mob.z != z_level)
@@ -344,14 +330,8 @@
 		if(mob.ai_controller && mob.ai_controller.pawn == mob)
 			// Clear any stale targets and force re-evaluation
 			mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
-			targets_cleared++
 
 			ai_activated++
-
-			// Debug the AI controller state
-			var/controller_type = mob.ai_controller.type
-			var/has_target = !isnull(mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET])
-			var/pawn_set = mob.ai_controller.pawn == mob
 
 		ai_activated++
 
@@ -582,17 +562,14 @@
 
 /datum/portal_destination/veilbreak/proc/final_ai_verification(z_level)
 	// Final pass to ensure all mobs have AI controllers
-	var/mobs_with_ai = 0
-	var/total_mobs = 0
-
 	for(var/mob/living/basic/void_creature/mob in world)
 		if(mob.z != z_level)
 			continue
 
-		total_mobs++
-
-		if(mob.ai_controller)
-			mobs_with_ai++
+		// Just verify AI controller exists
+		if(!mob.ai_controller)
+			// Log error or handle missing AI controller
+			continue
 
 		CHECK_TICK
 
