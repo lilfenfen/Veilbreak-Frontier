@@ -147,20 +147,12 @@
 	initialize_atoms_on_z_level(z_level)
 	CHECK_TICK
 
-	// DEBUG: Check what's actually on the Z-level
-	debug_z_level_contents(z_level)
-	CHECK_TICK
-
 	// STEP 1: Check for placeholders (map generator should have placed these)
 	replace_map_mobs_with_placeholders(z_level)
 	CHECK_TICK
 
 	// STEP 2: Spawn properly initialized mobs from placeholders
 	spawn_mobs_from_placeholders(z_level)
-	CHECK_TICK
-
-	// CRITICAL: Debug mob state AFTER spawning
-	debug_mob_state("AFTER MOB SPAWNING", z_level)
 	CHECK_TICK
 
 	// CRITICAL: Force AI initialization for all basic mobs
@@ -191,96 +183,12 @@
 
 	generated = TRUE
 
-	// Debug mob state after all systems are initialized
-	debug_mob_state("AFTER ALL SYSTEMS", z_level)
-	CHECK_TICK
 
 	// Final check to ensure AI systems are running
 	addtimer(CALLBACK(src, .proc/final_ai_verification, z_level), 2 SECONDS)
 
 	// Force one more AI activation pass after everything is settled
 	addtimer(CALLBACK(src, .proc/final_ai_activation, z_level), 3 SECONDS)
-
-/datum/portal_destination/veilbreak/proc/debug_z_level_contents(z_level)
-	// Debug what's actually on the Z-level
-	message_admins("DEBUG Z[z_level] CONTENTS: Starting comprehensive scan")
-
-	var/total_turfs = 0
-	var/total_objs = 0
-	var/total_mobs = 0
-	var/total_placeholders = 0
-	var/other_objects = 0
-
-	for(var/turf/T in block(locate(1, 1, z_level), locate(world.maxx, world.maxy, z_level)))
-		total_turfs++
-
-		for(var/atom/A in T.contents)
-			if(ismob(A))
-				total_mobs++
-				var/mob/M = A
-				message_admins("DEBUG: Found mob [M.type] at ([T.x],[T.y],[T.z]) - AI: [M.ai_controller ? "YES" : "NO"]")
-			else if(istype(A, /obj/effect/mob_placeholder))
-				total_placeholders++
-				var/obj/effect/mob_placeholder/P = A
-				message_admins("DEBUG: Found placeholder at ([T.x],[T.y],[T.z]) - Type: [P.mob_type], Name: [P.name]")
-			else if(isobj(A))
-				total_objs++
-				if(total_objs < 10) // Only log first few objects to avoid spam
-					message_admins("DEBUG: Found object [A.type] at ([T.x],[T.y],[T.z])")
-			else
-				other_objects++
-
-		if(total_turfs % 1000 == 0)
-			CHECK_TICK
-
-	message_admins("DEBUG Z[z_level] CONTENTS: Turfs: [total_turfs], Objects: [total_objs], Mobs: [total_mobs], Placeholders: [total_placeholders], Other: [other_objects]")
-
-/datum/portal_destination/veilbreak/proc/debug_mob_state(stage, z_level)
-	var/total_mobs = 0
-	var/mobs_with_ai = 0
-	var/mobs_with_controller = 0
-	var/mobs_in_global = 0
-	var/mobs_hostile = 0
-
-	for(var/mob/living/basic/mob in world)
-		if(mob.z != z_level)
-			continue
-
-		total_mobs++
-
-		if(mob.ai_controller)
-			mobs_with_controller++
-			// Check if AI controller has pawn set
-			if(mob.ai_controller.pawn == mob)
-				mobs_with_ai++
-
-		if(mob in GLOB.basic_mobs)
-			mobs_in_global++
-
-		// Check if mob is hostile
-		if(mob.faction && ("hostile" in mob.faction))
-			mobs_hostile++
-
-		CHECK_TICK
-
-	message_admins("DEBUG: [stage] on Z[z_level] - Mobs: [total_mobs], Controllers: [mobs_with_controller], AI Ready: [mobs_with_ai], Global: [mobs_in_global], Hostile: [mobs_hostile]")
-
-	// Detailed debug for first few mobs
-	if(total_mobs > 0)
-		var/debug_count = 0
-		for(var/mob/living/basic/mob in world)
-			if(mob.z != z_level || debug_count >= 3)
-				continue
-
-			var/ai_status = "NO_CONTROLLER"
-			if(mob.ai_controller)
-				ai_status = mob.ai_controller.pawn == mob ? "ACTIVE" : "NO_PAWN"
-
-			var/faction_status = mob.faction ? jointext(mob.faction, ",") : "NO_FACTION"
-			var/global_status = (mob in GLOB.basic_mobs) ? "IN_GLOBAL" : "NOT_IN_GLOBAL"
-
-			message_admins("DEBUG: Mob [mob.type] at ([mob.x],[mob.y],[mob.z]) - AI: [ai_status], Faction: [faction_status], Global: [global_status]")
-			debug_count++
 
 /datum/portal_destination/veilbreak/proc/replace_map_mobs_with_placeholders(z_level)
 	// This function is no longer needed since the map generator already uses placeholders
@@ -402,8 +310,6 @@
 	var/pawns_verified = 0
 	var/global_added = 0
 
-	message_admins("DEBUG: Verifying AI for freshly spawned mobs on Z[z_level]")
-
 	for(var/mob/living/basic/mob in world)
 		if(mob.z != z_level)
 			continue
@@ -415,7 +321,6 @@
 				// Clear targets to trigger behavior
 				mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
 			else
-				message_admins("DEBUG: WARNING - Pawn not set for [mob.type] at ([mob.x],[mob.y],[mob.z])")
 
 		// Ensure mob is in the global processing list
 		if(!(mob in GLOB.basic_mobs))
@@ -425,7 +330,6 @@
 		if((pawns_verified + global_added) % 50 == 0)
 			CHECK_TICK
 
-	message_admins("DEBUG: AI verification on Z[z_level] - Pawns Verified: [pawns_verified], Global Added: [global_added]")
 
 /datum/portal_destination/veilbreak/proc/final_ai_activation(z_level)
 	// Final pass to activate AI behaviors
@@ -448,14 +352,11 @@
 			var/controller_type = mob.ai_controller.type
 			var/has_target = !isnull(mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET])
 			var/pawn_set = mob.ai_controller.pawn == mob
-			message_admins("DEBUG: AI Controller [controller_type] - Has Target: [has_target], Pawn Set: [pawn_set]")
 
 		ai_activated++
 
 		if(ai_activated % 25 == 0)
 			CHECK_TICK
-
-	message_admins("DEBUG: Final AI activation on Z[z_level] - Activated: [ai_activated], Targets Cleared: [targets_cleared]")
 
 /datum/portal_destination/veilbreak/proc/initialize_atoms_on_z_level(z_level)
 	// CRITICAL: Force SSatoms to initialize all atoms on the new Z-level
@@ -694,9 +595,6 @@
 			mobs_with_ai++
 
 		CHECK_TICK
-
-	// Debug info
-	message_admins("DEBUG: Final AI verification - [mobs_with_ai]/[total_mobs] void creatures with AI controllers on Z-level [z_level]")
 
 /datum/portal_destination/veilbreak/proc/initialize_dungeon_mobs(z_level)
 	if(!SSmobs.initialized)

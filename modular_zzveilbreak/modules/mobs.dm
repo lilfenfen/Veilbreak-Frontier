@@ -57,14 +57,12 @@
 	if(!.)
 		return FALSE
 
-	// Dust immediately and drop loot
-	visible_message(span_danger("[src] collapses into void dust!"))
-
 	// Drop loot before dusting
 	if(!gibbed)
 		drop_loot()
 
-	// Dust the corpse
+	// Dust immediately
+	visible_message(span_danger("[src] collapses into void dust!"))
 	dust(just_ash = FALSE, drop_items = FALSE)
 	return TRUE
 
@@ -100,9 +98,11 @@
 		flick("voidling_2", src)
 
 /mob/living/basic/void_creature/voidling/drop_loot()
-	var/loot = pick_loot_from_table(voidling_loot_table)
-	if(loot)
-		new loot(loc)
+	if(prob(60)) // 60% chance to drop loot
+		var/loot_type = pick_loot_from_table(voidling_loot_table)
+		if(loot_type)
+			new loot_type(loc)
+			visible_message(span_notice("Something drops from the void dust!"))
 
 // Consumed Pathfinder - Vicious ranged attacker with strategic summoning
 /mob/living/basic/void_creature/consumed_pathfinder
@@ -126,9 +126,11 @@
 	AddComponent(/datum/component/ranged_attacks, /obj/projectile/magic/voidbolt)
 
 /mob/living/basic/void_creature/consumed_pathfinder/drop_loot()
-	var/loot = pick_loot_from_table(consumed_pathfinder_drops)
-	if(loot)
-		new loot(loc)
+	if(prob(80)) // 80% chance to drop loot
+		var/loot_type = pick_loot_from_table(consumed_pathfinder_drops)
+		if(loot_type)
+			new loot_type(loc)
+			visible_message(span_notice("Something drops from the void dust!"))
 
 // Voidbug - Defensive tank that protects allies
 /mob/living/basic/void_creature/voidbug
@@ -163,9 +165,11 @@
 	return ..()
 
 /mob/living/basic/void_creature/voidbug/drop_loot()
-	var/loot = pick_loot_from_table(voidbug_loot_table)
-	if(loot)
-		new loot(loc)
+	if(prob(70)) // 70% chance to drop loot
+		var/loot_type = pick_loot_from_table(voidbug_loot_table)
+		if(loot_type)
+			new loot_type(loc)
+			visible_message(span_notice("Something drops from the void dust!"))
 
 // Void Healer - Support mob that prioritizes healing
 /mob/living/basic/void_creature/void_healer
@@ -186,35 +190,38 @@
 	ai_controller = /datum/ai_controller/basic_controller/void_healer
 
 /mob/living/basic/void_creature/void_healer/drop_loot()
-	var/loot = pick_loot_from_table(void_healer_table)
-	if(loot)
-		new loot(loc)
+	if(prob(50)) // 50% chance to drop loot
+		var/loot_type = pick_loot_from_table(void_healer_table)
+		if(loot_type)
+			new loot_type(loc)
+			visible_message(span_notice("Something drops from the void dust!"))
 
-// Enhanced Projectile for Consumed Pathfinder
+// Enhanced Projectile for Consumed Pathfinder - FIXED
 /obj/projectile/magic/voidbolt
 	name = "void bolt"
 	icon = 'modular_zzveilbreak/icons/item_icons/voidring.dmi'
 	icon_state = "voidbolt"
 	damage = 25 // More damage
 	damage_type = BURN
-	range = 7 // Shorter range but more vicious
+	range = 14 // DOUBLED range (was 7)
 	speed = 0.3 // Faster projectile
 	hitsound = 'sound/effects/magic/magic_missile.ogg'
 	hitsound_wall = 'sound/effects/magic/magic_missile.ogg'
 
 /obj/projectile/magic/voidbolt/on_hit(atom/target, blocked = FALSE)
 	. = ..()
-	if(iscarbon(target))
+	if(iscarbon(target) && !blocked)
 		var/mob/living/carbon/C = target
 		C.adjust_stutter(4 SECONDS) // Disorienting effect
+	return TRUE
 
 // Enhanced AI Controllers
 
-// Base void AI - more aggressive
+// Base void AI - more aggressive with DOUBLED ranges
 /datum/ai_controller/basic_controller/void
 	blackboard = list(
 		BB_TARGETING_STRATEGY = /datum/targeting_strategy/basic,
-		BB_VISION_RANGE = 9, // Increased vision range
+		BB_VISION_RANGE = 18, // DOUBLED vision range (was 9)
 	)
 
 	ai_movement = /datum/ai_movement/basic_avoidance
@@ -225,9 +232,9 @@
 		/datum/ai_planning_subtree/basic_melee_attack_subtree,
 	)
 
-// More aggressive targeting strategy
+// More aggressive targeting strategy with DOUBLED range
 /datum/targeting_strategy/basic
-	var/attack_range = 9 // Use a different variable name
+	var/attack_range = 18 // DOUBLED attack range (was 9)
 
 /datum/targeting_strategy/basic/can_attack(mob/living/owner, atom/target, vision_range)
 	if(!ismob(target))
@@ -263,11 +270,11 @@
 			return TRUE
 	return FALSE
 
-// Voidling specific AI - hyper aggressive
+// Voidling specific AI - hyper aggressive with DOUBLED ranges
 /datum/ai_controller/basic_controller/void/voidling
 	blackboard = list(
 		BB_TARGETING_STRATEGY = /datum/targeting_strategy/basic,
-		BB_VISION_RANGE = 10,
+		BB_VISION_RANGE = 20, // DOUBLED vision range (was 10)
 		BB_BASIC_MOB_IDLE_WALK_CHANCE = 80, // Very restless
 	)
 
@@ -291,7 +298,7 @@
 
 	// Count nearby voidlings
 	var/swarm_count = 0
-	for(var/mob/living/basic/void_creature/voidling/other in view(5, ling))
+	for(var/mob/living/basic/void_creature/voidling/other in view(10, ling)) // DOUBLED view range (was 5)
 		if(other != ling && other.faction == ling.faction)
 			swarm_count++
 
@@ -300,11 +307,11 @@
 		ling.speed = 0.6 // Faster in swarms
 		ling.melee_damage_upper = min(ling.melee_damage_upper + 2, 15) // Damage boost in swarms
 
-// Voidbug specific AI - protective tank
+// Voidbug specific AI - protective tank with DOUBLED ranges
 /datum/ai_controller/basic_controller/void/voidbug
 	blackboard = list(
 		BB_TARGETING_STRATEGY = /datum/targeting_strategy/basic,
-		BB_VISION_RANGE = 7,
+		BB_VISION_RANGE = 14, // DOUBLED vision range (was 7)
 		BB_VOID_TAUNT_COOLDOWN = 0,
 	)
 
@@ -315,7 +322,7 @@
 		/datum/ai_planning_subtree/basic_melee_attack_subtree,
 	)
 
-// Voidbug protective behavior - protect allies
+// Voidbug protective behavior - protect allies with DOUBLED range
 /datum/ai_planning_subtree/voidbug_protective_behavior
 /datum/ai_planning_subtree/voidbug_protective_behavior/SelectBehaviors(datum/ai_controller/controller, seconds_per_tick)
 	var/mob/living/basic/void_creature/voidbug/bug = controller.pawn
@@ -323,7 +330,7 @@
 		return
 
 	// Look for injured allies to protect
-	for(var/mob/living/ally in view(7, bug))
+	for(var/mob/living/ally in view(14, bug)) // DOUBLED view range (was 7)
 		if(ally.faction == bug.faction && ally.health < ally.maxHealth * 0.4)
 			var/mob/living/attacker = ally.ai_controller?.blackboard[BB_BASIC_MOB_CURRENT_TARGET]
 			if(attacker && isliving(attacker))
@@ -331,14 +338,14 @@
 				controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = attacker
 				return SUBTREE_RETURN_FINISH_PLANNING
 
-// Consumed Pathfinder AI - Strategic summoner
+// Consumed Pathfinder AI - Strategic summoner with DOUBLED ranges
 /datum/ai_controller/basic_controller/void_pathfinder
 	blackboard = list(
 		BB_TARGETING_STRATEGY = /datum/targeting_strategy/basic,
-		BB_VISION_RANGE = 12, // Long range for kiting
+		BB_VISION_RANGE = 24, // DOUBLED vision range (was 12)
 		BB_VOID_SUMMON_COOLDOWN = 0,
-		BB_RANGED_SKIRMISH_MIN_DISTANCE = 4, // Keep distance
-		BB_RANGED_SKIRMISH_MAX_DISTANCE = 7,
+		BB_RANGED_SKIRMISH_MIN_DISTANCE = 8, // DOUBLED skirmish distance (was 4)
+		BB_RANGED_SKIRMISH_MAX_DISTANCE = 14, // DOUBLED skirmish distance (was 7)
 	)
 
 	ai_movement = /datum/ai_movement/basic_avoidance
@@ -351,7 +358,7 @@
 		/datum/ai_planning_subtree/ranged_skirmish, // Kiting behavior
 	)
 
-// Strategic summoning - only summon when advantageous
+// Strategic summoning - only summon when advantageous with DOUBLED range
 /datum/ai_planning_subtree/void_pathfinder_strategic_summon
 /datum/ai_planning_subtree/void_pathfinder_strategic_summon/SelectBehaviors(datum/ai_controller/controller, seconds_per_tick)
 	var/mob/living/basic/void_creature/consumed_pathfinder/pathfinder = controller.pawn
@@ -364,7 +371,7 @@
 
 	// Count existing voidlings
 	var/voidling_count = 0
-	for(var/mob/living/basic/void_creature/voidling/ling in view(9, pathfinder))
+	for(var/mob/living/basic/void_creature/voidling/ling in view(18, pathfinder)) // DOUBLED view range (was 9)
 		if(ling.faction == pathfinder.faction)
 			voidling_count++
 
@@ -384,13 +391,13 @@
 		controller.queue_behavior(/datum/ai_behavior/void_summon, BB_BASIC_MOB_CURRENT_TARGET)
 		return SUBTREE_RETURN_FINISH_PLANNING
 
-// Void Healer AI - Smart support
+// Void Healer AI - Smart support with DOUBLED ranges
 /datum/ai_controller/basic_controller/void_healer
 	blackboard = list(
 		BB_TARGETING_STRATEGY = /datum/targeting_strategy/basic,
-		BB_VISION_RANGE = 10,
+		BB_VISION_RANGE = 20, // DOUBLED vision range (was 10)
 		BB_VOID_HEAL_COOLDOWN = 0,
-		BB_BASIC_MOB_FLEE_DISTANCE = 5, // Run away closer
+		BB_BASIC_MOB_FLEE_DISTANCE = 10, // DOUBLED flee distance (was 5)
 	)
 
 	ai_movement = /datum/ai_movement/basic_avoidance
@@ -402,7 +409,7 @@
 		/datum/ai_planning_subtree/flee_target, // Standard flee behavior
 	)
 
-// Smart healing - prioritize critical allies
+// Smart healing - prioritize critical allies with DOUBLED range
 /datum/ai_planning_subtree/void_healer_smart_heal
 /datum/ai_planning_subtree/void_healer_smart_heal/SelectBehaviors(datum/ai_controller/controller, seconds_per_tick)
 	var/mob/living/basic/void_creature/void_healer/healer = controller.pawn
@@ -417,7 +424,7 @@
 	var/mob/living/most_injured_ally = null
 	var/lowest_health_percent = 1.0
 
-	for(var/mob/living/ally in view(7, healer))
+	for(var/mob/living/ally in view(14, healer)) // DOUBLED view range (was 7)
 		if(ally.faction == healer.faction && ally.health > 0 && ally != healer)
 			var/health_percent = ally.health / ally.maxHealth
 			if(health_percent < lowest_health_percent)
@@ -461,7 +468,7 @@
 
 	return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_SUCCEEDED
 
-// Enhanced heal behavior
+// Enhanced heal behavior - FIXED to use proper healing
 /datum/ai_behavior/void_heal
 	action_cooldown = 4 SECONDS // Faster healing
 
@@ -472,20 +479,23 @@
 
 	// Find the most injured ally
 	var/mob/living/most_injured_ally = null
-	var/lowest_health = INFINITY
+	var/lowest_health_percent = 1.0
 
-	for(var/mob/living/ally in view(7, healer))
+	for(var/mob/living/ally in view(14, healer)) // DOUBLED range
 		if(ally.faction == healer.faction && ally.health > 0 && ally != healer)
-			if(ally.health < lowest_health)
-				lowest_health = ally.health
+			var/health_percent = ally.health / ally.maxHealth
+			if(health_percent < lowest_health_percent)
+				lowest_health_percent = health_percent
 				most_injured_ally = ally
 
 	if(!most_injured_ally)
 		return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_FAILED
 
-	// Heal the ally
+	// Use proper healing methods
 	var/heal_amount = 25
-	most_injured_ally.heal_overall_damage(heal_amount, heal_amount)
+	if(most_injured_ally.health < most_injured_ally.maxHealth)
+		most_injured_ally.adjustBruteLoss(-heal_amount)
+		most_injured_ally.adjustFireLoss(-heal_amount)
 
 	// Visual and sound feedback
 	playsound(healer, 'sound/effects/magic/staff_healing.ogg', 50, TRUE)
