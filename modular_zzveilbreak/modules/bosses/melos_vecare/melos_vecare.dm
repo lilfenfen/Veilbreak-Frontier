@@ -9,8 +9,6 @@
 	bound_width = 48
 	bound_height = 48
 	speak_chance = 0
-	turns_per_move = 0
-	speed = 0
 	maxHealth = 3000
 	health = 3000
 	harm_intent_damage = 10
@@ -19,7 +17,7 @@
 	attack_verb_continuous = "blasts"
 	attack_verb_simple = "blast"
 	attack_sound = 'modular_zzveilbreak/sound/weapons/voidling_attack.ogg'
-	faction = list("Void")
+	faction = list("void")
 	environment_smash = ENVIRONMENT_SMASH_NONE
 	stat_attack = CONSCIOUS
 	robust_searching = TRUE
@@ -29,7 +27,6 @@
 	var/spell_range = 20
 	var/ability_uses_counter = 0
 	var/lyric_index = 1
-
 	anchored = TRUE
 
 	var/list/death_messages = list(
@@ -47,7 +44,6 @@
 
 
 /mob/living/simple_animal/hostile/megafauna/melos_vecare/Life()
-	. = ..()
 	if(world.time > ability_cooldown)
 		var/has_target = FALSE
 		for(var/mob/living/L in range(spell_range, src))

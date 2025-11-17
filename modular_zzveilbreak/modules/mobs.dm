@@ -14,7 +14,7 @@
 /mob/living/basic/void_creature
 	name = "Void Creature"
 	desc = "A creature from the void."
-	faction = list(FACTION_VOID, FACTION_HOSTILE)
+	faction = list("void")
 	gender = NEUTER
 	speak_emote = list("hums")
 	response_help_continuous = "touches"

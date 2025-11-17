@@ -18,7 +18,7 @@
 	attack_sound = 'modular_zzveilbreak/sound/weapons/inai_attack.ogg'
 	speak_emote = list("says", "declares", "utters")
 	speak_chance = 100
-	faction = list("Void")
+	faction = list("void")
 	speed = 1.1
 	rapid_melee = 1
 	melee_queue_distance = 12
