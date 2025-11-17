@@ -67,7 +67,7 @@
 		ability_cooldown = world.time + 6 SECONDS
 		var/ability = pick("push", "pull")
 		for(var/mob/living/L in range(spell_range, src))
-			if(L == src)
+			if(L == src || (FACTION_VOID in L.faction))
 				continue
 			if(ability == "push")
 				var/dir = get_dir(src, L)
@@ -94,7 +94,7 @@
 
 /mob/living/simple_animal/hostile/megafauna/melos_vecare/proc/melos_vecare_apply_effect(turf/T, effect_type)
 	for(var/mob/living/L in T)
-		if(L == src)
+		if(L == src || (FACTION_VOID in L.faction))
 			continue
 		if(effect_type == "water")
 			L.adjustBruteLoss(25)
@@ -111,9 +111,9 @@
 /obj/effect/temp_visual/water_torrent
 	icon = 'modular_zzveilbreak/icons/bosses/melos_vecare.dmi'
 	icon_state = "water"
-	duration = 1 SECONDS
+	duration = 1.5 SECONDS
 
 /obj/effect/temp_visual/void_torrent
 	icon = 'modular_zzveilbreak/icons/bosses/melos_vecare.dmi'
 	icon_state = "void"
-	duration = 1 SECONDS
+	duration = 1.5 SECONDS

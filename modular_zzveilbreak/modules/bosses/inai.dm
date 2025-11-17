@@ -157,7 +157,7 @@
 		var/list/affected_turfs = get_line(start_turf, behind_turf)
 		for(var/turf/T in affected_turfs)
 			for(var/mob/living/L in T)
-				if(L != inai)  // Exclude Inai from the mark
+				if(L != inai && !(FACTION_VOID in L.faction))  // Exclude Inai and void faction mobs from the mark
 					L.apply_status_effect(/datum/status_effect/astral_mark)
 	var/msg = pick(inai.astral_messages)
 	inai.visible_message("<span style='color:#8a2be2; font-style:italic; '>[msg]</span>")
@@ -211,9 +211,11 @@
 		wave.icon_state = "resonant_wave"  // Single state for all directions
 		wave.dir = dir  // Set direction for animation
 		for(var/mob/living/victim in current_turf)
-			var/damage = 15
-			var/damage_type = pick(BRUTE, BURN, TOX, OXY)
-			victim.apply_damage(damage, damage_type)
+			if(!(FACTION_VOID in victim.faction))
+				var/damage = 15
+				var/damage_type = pick(BRUTE, BURN, TOX, OXY)
+				victim.apply_damage(damage, damage_type)
+
 		start_turf = current_turf
 		sleep(0.8 SECONDS)  // Human-like speed: ~0.4 seconds per tile
 
