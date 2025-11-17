@@ -49,6 +49,7 @@
 			continue
 
 		var/should_delete = FALSE
+		var/should_eject = FALSE
 
 		if(isliving(mob))
 			var/mob/living/living_mob = mob
@@ -57,19 +58,22 @@
 			if(living_mob in GLOB.mob_living_list)
 				GLOB.mob_living_list -= living_mob
 
-			// Delete void faction mobs
-			if(living_mob.faction == FACTION_VOID)
+			// Delete void faction mobs and hostile mobs
+			if(living_mob.faction == FACTION_VOID || is_hostile_or_void(mob))
 				should_delete = TRUE
+			else
+				// Eject non-hostile, non-void mobs and corpses
+				should_eject = TRUE
 
-		// Also delete other hostile mobs
-		if(!should_delete && is_hostile_or_void(mob))
-			should_delete = TRUE
+		else
+			// For non-living mobs, eject them (includes simple animals, etc.)
+			should_eject = TRUE
 
 		if(should_delete)
 			qdel(mob)
 			mobs_deleted++
 
-		else if(ejection_turf && !QDELETED(ejection_turf))
+		else if(should_eject && ejection_turf && !QDELETED(ejection_turf))
 			// CRITICAL: Ensure we're ejecting to the STATION side portal, not the dungeon portal
 			var/turf/actual_ejection_turf = find_station_ejection_turf()
 			if(!actual_ejection_turf)
@@ -95,6 +99,12 @@
 				GLOB.mob_living_list += mob
 
 			mobs_ejected++
+
+		// If no ejection turf provided and shouldn't delete, just leave them to be cleaned up with the level
+		else if(!should_delete && !should_eject)
+			// This handles edge cases - just delete them
+			qdel(mob)
+			mobs_deleted++
 
 		if((mobs_deleted + mobs_ejected) % 25 == 0)
 			CHECK_TICK
