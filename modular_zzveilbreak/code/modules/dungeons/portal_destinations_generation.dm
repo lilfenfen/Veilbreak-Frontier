@@ -167,14 +167,6 @@
 	force_ai_initialization_fixed(z_level)
 	CHECK_TICK
 
-	// CRITICAL: Debug mob state AFTER AI initialization
-	debug_mob_state("AFTER AI INIT", z_level)
-	CHECK_TICK
-
-	// CRITICAL: Ensure mobs are hostile to players
-	ensure_mob_hostility(z_level)
-	CHECK_TICK
-
 	// Initialize areas and power
 	initialize_areas_and_power(z_level)
 	CHECK_TICK
@@ -347,7 +339,6 @@
 		// Ensure proper initialization for void creatures
 		if(istype(new_mob, /mob/living/basic/void_creature))
 			var/mob/living/basic/void_creature/void_mob = new_mob
-			void_mob.ensure_hostility()
 
 		mobs_spawned++
 
@@ -465,52 +456,6 @@
 			CHECK_TICK
 
 	message_admins("DEBUG: Final AI activation on Z[z_level] - Activated: [ai_activated], Targets Cleared: [targets_cleared]")
-
-/datum/portal_destination/veilbreak/proc/ensure_mob_hostility(z_level)
-	// Force all void creatures to be hostile to players
-	var/hostile_mobs = 0
-	var/faction_changes = 0
-
-	for(var/mob/living/basic/void_creature/mob in world)
-		if(mob.z != z_level)
-			continue
-
-		var/original_faction = mob.faction ? jointext(mob.faction, ",") : "NONE"
-
-		// Ensure faction is properly set to be hostile to players
-		if(!mob.faction)
-			mob.faction = list(FACTION_VOID, "hostile")
-			faction_changes++
-		else
-			// Ensure both factions are present (case-sensitive)
-			var/has_void = FALSE
-			var/has_hostile = FALSE
-
-			for(var/fact in mob.faction)
-				if(fact == FACTION_VOID)
-					has_void = TRUE
-				if(fact == "hostile")
-					has_hostile = TRUE
-
-			if(!has_void)
-				mob.faction += FACTION_VOID
-				faction_changes++
-			if(!has_hostile)
-				mob.faction += "hostile"
-				faction_changes++
-
-		// Force AI controller to re-evaluate targets
-		if(mob.ai_controller)
-			mob.ai_controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET] = null
-			hostile_mobs++
-
-		var/new_faction = jointext(mob.faction, ",")
-		if(original_faction != new_faction)
-			message_admins("DEBUG: Faction change for [mob.type] - From: [original_faction] To: [new_faction]")
-
-		CHECK_TICK
-
-	message_admins("DEBUG: Mob hostility on Z[z_level] - Hostile: [hostile_mobs], Faction Changes: [faction_changes]")
 
 /datum/portal_destination/veilbreak/proc/initialize_atoms_on_z_level(z_level)
 	// CRITICAL: Force SSatoms to initialize all atoms on the new Z-level
