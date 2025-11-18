@@ -255,50 +255,19 @@
 	if(placeholder.name && placeholder.name != "mob placeholder")
 		var/name_lower = lowertext(placeholder.name)
 		switch(name_lower)
-			if("void healer", "healer")
+			if("void_healer")
 				return new /mob/living/basic/void_creature/void_healer(spawn_turf)
-			if("voidbug", "bug")
+			if("voidbug")
 				return new /mob/living/basic/void_creature/voidbug(spawn_turf)
-			if("consumed pathfinder", "pathfinder")
+			if("consumed_pathfinder")
 				return new /mob/living/basic/void_creature/consumed_pathfinder(spawn_turf)
 			if("voidling")
 				return new /mob/living/basic/void_creature/voidling(spawn_turf)
-			if("boss", "megafauna", "inai")
-				// 50/50 chance between the two bosses
-				if(prob(50))
-					return new /mob/living/simple_animal/hostile/megafauna/inai(spawn_turf)
-				else
-					return new /mob/living/simple_animal/hostile/megafauna/melos_vecare(spawn_turf)
+			if("inai")
+				return new /mob/living/simple_animal/hostile/megafauna/inai(spawn_turf)
+			if("melos_vecare")
+				return new /mob/living/simple_animal/hostile/megafauna/melos_vecare(spawn_turf)
 
-	// Default fallback - spawn a random void mob
-	return spawn_random_void_mob(spawn_turf)
-
-/datum/portal_destination/veilbreak/proc/spawn_random_void_mob(turf/spawn_turf)
-	// Fallback method to spawn a random void mob
-	var/static/list/void_mob_types = list(
-		/mob/living/basic/void_creature/void_healer = 1,
-		/mob/living/basic/void_creature/voidbug = 2,
-		/mob/living/basic/void_creature/consumed_pathfinder = 1,
-		/mob/living/basic/void_creature/voidling = 3,
-		/mob/living/simple_animal/hostile/megafauna/inai = 1,
-		/mob/living/simple_animal/hostile/megafauna/melos_vecare = 1
-	)
-
-	// Manual weighted selection
-	var/total_weight = 0
-	for(var/mob_type in void_mob_types)
-		total_weight += void_mob_types[mob_type]
-
-	var/selected_weight = rand(1, total_weight)
-	var/current_weight = 0
-
-	for(var/mob_type in void_mob_types)
-		current_weight += void_mob_types[mob_type]
-		if(selected_weight <= current_weight)
-			return new mob_type(spawn_turf)
-
-	// Fallback if something goes wrong
-	return new /mob/living/basic/void_creature/voidling(spawn_turf)
 
 /datum/portal_destination/veilbreak/proc/force_ai_initialization_fixed(z_level)
 	// SIMPLE FIX: Just ensure pawns are set and clear targets for freshly spawned mobs
