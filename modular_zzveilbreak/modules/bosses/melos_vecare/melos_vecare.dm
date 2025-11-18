@@ -28,6 +28,8 @@
 	var/ability_uses_counter = 0
 	var/lyric_index = 1
 	anchored = TRUE
+	wander=FALSE
+
 
 	var/list/death_messages = list(
 		"Maybe in death, i'll find lover...",
@@ -91,6 +93,9 @@
 		var/effect_type = pick("water", "void")
 		new /obj/effect/temp_visual/melos_mark(T)
 		addtimer(CALLBACK(src, PROC_REF(melos_vecare_apply_effect), T, effect_type), 1 SECONDS)
+
+/mob/living/simple_animal/hostile/megafauna/melos_vecare/Move()
+	return FALSE
 
 /mob/living/simple_animal/hostile/megafauna/melos_vecare/proc/melos_vecare_apply_effect(turf/T, effect_type)
 	for(var/mob/living/L in T)
