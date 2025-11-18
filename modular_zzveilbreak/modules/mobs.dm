@@ -14,7 +14,7 @@
 /mob/living/basic/void_creature
 	name = "Void Creature"
 	desc = "A creature from the void."
-	faction = list("void")
+	faction = list(FACTION_VOID)
 	gender = NEUTER
 	speak_emote = list("hums")
 	response_help_continuous = "touches"
@@ -45,9 +45,6 @@
 	. = ..()
 	AddElement(/datum/element/simple_flying)
 	AddElement(/datum/element/ai_retaliate)
-
-	// Ensure proper hostility
-	faction |= FACTION_HOSTILE
 
 /mob/living/basic/void_creature/death(gibbed)
 	// Drop loot before dusting
@@ -202,7 +199,7 @@
 		C.adjust_stutter(4 SECONDS)
 	return TRUE
 
-// IMPROVED AI CONTROLLERS
+// FIXED AI CONTROLLERS
 
 // Base void AI - much more aggressive
 /datum/ai_controller/basic_controller/void
@@ -250,7 +247,7 @@
 		/datum/ai_planning_subtree/basic_melee_attack_subtree,
 	)
 
-// Consumed Pathfinder AI - Strategic summoner with ranged attacks (FIXED)
+// FIXED: Consumed Pathfinder AI - Uses proven simple_ranged template
 /datum/ai_controller/basic_controller/void_pathfinder
 	blackboard = list(
 		BB_TARGETING_STRATEGY = /datum/targeting_strategy/basic/void_aggressive,
@@ -267,14 +264,10 @@
 		/datum/ai_planning_subtree/ranged_skirmish,
 	)
 
-// SIMPLIFIED summoning that actually works
+// FIXED: Simplified summoning that actually works
 /datum/ai_planning_subtree/void_pathfinder_simple_summon
 /datum/ai_planning_subtree/void_pathfinder_simple_summon/SelectBehaviors(datum/ai_controller/controller, seconds_per_tick)
-	var/mob/living/basic/void_creature/consumed_pathfinder/pathfinder = controller.pawn
-	if(!istype(pathfinder))
-		return
-
-	var/mob/living/target = controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET]
+	var/atom/target = controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET]
 	if(!target)
 		return
 
@@ -283,23 +276,35 @@
 		controller.queue_behavior(/datum/ai_behavior/void_simple_summon, BB_BASIC_MOB_CURRENT_TARGET)
 		return SUBTREE_RETURN_FINISH_PLANNING
 
-// SIMPLIFIED summon behavior that actually works
+// FIXED: Summon behavior with proper initialization
 /datum/ai_behavior/void_simple_summon
 	action_cooldown = 20 SECONDS
 	behavior_flags = AI_BEHAVIOR_REQUIRE_MOVEMENT
+
+/datum/ai_behavior/void_simple_summon/setup(datum/ai_controller/controller, target_key)
+	. = ..()
+	var/atom/target = controller.blackboard[target_key]
+	if(!target)
+		return FALSE
+	set_movement_target(controller, target)
+	return TRUE
 
 /datum/ai_behavior/void_simple_summon/perform(seconds_per_tick, datum/ai_controller/controller, target_key)
 	var/mob/living/basic/void_creature/consumed_pathfinder/pathfinder = controller.pawn
 	if(!istype(pathfinder))
 		return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_FAILED
 
-	// Summon 1 voidling
-	var/mob/living/basic/void_creature/voidling/new_voidling = new(pathfinder.loc)
+	var/mob/living/target = controller.blackboard[target_key]
+	if(!target)
+		return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_FAILED
+
+	// Summon 1 voidling near the target, not on ourselves
+	var/turf/spawn_turf = get_step(pathfinder, pick(GLOB.cardinals))
+	var/mob/living/basic/void_creature/voidling/new_voidling = new(spawn_turf)
 	new_voidling.faction = pathfinder.faction.Copy()
 
 	// Make summoned voidling aggressive toward our target
-	var/mob/living/target = controller.blackboard[target_key]
-	if(target && new_voidling.ai_controller)
+	if(new_voidling.ai_controller)
 		new_voidling.ai_controller.set_blackboard_key(BB_BASIC_MOB_CURRENT_TARGET, target)
 
 	// Set cooldown
@@ -311,7 +316,7 @@
 
 	return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_SUCCEEDED
 
-// Void Healer AI - Smart support
+// FIXED: Void Healer AI with proper healing behavior
 /datum/ai_controller/basic_controller/void_healer
 	blackboard = list(
 		BB_TARGETING_STRATEGY = /datum/targeting_strategy/basic/void_aggressive,
@@ -323,19 +328,24 @@
 	planning_subtrees = list(
 		/datum/ai_planning_subtree/target_retaliate/check_faction,
 		/datum/ai_planning_subtree/simple_find_target,
-		/datum/ai_planning_subtree/void_healer_simple_heal,
+		/datum/ai_planning_subtree/void_healer_find_and_heal,
 		/datum/ai_planning_subtree/flee_target,
 	)
 
-// IMPROVED healing with better target selection
-/datum/ai_planning_subtree/void_healer_simple_heal
-/datum/ai_planning_subtree/void_healer_simple_heal/SelectBehaviors(datum/ai_controller/controller, seconds_per_tick)
+// FIXED: Better healing subtree that doesn't conflict with combat
+/datum/ai_planning_subtree/void_healer_find_and_heal
+/datum/ai_planning_subtree/void_healer_find_and_heal/SelectBehaviors(datum/ai_controller/controller, seconds_per_tick)
 	var/mob/living/basic/void_creature/void_healer/healer = controller.pawn
 	if(!istype(healer))
 		return
 
 	// Check if we can heal
 	if(world.time <= controller.blackboard[BB_VOID_HEAL_COOLDOWN])
+		return
+
+	// Don't heal if we're actively in combat
+	var/mob/living/combat_target = controller.blackboard[BB_BASIC_MOB_CURRENT_TARGET]
+	if(combat_target && get_dist(healer, combat_target) < 5)
 		return
 
 	// Find the most injured ally
@@ -351,16 +361,15 @@
 
 	// Only heal if ally is below 80% health
 	if(most_injured_ally && lowest_health_percent < 0.8)
-		controller.set_blackboard_key(BB_BASIC_MOB_CURRENT_TARGET, null) // Clear combat target to focus on healing
-		controller.queue_behavior(/datum/ai_behavior/void_simple_heal, BB_BASIC_MOB_CURRENT_TARGET, most_injured_ally)
+		controller.queue_behavior(/datum/ai_behavior/void_heal_ally, BB_BASIC_MOB_CURRENT_TARGET, most_injured_ally)
 		return SUBTREE_RETURN_FINISH_PLANNING
 
-// IMPROVED heal behavior with specific target
-/datum/ai_behavior/void_simple_heal
+// FIXED: Healing behavior with proper movement
+/datum/ai_behavior/void_heal_ally
 	action_cooldown = 6 SECONDS
 	behavior_flags = AI_BEHAVIOR_REQUIRE_MOVEMENT | AI_BEHAVIOR_MOVE_AND_PERFORM
 
-/datum/ai_behavior/void_simple_heal/setup(datum/ai_controller/controller, target_key, heal_target)
+/datum/ai_behavior/void_heal_ally/setup(datum/ai_controller/controller, target_key, heal_target)
 	. = ..()
 	var/mob/living/target = heal_target
 	if(!target)
@@ -368,7 +377,7 @@
 	set_movement_target(controller, target)
 	return TRUE
 
-/datum/ai_behavior/void_simple_heal/perform(seconds_per_tick, datum/ai_controller/controller, target_key, mob/living/heal_target)
+/datum/ai_behavior/void_heal_ally/perform(seconds_per_tick, datum/ai_controller/controller, target_key, mob/living/heal_target)
 	var/mob/living/basic/void_creature/void_healer/healer = controller.pawn
 	if(!istype(healer) || !heal_target)
 		return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_FAILED
