@@ -250,7 +250,7 @@
 		/datum/ai_planning_subtree/basic_melee_attack_subtree,
 	)
 
-// Consumed Pathfinder AI - Strategic summoner with ranged attacks
+// Consumed Pathfinder AI - Strategic summoner with ranged attacks (FIXED)
 /datum/ai_controller/basic_controller/void_pathfinder
 	blackboard = list(
 		BB_TARGETING_STRATEGY = /datum/targeting_strategy/basic/void_aggressive,
@@ -263,7 +263,8 @@
 		/datum/ai_planning_subtree/target_retaliate/check_faction,
 		/datum/ai_planning_subtree/simple_find_target,
 		/datum/ai_planning_subtree/void_pathfinder_simple_summon,
-		/datum/ai_planning_subtree/basic_ranged_attack_subtree,
+		/datum/ai_planning_subtree/maintain_distance,
+		/datum/ai_planning_subtree/ranged_skirmish,
 	)
 
 // SIMPLIFIED summoning that actually works
@@ -310,7 +311,7 @@
 
 	return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_SUCCEEDED
 
-// Void Healer AI - Smart support (IMPROVED)
+// Void Healer AI - Smart support
 /datum/ai_controller/basic_controller/void_healer
 	blackboard = list(
 		BB_TARGETING_STRATEGY = /datum/targeting_strategy/basic/void_aggressive,
