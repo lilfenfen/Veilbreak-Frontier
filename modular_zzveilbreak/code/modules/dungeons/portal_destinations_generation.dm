@@ -252,7 +252,7 @@
 	// This is a fallback if mob_type isn't set
 
 	// Check if the placeholder has any identifying properties
-	if(placeholder.name && placeholder.name != "mob placeholder")
+	if(placeholder.name && placeholder.name != "mob_placeholder")
 		var/name_lower = lowertext(placeholder.name)
 		switch(name_lower)
 			if("void_healer")
