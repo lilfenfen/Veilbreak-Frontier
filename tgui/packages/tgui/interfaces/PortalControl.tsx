@@ -24,6 +24,7 @@ interface PortalControlData {
   can_generate: boolean;
   generation_in_progress: boolean;
   cleanup_in_progress: boolean;
+  generation_cooldown_until: number; // New: Cooldown timestamp
   is_generating: boolean;
   portal_name?: string;
 }
@@ -41,6 +42,7 @@ export const PortalControl = (props, context) => {
     can_generate,
     generation_in_progress,
     cleanup_in_progress,
+    generation_cooldown_until, // New: Cooldown timestamp
     is_generating,
     portal_name,
   } = data;

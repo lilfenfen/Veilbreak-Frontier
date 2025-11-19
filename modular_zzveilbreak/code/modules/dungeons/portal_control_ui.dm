@@ -27,6 +27,7 @@
 	data["generation_progress"] = 0
 	data["generation_in_progress"] = generation_in_progress
 	data["is_generating"] = is_generating
+	data["generation_cooldown_until"] = generation_cooldown_until // New: Send cooldown timestamp
 	data["cleanup_in_progress"] = cleanup_in_progress
 
 	if(data["portal_present"] && linked_portal.destination && !QDELETED(linked_portal.destination))
@@ -39,7 +40,7 @@
 		data["generation_progress"] = veil_dest.generation_progress
 
 	// CRITICAL FIX: Update can_generate to be more strict
-	data["can_generate"] = !is_generating && !cleanup_in_progress && data["portal_present"] && linked_portal.destination && !data["portal_active"] && data["portal_status"] && !data["power_failure"] && (data["generation_status"] == "idle")
+	data["can_generate"] = !is_generating && !cleanup_in_progress && (world.time >= generation_cooldown_until) && data["portal_present"] && linked_portal.destination && !data["portal_active"] && data["portal_status"] && !data["power_failure"] && (data["generation_status"] == "idle")
 
 	// Better portal name handling - ensure we always have the correct name when portal is active
 	data["portal_name"] = null
