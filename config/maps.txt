@@ -2,7 +2,8 @@ This file contains a list of maps for use in map rotation.
 #Lines starting with # are ignored.
 Lines not inside map blocks are also ignored
 Duplicated entries use the latter one.
-All whitespace at the start and end of lines is ignored. (including indentation, thats just for show)
+All whitespace at the start and end of lines is ignored.
+(including indentation, thats just for show)
 Format:
 #map [map name] (name of .json file in _maps folder without the .json part)
 	minplayers [number] (0 or less disables this requirement)
@@ -16,7 +17,6 @@ Format:
 endmap
 
 # Production-level maps.
-
 map deltastation
 	minplayers 0
 	votable
@@ -26,6 +26,7 @@ map Veilbreak
 	minplayers 0
 	votable
 	default
+	feedbacklink https://discord.com/channels/1408824542524084376/1437805871110553683
 endmap
 
 map icebox
@@ -56,12 +57,6 @@ map nebulastation
 	votable
 endmap
 
-#map wawastation
-#	votable
-#	minplayers 0
-#endmap
-
-# Bubberstation maps.
 
 map biodome
 	minplayers 0
@@ -70,7 +65,6 @@ endmap
 
 map blueshift
 	minplayers 0
-	feedbacklink https://discord.com/channels/1059199070016655462/1376747654339624970
 	votable
 endmap
 
@@ -94,19 +88,12 @@ map voidraptor
 	votable
 endmap
 
-map Veilbreak
-	minplayers 0
-	votable
-	default
-endmap
-
 # Debug-only maps.
+# map gateway_test
+# endmap
 
-map gateway_test
-endmap
+# map multiz_debug
+# endmap
 
-map multiz_debug
-endmap
-
-map runtimestation
-endmap
+# map runtimestation
+# endmap

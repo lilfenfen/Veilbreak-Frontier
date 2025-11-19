@@ -40,22 +40,18 @@ Exclude = AUTOADMIN
 Edit =
 
 Name = Moderator
-Include = ADMIN
+Include = @ ADMIN FUN BAN STEALTH POSSES BUILD SERVER DEBUG VAREDIT SOUND SPAWN AUTOADMIN
 Exclude =
 Edit =
 
-Name = Admin Candidate
-Include = @
+
+Name = Trial Moderator
+Include = @ SPAWN VAREDIT BAN ADMIN
 Exclude =
 Edit =
 
-Name = Trial Admin
-Include = @ SPAWN VAREDIT BAN
-Exclude =
-Edit =
-
-Name = Badmin
-Include = @ POSSESS POLL BUILD SERVER FUN
+Name = Eventmin
+Include = @ POSSESS POLL BUILD SERVER FUN 
 Exclude =
 Edit =
 
@@ -64,15 +60,11 @@ Include = @ STEALTH SOUND DEBUG
 Exclude =
 Edit =
 
-Name = Game Master
+Name = Headmin
 Include = EVERYTHING
 Exclude =
 Edit = EVERYTHING
 
-Name = Lazy Master
-Include = EVERYTHING
-Exclude = AUTOADMIN
-Edit = EVERYTHING
 
 Name = Host
 Include = EVERYTHING

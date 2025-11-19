@@ -201,6 +201,7 @@ export const PortalControl = (props, context) => {
             width="20rem"
             color="good"
             onClick={() => act('generate_new')}
+            disabled={generation_in_progress}
             tooltip="Initiate dimensional breach protocol"
           >
             <Box textAlign="center">

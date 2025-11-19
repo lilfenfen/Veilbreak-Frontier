@@ -38,7 +38,7 @@ SERVERTAGLINE MRP ERP server with new pve content to explore! Whitelisting is re
 https://discord.gg/ychmq3tZQY
 
 ## Server SQL name: This is the name used to identify the server to the SQL DB, distinct from SERVERNAME as it must be at most 32 characters.
-# SERVERSQLNAME tgstation
+SERVERSQLNAME ss13
 
 ## Station name: The name of the station as it is referred to in-game. If commented out, the game will generate a random name instead.
 #STATIONNAME Space Station 13
@@ -175,15 +175,15 @@ GUEST_BAN
 ## IPINTEL:
 ## This allows you to detect likely proxies by checking ips against getipintel.net
 ## Rating to warn at: (0.8 is good, 1 is 100% likely to be a spammer/proxy, 0.8 is 80%, etc) anything equal to or higher then this number triggers an admin warning
-#IPINTEL_RATING_BAD 0.8
+IPINTEL_RATING_BAD 0.8
 ## Contact email, (required to use the service, leaving blank or default disables IPINTEL)
-#IPINTEL_EMAIL ch@nge.me
+IPINTEL_EMAIL poetryofthenight@outlook.com
 ## Query base, if you pay for more queries this is what you want to change.
-#IPINTEL_BASE check.getipintel.net
+IPINTEL_BASE check.getipintel.net
 ## Maximum number of queries in a minute
-#IPINTEL_MAX_QUERY_MINUTE 15
+IPINTEL_MAX_QUERY_MINUTE 15
 ## Maximum number of queries in a day
-#IPINTEL_MAX_QUERY_DAY 500
+IPINTEL_MAX_QUERY_DAY 500
 ## Whether clients which cannot be checked due to a rate limit will be denied
 #IPINTEL_REJECT_RATE_LIMITED
 ## Whether clients which are flagged as a VPN will be denied
@@ -191,7 +191,7 @@ IPINTEL_REJECT_BAD
 ## Whether clients which cannot be checked due to an error of some form will be denied
 #IPINTEL_REJECT_UNKNOWN
 ## How long to store results in the cache before they must be retrieved again. IN DAYS.
-#IPINTEL_CACHE_LENGTH 7
+IPINTEL_CACHE_LENGTH 10
 ## How many minutes of living playtime to be automatically exempt from IPIntel. 0 for never.
 #IPINTEL_EXEMPT_PLAYTIME_LIVING 0
 
@@ -215,16 +215,16 @@ IPINTEL_REJECT_BAD
 # SERVER ss13.example.com:2506
 
 ## forum address
-# FORUMURL http://tgstation13.org/phpBB/index.php
+ FORUMURL https://discord.com/invite/ychmq3tZQY
 
 ## Wiki address
-# WIKIURL http://tgstation13.org/wiki
+ WIKIURL https://discord.com/invite/ychmq3tZQY
 
 ## Rules address
-# RULESURL http://tgstation13.org/wiki/Rules
+ RULESURL https://discord.com/invite/ychmq3tZQY
 
 ## Github address
-# GITHUBURL https://www.github.com/tgstation/tgstation
+ GITHUBURL https://github.com/lilfenfen/Veilbreak-Frontier/tree/master
 
 ## Discord bot command prefix, if the discord bot is used
 # DISCORDBOTCOMMANDPREFIX ?
@@ -285,14 +285,14 @@ ALLOW_HOLIDAYS
 SHOW_IRC_NAME
 
 ## Uncomment to prevent machines syncing to the Science techweb by default.
-NO_DEFAULT_TECHWEB_LINK
+#NO_DEFAULT_TECHWEB_LINK
 
 ##Defines the ticklag for the world. Ticklag is the amount of time between game ticks (aka byond ticks) (in 1/10ths of a second).
 ##	This also controls the client network update rate, as well as the default client fps
-TICKLAG 0.5
+#TICKLAG 0.5
 
 ##Can also be set as per-second value, the following value is identical to the above.
-#FPS 20
+FPS 60
 
 ## Comment this out to disable automuting
 #AUTOMUTE_ON
@@ -583,7 +583,7 @@ MOTD motd.txt
 ## The cache is assumed to be cleared by TGS recompiling, which deletes `cache/`.
 ## This should be disabled (through `CACHE_ASSETS 0`) on development,
 ## but enabled on production (the default).
-CACHE_ASSETS 0
+CACHE_ASSETS 1
 
 ## Enables 'smart' asset caching, for assets that support it.
 ## This is a type of asset cache that automatically invalidates itself based on inputs to the asset generation.

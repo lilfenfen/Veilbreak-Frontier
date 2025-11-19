@@ -16,6 +16,7 @@
 	var/last_ui_update = 0
 	var/ui_update_cooldown = 5
 
+
 /obj/machinery/computer/portal_control/Initialize(mapload, obj/item/circuitboard/C)
 	. = ..()
 

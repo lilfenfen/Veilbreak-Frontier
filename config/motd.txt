@@ -1,5 +1,5 @@
 <div style="border: 2px solid #8A2BE2; /* A nice purple color (BlueViolet) */
-            background-color: #F0F8FF; /* Light background for contrast */
+            background-color: #353839; /* Light background for contrast */
             padding: 15px; /* Adds space inside the box */
             margin: 20px 0; /* Adds space above and below the box */
             border-radius: 8px; /* Slightly rounded corners */
