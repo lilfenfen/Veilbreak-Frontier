@@ -9,6 +9,7 @@
 
 	var/obj/machinery/portal/linked_portal
 	var/generation_in_progress = FALSE
+	var/is_generating = FALSE // More persistent flag for the entire generation cycle
 	var/cleanup_in_progress = FALSE
 	var/list/last_ui_data = list()
 	var/generation_progress_timer
@@ -115,6 +116,7 @@
 
 /obj/machinery/computer/portal_control/proc/on_generation_completed()
 	generation_in_progress = FALSE
+	is_generating = FALSE
 	cleanup_in_progress = FALSE
 
 	if(linked_portal?.destination && !cached_portal_name)
@@ -129,6 +131,7 @@
 
 /obj/machinery/computer/portal_control/proc/on_generation_failed(reason)
 	generation_in_progress = FALSE
+	is_generating = FALSE
 	cleanup_in_progress = FALSE
 
 	stop_generation_monitoring()
@@ -227,6 +230,7 @@
 
 	// If generation was in progress, cancel it
 	if(generation_in_progress)
+		is_generating = FALSE
 		generation_in_progress = FALSE
 		stop_generation_monitoring()
 		say("Portal stabilization cancelled due to power failure.")

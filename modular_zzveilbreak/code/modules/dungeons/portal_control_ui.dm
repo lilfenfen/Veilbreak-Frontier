@@ -26,6 +26,7 @@
 	data["generation_status"] = "idle"
 	data["generation_progress"] = 0
 	data["generation_in_progress"] = generation_in_progress
+	data["is_generating"] = is_generating
 	data["cleanup_in_progress"] = cleanup_in_progress
 
 	if(data["portal_present"] && linked_portal.destination && !QDELETED(linked_portal.destination))
@@ -38,7 +39,7 @@
 		data["generation_progress"] = veil_dest.generation_progress
 
 	// CRITICAL FIX: Update can_generate to be more strict
-	data["can_generate"] = !generation_in_progress && !cleanup_in_progress && data["portal_present"] && linked_portal.destination && !data["portal_active"] && data["portal_status"] && !data["power_failure"] && (data["generation_status"] == "idle")
+	data["can_generate"] = !is_generating && !cleanup_in_progress && data["portal_present"] && linked_portal.destination && !data["portal_active"] && data["portal_status"] && !data["power_failure"] && (data["generation_status"] == "idle")
 
 	// Better portal name handling - ensure we always have the correct name when portal is active
 	data["portal_name"] = null
@@ -65,7 +66,7 @@
 	switch(action)
 		if("generate_new")
 			// CRITICAL FIX: Double-check generation state before proceeding
-			if(generation_in_progress || cleanup_in_progress)
+			if(is_generating || cleanup_in_progress)
 				to_chat(user, span_warning("Portal operation already in progress!"))
 				return TRUE
 
@@ -84,7 +85,7 @@
 				to_chat(user, span_warning("Portal destination is already being generated or is active!"))
 				return TRUE
 
-			if(generation_in_progress)
+			if(is_generating)
 				to_chat(user, span_warning("Portal stabilization is already in progress!"))
 				return TRUE
 
@@ -105,15 +106,18 @@
 				return TRUE
 
 			// CRITICAL FIX: Set generation_in_progress IMMEDIATELY to prevent multiple clicks
+			is_generating = TRUE
 			generation_in_progress = TRUE
 			cached_portal_name = null
 
 			start_generation_monitoring()
 			force_ui_update()
 
+
 			var/start_success = veil_dest.start_generation()
 
 			if(!start_success)
+				is_generating = FALSE
 				generation_in_progress = FALSE
 				stop_generation_monitoring()
 				force_ui_update()
@@ -121,6 +125,7 @@
 				return TRUE
 
 			if(!veil_dest.generating)
+				is_generating = FALSE
 				generation_in_progress = FALSE
 				stop_generation_monitoring()
 				force_ui_update()

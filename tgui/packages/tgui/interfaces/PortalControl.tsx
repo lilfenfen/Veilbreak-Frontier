@@ -24,6 +24,7 @@ interface PortalControlData {
   can_generate: boolean;
   generation_in_progress: boolean;
   cleanup_in_progress: boolean;
+  is_generating: boolean;
   portal_name?: string;
 }
 
@@ -40,6 +41,7 @@ export const PortalControl = (props, context) => {
     can_generate,
     generation_in_progress,
     cleanup_in_progress,
+    is_generating,
     portal_name,
   } = data;
 
@@ -201,7 +203,7 @@ export const PortalControl = (props, context) => {
             width="20rem"
             color="good"
             onClick={() => act('generate_new')}
-            disabled={generation_in_progress}
+            disabled={is_generating}
             tooltip="Initiate dimensional breach protocol"
           >
             <Box textAlign="center">
