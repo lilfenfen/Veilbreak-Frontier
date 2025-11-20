@@ -1,5 +1,5 @@
 // modular_zzveilbreak/code/modules/tattoo/TattooKit.tsx
-import { useState } from 'react';
+import { type CSSProperties, useState } from 'react';
 import {
   Box,
   Button,
@@ -57,6 +57,38 @@ type Data = {
 
   body_parts: BodyPart[];
   existing_tattoos: Tattoo[];
+};
+
+// Helper to map font keys to CSS font-family values for the preview
+const getFontFamily = (fontKey: string): string => {
+  const fontMap: Record<string, string> = {
+    PEN_FONT: "'Courier New', Courier, monospace",
+    IMPRINT_FONT: "'Times New Roman', Times, serif",
+    SYNDICATE_FONT: "'Arial Black', Gadget, sans-serif",
+    BUBBLEGUM_FONT: "'Comic Sans MS', cursive, sans-serif",
+  };
+  return fontMap[fontKey] || 'Arial, sans-serif';
+};
+
+// Helper to map flair keys to CSS styles for the preview
+const getFlairStyle = (flairKey: string): CSSProperties => {
+  const flairMap: Record<string, CSSProperties> = {
+    FLAIR_SHADOW: { textShadow: '2px 2px 2px #333' },
+    FLAIR_GLOW: { textShadow: '0 0 5px #fff, 0 0 10px #fff, 0 0 15px #0073e6' },
+    FLAIR_ITALIC: { fontStyle: 'italic' },
+    FLAIR_BOLD: { fontWeight: 'bold' },
+  };
+  return flairMap[flairKey] || {};
+};
+
+// Helper to map layer keys to CSS z-index values for the preview
+const getLayerStyle = (layerKey: number): CSSProperties => {
+  const layerMap: Record<number, CSSProperties> = {
+    1: { zIndex: 1, position: 'relative' }, // Under
+    2: { zIndex: 2, position: 'relative' }, // Normal
+    3: { zIndex: 3, position: 'relative' }, // Over
+  };
+  return layerMap[layerKey] || {};
 };
 
 const BodyPartView = (props) => {
@@ -128,12 +160,7 @@ const DesignStudio = (props) => {
     (p) => p.zone === selected_zone,
   ) || { name: 'Unknown' };
 
-  // Check if apply button should be enabled
-  const canApply =
-    !applying &&
-    artist_name?.length > 0 &&
-    tattoo_design?.length > 0 &&
-    ink_uses > 0;
+  const canApply = !applying && !!artist_name && !!tattoo_design && ink_uses > 0;
 
   return (
     <Stack fill vertical>
@@ -254,13 +281,15 @@ const DesignStudio = (props) => {
                   <Section title="Preview" textAlign="center">
                     <Box
                       style={{
+                        ...getFlairStyle(selected_flair),
+                        ...getLayerStyle(selected_layer),
                         border: '2px solid #555',
                         padding: '1rem',
                         minHeight: '60px',
                         color: ink_color,
-                        fontFamily: 'Arial, sans-serif',
+                        fontFamily: getFontFamily(selected_font),
                         fontSize: '14px',
-                        backgroundColor: 'rgba(0,0,0,0.1)',
+                        backgroundColor: 'rgba(0,0,0,0.2)',
                         wordBreak: 'break-word',
                       }}
                     >

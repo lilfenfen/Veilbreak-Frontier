@@ -44,6 +44,9 @@
 	refill_ink(user)
 
 /obj/item/custom_tattoo_kit/proc/refill_ink(mob/user)
+	if(ink_uses == max_ink_uses)
+		to_chat(user, span_warning("The tattoo kit is already full of ink."))
+		return
 	ink_uses = max_ink_uses
 	to_chat(user, span_notice("Tattoo kit refilled."))
 	update_appearance()
@@ -140,3 +143,26 @@
 	else
 		to_chat(user, span_warning("Failed to apply tattoo!"))
 		return FALSE
+
+/obj/item/custom_tattoo_kit/OnTopic(href, href_list)
+	. = ..()
+	if(.)
+		return
+
+	var/mob/user = usr
+	var/datum/custom_tattoo_ui_data/ui_data = current_target.get_tattoo_ui_data("global")
+
+	if(href_list["set_artist"])
+		ui_data.artist_name = href_list["value"]
+	else if(href_list["set_design"])
+		ui_data.tattoo_design = href_list["value"]
+	else if(href_list["set_color"])
+		ui_data.ink_color = href_list["value"]
+	else if(href_list["set_font"])
+		ui_data.selected_font = href_list["value"]
+	else if(href_list["set_flair"])
+		ui_data.selected_flair = href_list["value"]
+	else if(href_list["set_layer"])
+		ui_data.selected_layer = text2num(href_list["value"])
+
+	ui_interact(user)
