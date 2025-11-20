@@ -1,4 +1,4 @@
-// modular_zzveilbreak/code/modules/tattoo/TattooStudio.tsx
+// modular_zzveilbreak/code/modules/tattoo/TattooKit.tsx
 import { useState } from 'react';
 import {
   Box,
@@ -331,19 +331,19 @@ const DesignStudio = (props) => {
   );
 };
 
-export const TattooStudio = (props) => {
+export const TattooKit = (props) => {
   const { data } = useBackend<Data>();
   const { target_name, design_mode } = data;
 
   return (
-    <Window title="Tattoo Studio" width={800} height={600} theme="abstract">
+    <Window title="Tattoo Kit" width={800} height={600} theme="abstract">
       <Window.Content>
         <Stack fill vertical>
           <Stack.Item>
             <Section>
               <Box bold>
                 <Icon name="palette" mr={1} />
-                Tattoo Studio - Client: {target_name}
+                Tattoo Kit - Client: {target_name}
               </Box>
             </Section>
           </Stack.Item>

@@ -60,7 +60,7 @@
 /obj/item/custom_tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
 	ui = SStgui.try_update_ui(user, src, ui)
 	if(!ui)
-		ui = new(user, src, "TattooStudio")
+		ui = new(user, src, "TattooKit")
 		ui.set_autoupdate(FALSE)
 		ui.open()
 
