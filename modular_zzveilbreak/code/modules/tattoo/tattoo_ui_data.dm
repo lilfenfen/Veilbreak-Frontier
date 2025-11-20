@@ -1,5 +1,5 @@
 // modular_zzveilbreak/code/modules/tattoo/tattoo_ui_data.dm
-// Enhanced UI data management with better structure
+// Fix the data structure for dropdowns
 
 /datum/custom_tattoo_ui_data
 	var/zone = ""
@@ -12,33 +12,33 @@
 	var/design_mode = FALSE
 	var/debug_mode = FALSE
 
-	// Static options for TGUI - converted to proper format
+	// Static options for TGUI - fixed format
 	var/static/list/font_options = list(
-		list("name" = "Pen", "value" = "PEN_FONT"),
-		list("name" = "Fountain Pen", "value" = "FOUNTAIN_PEN_FONT"),
-		list("name" = "Printer", "value" = "PRINTER_FONT"),
-		list("name" = "Charcoal", "value" = "CHARCOAL_FONT"),
-		list("name" = "Crayon", "value" = "CRAYON_FONT")
+		"Pen" = "PEN_FONT",
+		"Fountain Pen" = "FOUNTAIN_PEN_FONT",
+		"Printer" = "PRINTER_FONT",
+		"Charcoal" = "CHARCOAL_FONT",
+		"Crayon" = "CRAYON_FONT"
 	)
 
 	var/static/list/flair_options = list(
-		list("name" = "No Flair", "value" = "null"),
-		list("name" = "Pink Flair", "value" = "flair_1"),
-		list("name" = "Love Flair", "value" = "flair_2"),
-		list("name" = "Brown Flair", "value" = "flair_3"),
-		list("name" = "Cyan Flair", "value" = "flair_4"),
-		list("name" = "Orange Flair", "value" = "flair_5"),
-		list("name" = "Yellow Flair", "value" = "flair_6"),
-		list("name" = "Subtle Flair", "value" = "flair_7"),
-		list("name" = "Velvet Flair", "value" = "flair_8"),
-		list("name" = "Velvet Notice", "value" = "flair_9"),
-		list("name" = "Glossy Flair", "value" = "flair_10")
+		"No Flair" = "null",
+		"Pink Flair" = "flair_1",
+		"Love Flair" = "flair_2",
+		"Brown Flair" = "flair_3",
+		"Cyan Flair" = "flair_4",
+		"Orange Flair" = "flair_5",
+		"Yellow Flair" = "flair_6",
+		"Subtle Flair" = "flair_7",
+		"Velvet Flair" = "flair_8",
+		"Velvet Notice" = "flair_9",
+		"Glossy Flair" = "flair_10"
 	)
 
 	var/static/list/layer_options = list(
-		list("name" = "Under (Bottom)", "value" = "1"),
-		list("name" = "Normal (Middle)", "value" = "2"),
-		list("name" = "Over (Top)", "value" = "3")
+		"Under (Bottom)" = "1",
+		"Normal (Middle)" = "2",
+		"Over (Top)" = "3"
 	)
 
 	New(new_zone = "")
@@ -56,14 +56,7 @@
 	proc/is_ready_for_application()
 		return zone && design_mode && artist_name && tattoo_design
 
-// TGUI Interface - Completely rewritten
-/obj/item/custom_tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
-	ui = SStgui.try_update_ui(user, src, ui)
-	if(!ui)
-		ui = new(user, src, "TattooKit")
-		ui.set_autoupdate(FALSE)
-		ui.open()
-
+// TGUI Interface - Fixed data structure
 /obj/item/custom_tattoo_kit/ui_data(mob/user)
 	var/list/data = list()
 
@@ -80,22 +73,22 @@
 		current_target.set_tattoo_ui_data("global", ui_data)
 
 	if(ui_data)
-		data["artist_name"] = ui_data.artist_name
-		data["tattoo_design"] = ui_data.tattoo_design
-		data["selected_zone"] = ui_data.zone
+		data["artist_name"] = ui_data.artist_name || ""
+		data["tattoo_design"] = ui_data.tattoo_design || ""
+		data["selected_zone"] = ui_data.zone || ""
 		data["selected_layer"] = ui_data.selected_layer
-		data["selected_font"] = ui_data.selected_font
-		data["selected_flair"] = ui_data.selected_flair
-		data["ink_color"] = ui_data.ink_color
+		data["selected_font"] = ui_data.selected_font || "PEN_FONT"
+		data["selected_flair"] = ui_data.selected_flair || "null"
+		data["ink_color"] = ui_data.ink_color || "#000000"
 		data["design_mode"] = ui_data.design_mode
 		data["debug_mode"] = ui_data.debug_mode
 
-	// Options
+	// Options - use simple key-value pairs
 	data["font_options"] = ui_data.font_options
 	data["flair_options"] = ui_data.flair_options
 	data["layer_options"] = ui_data.layer_options
 
-	// Body parts - simplified structure
+	// Body parts
 	data["body_parts"] = list()
 	if(current_target)
 		var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
@@ -119,13 +112,13 @@
 			for(var/datum/custom_tattoo/T in tattoos)
 				if(istype(T) && !QDELETED(T))
 					data["existing_tattoos"] += list(list(
-						"artist" = T.artist,
-						"design" = T.design,
-						"color" = T.color,
-						"layer" = T.layer,
-						"font" = T.font,
+						"artist" = T.artist || "Unknown",
+						"design" = T.design || "Unknown",
+						"color" = T.color || "#000000",
+						"layer" = T.layer || 2,
+						"font" = T.font || "PEN_FONT",
 						"flair" = T.flair || "null",
-						"date" = T.date_applied
+						"date" = T.date_applied || "Unknown"
 					))
 
 	return data
@@ -157,28 +150,27 @@
 			. = TRUE
 
 		if("set_artist")
-			ui_data.artist_name = params["value"] || ""
+			ui_data.artist_name = params["value"]
 			. = TRUE
 
 		if("set_design")
-			ui_data.tattoo_design = params["value"] || ""
+			ui_data.tattoo_design = params["value"]
 			. = TRUE
 
 		if("set_font")
-			ui_data.selected_font = params["value"] || "PEN_FONT"
+			ui_data.selected_font = params["value"]
 			. = TRUE
 
 		if("set_flair")
-			var/flair = params["value"]
-			ui_data.selected_flair = (flair == "null") ? null : flair
+			ui_data.selected_flair = params["value"]
 			. = TRUE
 
 		if("set_layer")
-			ui_data.selected_layer = text2num(params["value"]) || 2
+			ui_data.selected_layer = text2num(params["value"])
 			. = TRUE
 
 		if("set_color")
-			ui_data.ink_color = params["value"] || "#000000"
+			ui_data.ink_color = params["value"]
 			. = TRUE
 
 		if("pick_color")
@@ -208,3 +200,4 @@
 
 	if(. && current_target)
 		current_target.set_tattoo_ui_data("global", ui_data)
+		SStgui.update_uis(src)

@@ -51,9 +51,9 @@ type Data = {
   ink_color: string;
   design_mode: boolean;
 
-  font_options: any[];
-  flair_options: any[];
-  layer_options: any[];
+  font_options: Record<string, string>;
+  flair_options: Record<string, string>;
+  layer_options: Record<string, string>;
 
   body_parts: BodyPart[];
   existing_tattoos: Tattoo[];
@@ -116,9 +116,9 @@ const DesignStudio = (props) => {
     ink_uses = 0,
     max_ink_uses = 30,
     applying = false,
-    font_options = [],
-    flair_options = [],
-    layer_options = [],
+    font_options = {},
+    flair_options = {},
+    layer_options = {},
     existing_tattoos = [],
   } = data;
 
@@ -127,6 +127,13 @@ const DesignStudio = (props) => {
   const currentPart = data.body_parts?.find(
     (p) => p.zone === selected_zone,
   ) || { name: 'Unknown' };
+
+  // Check if apply button should be enabled
+  const canApply =
+    !applying &&
+    artist_name?.length > 0 &&
+    tattoo_design?.length > 0 &&
+    ink_uses > 0;
 
   return (
     <Stack fill vertical>
@@ -150,7 +157,7 @@ const DesignStudio = (props) => {
               selected={activeTab === 'tattoos'}
               onClick={() => setActiveTab('tattoos')}
             >
-              Existing Tattoos ({existing_tattoos.length})
+              Existing Tattoos ({existing_tattoos?.length || 0})
             </Tabs.Tab>
           </Tabs>
         </Section>
@@ -166,14 +173,20 @@ const DesignStudio = (props) => {
                     <Input
                       value={artist_name}
                       placeholder="Artist name..."
-                      onChange={(_, value) => act('set_artist', { value })}
+                      fluid
+                      onChange={(_, value) =>
+                        act('set_artist', { value: value || '' })
+                      }
                     />
                   </LabeledList.Item>
                   <LabeledList.Item label="Design">
                     <Input
                       value={tattoo_design}
                       placeholder="Tattoo text..."
-                      onChange={(_, value) => act('set_design', { value })}
+                      fluid
+                      onChange={(_, value) =>
+                        act('set_design', { value: value || '' })
+                      }
                     />
                   </LabeledList.Item>
                   <LabeledList.Item label="Color">
@@ -184,7 +197,10 @@ const DesignStudio = (props) => {
                       <Stack.Item grow>
                         <Input
                           value={ink_color}
-                          onChange={(_, value) => act('set_color', { value })}
+                          fluid
+                          onChange={(_, value) =>
+                            act('set_color', { value: value || '#000000' })
+                          }
                         />
                       </Stack.Item>
                       <Stack.Item>
@@ -208,6 +224,7 @@ const DesignStudio = (props) => {
                     <LabeledList>
                       <LabeledList.Item label="Font">
                         <Dropdown
+                          width="100%"
                           selected={selected_font}
                           options={font_options}
                           onSelected={(value) => act('set_font', { value })}
@@ -215,6 +232,7 @@ const DesignStudio = (props) => {
                       </LabeledList.Item>
                       <LabeledList.Item label="Flair">
                         <Dropdown
+                          width="100%"
                           selected={selected_flair}
                           options={flair_options}
                           onSelected={(value) => act('set_flair', { value })}
@@ -222,7 +240,8 @@ const DesignStudio = (props) => {
                       </LabeledList.Item>
                       <LabeledList.Item label="Layer">
                         <Dropdown
-                          selected={selected_layer.toString()}
+                          width="100%"
+                          selected={selected_layer?.toString()}
                           options={layer_options}
                           onSelected={(value) => act('set_layer', { value })}
                         />
@@ -239,8 +258,10 @@ const DesignStudio = (props) => {
                         padding: '1rem',
                         minHeight: '60px',
                         color: ink_color,
-                        fontFamily: 'Arial',
+                        fontFamily: 'Arial, sans-serif',
+                        fontSize: '14px',
                         backgroundColor: 'rgba(0,0,0,0.1)',
+                        wordBreak: 'break-word',
                       }}
                     >
                       {tattoo_design || 'Enter design text...'}
@@ -262,13 +283,8 @@ const DesignStudio = (props) => {
                       fluid
                       mt={1}
                       icon="check"
-                      color="good"
-                      disabled={
-                        applying ||
-                        !artist_name ||
-                        !tattoo_design ||
-                        ink_uses <= 0
-                      }
+                      color={canApply ? 'good' : 'bad'}
+                      disabled={!canApply}
                       onClick={() => act('apply')}
                     >
                       {applying ? 'Applying...' : 'Apply Tattoo'}
@@ -288,7 +304,7 @@ const DesignStudio = (props) => {
           </Stack>
         ) : (
           <Section fill scrollable title="Existing Tattoos">
-            {existing_tattoos.length > 0 ? (
+            {existing_tattoos?.length > 0 ? (
               <Table>
                 <Table.Row header>
                   <Table.Cell>Design</Table.Cell>
@@ -304,9 +320,7 @@ const DesignStudio = (props) => {
                     </Table.Cell>
                     <Table.Cell>{tattoo.artist}</Table.Cell>
                     <Table.Cell>
-                      {layer_options.find(
-                        (opt) => opt.value === tattoo.layer.toString(),
-                      )?.name || 'Normal'}
+                      {layer_options[tattoo.layer?.toString()] || 'Normal'}
                     </Table.Cell>
                     <Table.Cell>{tattoo.date}</Table.Cell>
                     <Table.Cell>
