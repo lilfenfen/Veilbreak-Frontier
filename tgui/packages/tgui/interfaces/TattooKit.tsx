@@ -84,13 +84,6 @@ const TattooPreview = (props: {
     );
   }
 
-  let displayDesign = design;
-
-  // Apply flair styling if selected
-  if (flair && flair !== 'null') {
-    displayDesign = <span className={flair}>{design}</span>;
-  }
-
   return (
     <Section title="Design Preview" textAlign="center">
       <Box
@@ -108,7 +101,7 @@ const TattooPreview = (props: {
           backgroundColor: 'rgba(0,0,0,0.3)',
         }}
       >
-        {displayDesign}
+        {design}
       </Box>
     </Section>
   );
@@ -116,13 +109,15 @@ const TattooPreview = (props: {
 
 const BodyPartSelector = (props) => {
   const { act, data } = useBackend<Data>();
-  const { body_parts } = data;
+  const { body_parts = [] } = data;
 
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredParts = body_parts.filter((part) =>
-    part.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const filteredParts = Array.isArray(body_parts)
+    ? body_parts.filter((part) =>
+        part.name.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
+    : [];
 
   return (
     <Section
@@ -143,38 +138,46 @@ const BodyPartSelector = (props) => {
           <Table.Cell collapsing>Status</Table.Cell>
           <Table.Cell collapsing>Action</Table.Cell>
         </Table.Row>
-        {filteredParts.map((part) => (
-          <Table.Row key={part.zone} className="candystripe">
-            <Table.Cell bold>{part.name}</Table.Cell>
-            <Table.Cell collapsing>
-              {part.current_tattoos}/{part.max_tattoos}
-            </Table.Cell>
-            <Table.Cell collapsing>
-              <Box color={part.covered ? 'average' : 'good'}>
-                <Icon name={part.covered ? 'eye-slash' : 'eye'} />
-                {part.covered ? 'Covered' : 'Visible'}
-              </Box>
-            </Table.Cell>
-            <Table.Cell collapsing>
-              <Button
-                icon="paint-brush"
-                disabled={
-                  part.covered || part.current_tattoos >= part.max_tattoos
-                }
-                tooltip={
-                  part.covered
-                    ? 'Body part is covered by clothing'
-                    : part.current_tattoos >= part.max_tattoos
-                      ? 'Maximum tattoos reached for this part'
-                      : 'Design tattoo for this body part'
-                }
-                onClick={() => act('select_zone', { zone: part.zone })}
-              >
-                Design
-              </Button>
+        {filteredParts.length > 0 ? (
+          filteredParts.map((part) => (
+            <Table.Row key={part.zone} className="candystripe">
+              <Table.Cell bold>{part.name}</Table.Cell>
+              <Table.Cell collapsing>
+                {part.current_tattoos}/{part.max_tattoos}
+              </Table.Cell>
+              <Table.Cell collapsing>
+                <Box color={part.covered ? 'average' : 'good'}>
+                  <Icon name={part.covered ? 'eye-slash' : 'eye'} />
+                  {part.covered ? 'Covered' : 'Visible'}
+                </Box>
+              </Table.Cell>
+              <Table.Cell collapsing>
+                <Button
+                  icon="paint-brush"
+                  disabled={
+                    part.covered || part.current_tattoos >= part.max_tattoos
+                  }
+                  tooltip={
+                    part.covered
+                      ? 'Body part is covered by clothing'
+                      : part.current_tattoos >= part.max_tattoos
+                        ? 'Maximum tattoos reached for this part'
+                        : 'Design tattoo for this body part'
+                  }
+                  onClick={() => act('select_zone', { zone: part.zone })}
+                >
+                  Design
+                </Button>
+              </Table.Cell>
+            </Table.Row>
+          ))
+        ) : (
+          <Table.Row>
+            <Table.Cell colSpan={4} textAlign="center" color="label">
+              No body parts available or data not loaded
             </Table.Cell>
           </Table.Row>
-        ))}
+        )}
       </Table>
     </Section>
   );
@@ -183,25 +186,27 @@ const BodyPartSelector = (props) => {
 const TattooDesigner = (props) => {
   const { act, data } = useBackend<Data>();
   const {
-    artist_name,
-    tattoo_design,
-    selected_zone,
-    selected_layer,
-    selected_font,
-    selected_flair,
-    ink_color,
-    ink_uses,
-    max_ink_uses,
-    applying,
-    font_options,
-    flair_options,
-    layer_options,
-    existing_tattoos,
+    artist_name = '',
+    tattoo_design = '',
+    selected_zone = '',
+    selected_layer = 2,
+    selected_font = 'PEN_FONT',
+    selected_flair = 'null',
+    ink_color = '#000000',
+    ink_uses = 0,
+    max_ink_uses = 30,
+    applying = false,
+    font_options = {},
+    flair_options = {},
+    layer_options = {},
+    existing_tattoos = [],
+    body_parts = [],
   } = data;
 
-  const currentPart = data.body_parts.find(
-    (part) => part.zone === selected_zone,
-  );
+  // Safely find the current part
+  const currentPart = Array.isArray(body_parts)
+    ? body_parts.find((part) => part.zone === selected_zone)
+    : null;
 
   return (
     <Stack fill vertical>
@@ -285,7 +290,7 @@ const TattooDesigner = (props) => {
                 </LabeledList.Item>
                 <LabeledList.Item label="Text Flair">
                   <Dropdown
-                    selected={selected_flair || 'null'}
+                    selected={selected_flair}
                     options={flair_options}
                     onSelected={(value) => act('set_flair', { flair: value })}
                     width="150px"
@@ -351,7 +356,7 @@ const TattooDesigner = (props) => {
         </Section>
       </Stack.Item>
 
-      {existing_tattoos.length > 0 && (
+      {Array.isArray(existing_tattoos) && existing_tattoos.length > 0 && (
         <Stack.Item>
           <Section title="Existing Tattoos on this Body Part">
             <Table>
@@ -367,18 +372,20 @@ const TattooDesigner = (props) => {
                   <Table.Cell>
                     <Box
                       style={{
-                        color: tattoo.color,
+                        color: tattoo.color || '#000000',
                         fontFamily: 'Arial, sans-serif',
                       }}
                     >
-                      {tattoo.design}
+                      {tattoo.design || 'Unknown design'}
                     </Box>
                   </Table.Cell>
-                  <Table.Cell>{tattoo.artist}</Table.Cell>
+                  <Table.Cell>{tattoo.artist || 'Unknown artist'}</Table.Cell>
                   <Table.Cell>
-                    {layer_options[tattoo.layer.toString()]}
+                    {layer_options[tattoo.layer?.toString()] || 'Normal'}
                   </Table.Cell>
-                  <Table.Cell>{tattoo.date_applied}</Table.Cell>
+                  <Table.Cell>
+                    {tattoo.date_applied || 'Unknown date'}
+                  </Table.Cell>
                   <Table.Cell collapsing>
                     <Button
                       icon="trash"
@@ -401,7 +408,11 @@ const TattooDesigner = (props) => {
 
 export const TattooKit = (props) => {
   const { data } = useBackend<Data>();
-  const { target_name, design_mode, debug_mode } = data;
+  const {
+    target_name = 'None',
+    design_mode = false,
+    debug_mode = false,
+  } = data;
 
   return (
     <Window
@@ -417,7 +428,7 @@ export const TattooKit = (props) => {
               <Stack>
                 <Stack.Item grow>
                   <Box bold fontSize="16px">
-                    Tattoo Kit - Target: {target_name || 'None'}
+                    Tattoo Kit - Target: {target_name}
                   </Box>
                 </Stack.Item>
                 <Stack.Item>
