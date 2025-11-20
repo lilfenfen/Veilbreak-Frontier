@@ -53,12 +53,6 @@
 	if(current_target)
 		ui_interact(user)
 
-/obj/item/custom_tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
-	ui = SStgui.try_update_ui(user, src, ui)
-	if(!ui)
-		ui = new(user, src, "TattooKit")
-		ui.open()
-
 /obj/item/custom_tattoo_kit/proc/can_apply_tattoo(mob/user)
 	if(!current_target)
 		to_chat(user, span_warning("No target selected."))
@@ -144,25 +138,29 @@
 		to_chat(user, span_warning("Failed to apply tattoo!"))
 		return FALSE
 
-/obj/item/custom_tattoo_kit/OnTopic(href, href_list)
+/obj/item/custom_tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
+	ui = SStgui.try_update_ui(user, src, ui)
+	if(!ui)
+		ui = new(user, src, "TattooKit")
+		ui.open()
+
+/obj/item/custom_tattoo_kit/ui_act(action, params, datum/tgui/ui, mob/user)
 	. = ..()
 	if(.)
 		return
 
-	var/mob/user = usr
 	var/datum/custom_tattoo_ui_data/ui_data = current_target.get_tattoo_ui_data("global")
 
-	if(href_list["set_artist"])
-		ui_data.artist_name = href_list["value"]
-	else if(href_list["set_design"])
-		ui_data.tattoo_design = href_list["value"]
-	else if(href_list["set_color"])
-		ui_data.ink_color = href_list["value"]
-	else if(href_list["set_font"])
-		ui_data.selected_font = href_list["value"]
-	else if(href_list["set_flair"])
-		ui_data.selected_flair = href_list["value"]
-	else if(href_list["set_layer"])
-		ui_data.selected_layer = text2num(href_list["value"])
+	switch(action)
+		if("set_artist", "set_design", "set_color", "set_font", "set_flair")
+			var/key = copytext(action, 5)
+			ui_data.vars[key] = params["value"]
+			. = TRUE
+		if("set_layer")
+			ui_data.selected_layer = text2num(params["value"])
+			. = TRUE
 
-	ui_interact(user)
+	if(.)
+		ui_interact(user)
+
+	return
