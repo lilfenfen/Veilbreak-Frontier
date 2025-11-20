@@ -1,4 +1,4 @@
-// modular_zzveilbreak/code/modules/tattoo/TattooKit.tsx
+// modular_zzveilbreak/code/modules/tattoo/TattooStudio.tsx
 import { useState } from 'react';
 import {
   Box,
@@ -8,27 +8,40 @@ import {
   Icon,
   Input,
   LabeledList,
-  NoticeBox,
   ProgressBar,
   Section,
   Stack,
   Table,
-  Tooltip,
+  Tabs,
 } from 'tgui-core/components';
 
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
 
-type Data = {
-  // Target info
-  target_name: string;
+type BodyPart = {
+  zone: string;
+  name: string;
+  covered: number;
+  current_tattoos: number;
+  max_tattoos: number;
+};
 
-  // Kit status
+type Tattoo = {
+  artist: string;
+  design: string;
+  color: string;
+  layer: number;
+  font: string;
+  flair: string;
+  date: string;
+};
+
+type Data = {
+  target_name: string;
   ink_uses: number;
   max_ink_uses: number;
   applying: boolean;
 
-  // Current design
   artist_name: string;
   tattoo_design: string;
   selected_zone: string;
@@ -37,141 +50,60 @@ type Data = {
   selected_flair: string;
   ink_color: string;
   design_mode: boolean;
-  debug_mode: boolean;
 
-  // Options
-  font_options: any;
-  flair_options: any;
-  layer_options: any;
+  font_options: any[];
+  flair_options: any[];
+  layer_options: any[];
 
-  // Data - treat as any to avoid type issues
-  body_parts: any;
-  existing_tattoos: any;
+  body_parts: BodyPart[];
+  existing_tattoos: Tattoo[];
 };
 
-const TattooPreview = (props: { design: string; color: string }) => {
-  const { design, color } = props;
-
-  if (!design) {
-    return (
-      <Box textAlign="center" color="label" py={3}>
-        No design entered
-      </Box>
-    );
-  }
-
-  return (
-    <Section title="Design Preview" textAlign="center">
-      <Box
-        style={{
-          border: '2px solid #555',
-          borderRadius: '4px',
-          padding: '1rem',
-          minHeight: '80px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: color,
-          fontFamily: 'Arial, sans-serif',
-          fontSize: '14px',
-          backgroundColor: 'rgba(0,0,0,0.3)',
-        }}
-      >
-        {design}
-      </Box>
-    </Section>
-  );
-};
-
-const BodyPartSelector = (props) => {
+const BodyPartView = (props) => {
   const { act, data } = useBackend<Data>();
-  const { body_parts } = data;
-
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Safely handle body_parts data
-  let bodyPartsArray = [];
-  if (body_parts && typeof body_parts === 'object') {
-    if (Array.isArray(body_parts)) {
-      bodyPartsArray = body_parts;
-    } else {
-      // Convert object to array if needed
-      bodyPartsArray = Object.values(body_parts);
-    }
-  }
-
-  const filteredParts = bodyPartsArray.filter((part) => {
-    if (!part || typeof part !== 'object') return false;
-    const name = part.name || '';
-    return name.toLowerCase().includes(searchQuery.toLowerCase());
-  });
+  const { body_parts = [] } = data;
 
   return (
-    <Section
-      title="Select Body Part"
-      buttons={
-        <Input
-          placeholder="Search body parts..."
-          value={searchQuery}
-          onChange={(_, value) => setSearchQuery(value)}
-          width="200px"
-        />
-      }
-    >
+    <Section title="Body Parts" fill scrollable>
       <Table>
         <Table.Row header>
-          <Table.Cell>Body Part</Table.Cell>
-          <Table.Cell collapsing>Tattoos</Table.Cell>
-          <Table.Cell collapsing>Status</Table.Cell>
-          <Table.Cell collapsing>Action</Table.Cell>
+          <Table.Cell>Part</Table.Cell>
+          <Table.Cell width="80px">Tattoos</Table.Cell>
+          <Table.Cell width="100px">Status</Table.Cell>
+          <Table.Cell width="120px">Action</Table.Cell>
         </Table.Row>
-        {filteredParts.length > 0 ? (
-          filteredParts.map((part, index) => (
-            <Table.Row key={part.zone || index} className="candystripe">
-              <Table.Cell bold>{part.name || 'Unknown'}</Table.Cell>
-              <Table.Cell collapsing>
-                {part.current_tattoos || 0}/{part.max_tattoos || 3}
-              </Table.Cell>
-              <Table.Cell collapsing>
-                <Box color={part.covered ? 'average' : 'good'}>
-                  <Icon name={part.covered ? 'eye-slash' : 'eye'} />
-                  {part.covered ? 'Covered' : 'Visible'}
-                </Box>
-              </Table.Cell>
-              <Table.Cell collapsing>
-                <Button
-                  icon="paint-brush"
-                  disabled={
-                    part.covered ||
-                    (part.current_tattoos || 0) >= (part.max_tattoos || 3)
-                  }
-                  tooltip={
-                    part.covered
-                      ? 'Body part is covered by clothing'
-                      : (part.current_tattoos || 0) >= (part.max_tattoos || 3)
-                        ? 'Maximum tattoos reached for this part'
-                        : 'Design tattoo for this body part'
-                  }
-                  onClick={() => act('select_zone', { zone: part.zone })}
-                >
-                  Design
-                </Button>
-              </Table.Cell>
-            </Table.Row>
-          ))
-        ) : (
-          <Table.Row>
-            <Table.Cell colSpan={4} textAlign="center" color="label">
-              No body parts available
+        {body_parts.map((part, index) => (
+          <Table.Row key={index} className="candystripe">
+            <Table.Cell bold>{part.name}</Table.Cell>
+            <Table.Cell>
+              {part.current_tattoos}/{part.max_tattoos}
+            </Table.Cell>
+            <Table.Cell>
+              <Box color={part.covered ? 'bad' : 'good'}>
+                <Icon name={part.covered ? 'eye-slash' : 'eye'} />
+                {part.covered ? 'Covered' : 'Visible'}
+              </Box>
+            </Table.Cell>
+            <Table.Cell>
+              <Button
+                fluid
+                icon="paint-brush"
+                disabled={
+                  part.covered || part.current_tattoos >= part.max_tattoos
+                }
+                onClick={() => act('select_zone', { zone: part.zone })}
+              >
+                Design
+              </Button>
             </Table.Cell>
           </Table.Row>
-        )}
+        ))}
       </Table>
     </Section>
   );
 };
 
-const TattooDesigner = (props) => {
+const DesignStudio = (props) => {
   const { act, data } = useBackend<Data>();
   const {
     artist_name = '',
@@ -184,253 +116,247 @@ const TattooDesigner = (props) => {
     ink_uses = 0,
     max_ink_uses = 30,
     applying = false,
-    font_options = {},
-    flair_options = {},
-    layer_options = {},
+    font_options = [],
+    flair_options = [],
+    layer_options = [],
     existing_tattoos = [],
   } = data;
 
-  // Safely handle existing tattoos
-  let tattoosArray = [];
-  if (existing_tattoos && typeof existing_tattoos === 'object') {
-    if (Array.isArray(existing_tattoos)) {
-      tattoosArray = existing_tattoos;
-    } else {
-      tattoosArray = Object.values(existing_tattoos);
-    }
-  }
+  const [activeTab, setActiveTab] = useState('design');
+
+  const currentPart = data.body_parts?.find(
+    (p) => p.zone === selected_zone,
+  ) || { name: 'Unknown' };
 
   return (
     <Stack fill vertical>
       <Stack.Item>
         <Section
-          title={`Designing for: ${selected_zone || 'Unknown'}`}
+          title={`Designing: ${currentPart.name}`}
           buttons={
-            <Button icon="arrow-left" onClick={() => act('back_to_parts')}>
-              Back to Body Parts
+            <Button icon="arrow-left" onClick={() => act('back')}>
+              Back
             </Button>
           }
         >
-          <Stack>
-            <Stack.Item grow>
-              <LabeledList>
-                <LabeledList.Item label="Artist Name">
-                  <Input
-                    value={artist_name}
-                    placeholder="Enter artist name..."
-                    onChange={(_, value) =>
-                      act('set_artist', { artist: value })
-                    }
-                    width="100%"
-                  />
-                </LabeledList.Item>
-                <LabeledList.Item label="Tattoo Design">
-                  <Input
-                    value={tattoo_design}
-                    placeholder="Enter tattoo design text..."
-                    onChange={(_, value) =>
-                      act('set_design', { design: value })
-                    }
-                    width="100%"
-                  />
-                </LabeledList.Item>
-                <LabeledList.Item label="Ink Color">
-                  <Stack>
-                    <Stack.Item>
-                      <ColorBox color={ink_color} />
-                    </Stack.Item>
-                    <Stack.Item grow>
-                      <Input
-                        value={ink_color}
-                        onChange={(_, value) =>
-                          act('set_color', { color: value })
-                        }
-                      />
-                    </Stack.Item>
-                    <Stack.Item>
-                      <Button icon="palette" onClick={() => act('pick_color')}>
-                        Pick
-                      </Button>
-                    </Stack.Item>
-                  </Stack>
-                </LabeledList.Item>
-              </LabeledList>
-            </Stack.Item>
-            <Stack.Item width="200px">
-              <TattooPreview design={tattoo_design} color={ink_color} />
-            </Stack.Item>
-          </Stack>
+          <Tabs>
+            <Tabs.Tab
+              selected={activeTab === 'design'}
+              onClick={() => setActiveTab('design')}
+            >
+              Design
+            </Tabs.Tab>
+            <Tabs.Tab
+              selected={activeTab === 'tattoos'}
+              onClick={() => setActiveTab('tattoos')}
+            >
+              Existing Tattoos ({existing_tattoos.length})
+            </Tabs.Tab>
+          </Tabs>
         </Section>
       </Stack.Item>
 
-      <Stack.Item>
-        <Section title="Design Options">
-          <Stack>
-            <Stack.Item>
-              <LabeledList>
-                <LabeledList.Item label="Font Style">
-                  <Dropdown
-                    selected={selected_font}
-                    options={font_options}
-                    onSelected={(value) => act('set_font', { font: value })}
-                    width="150px"
-                  />
-                </LabeledList.Item>
-                <LabeledList.Item label="Text Flair">
-                  <Dropdown
-                    selected={selected_flair}
-                    options={flair_options}
-                    onSelected={(value) => act('set_flair', { flair: value })}
-                    width="150px"
-                  />
-                </LabeledList.Item>
-                <LabeledList.Item label="Layer">
-                  <Dropdown
-                    selected={selected_layer.toString()}
-                    options={layer_options}
-                    onSelected={(value) => act('set_layer', { layer: value })}
-                    width="150px"
-                  />
-                </LabeledList.Item>
-              </LabeledList>
-            </Stack.Item>
-            <Stack.Item grow>
-              <Section title="Ink Status" textAlign="center">
-                <ProgressBar
-                  value={ink_uses}
-                  minValue={0}
-                  maxValue={max_ink_uses}
-                  color={ink_uses > 0 ? 'good' : 'bad'}
-                >
-                  {ink_uses}/{max_ink_uses} uses remaining
-                </ProgressBar>
-                <Button
-                  icon="fill-drip"
-                  disabled={applying || ink_uses >= max_ink_uses}
-                  onClick={() => act('refill_ink')}
-                  mt={1}
-                >
-                  Refill Ink
-                </Button>
+      <Stack.Item grow>
+        {activeTab === 'design' ? (
+          <Stack fill>
+            <Stack.Item grow={1}>
+              <Section title="Design Details" fill>
+                <LabeledList>
+                  <LabeledList.Item label="Artist">
+                    <Input
+                      value={artist_name}
+                      placeholder="Artist name..."
+                      onChange={(_, value) => act('set_artist', { value })}
+                    />
+                  </LabeledList.Item>
+                  <LabeledList.Item label="Design">
+                    <Input
+                      value={tattoo_design}
+                      placeholder="Tattoo text..."
+                      onChange={(_, value) => act('set_design', { value })}
+                    />
+                  </LabeledList.Item>
+                  <LabeledList.Item label="Color">
+                    <Stack>
+                      <Stack.Item>
+                        <ColorBox color={ink_color} />
+                      </Stack.Item>
+                      <Stack.Item grow>
+                        <Input
+                          value={ink_color}
+                          onChange={(_, value) => act('set_color', { value })}
+                        />
+                      </Stack.Item>
+                      <Stack.Item>
+                        <Button
+                          icon="palette"
+                          onClick={() => act('pick_color')}
+                        >
+                          Pick
+                        </Button>
+                      </Stack.Item>
+                    </Stack>
+                  </LabeledList.Item>
+                </LabeledList>
               </Section>
             </Stack.Item>
-            <Stack.Item>
-              <Section title="Application" textAlign="center">
-                <Button
-                  icon="check"
-                  color="good"
-                  disabled={
-                    applying || !artist_name || !tattoo_design || ink_uses <= 0
-                  }
-                  onClick={() => act('apply_tattoo')}
-                  tooltip={
-                    !artist_name
-                      ? 'Artist name required'
-                      : !tattoo_design
-                        ? 'Tattoo design required'
-                        : ink_uses <= 0
-                          ? 'No ink remaining'
-                          : 'Apply tattoo to selected body part'
-                  }
-                  fontSize="16px"
-                  height="40px"
-                  width="120px"
-                >
-                  {applying ? 'Applying...' : 'Apply Tattoo'}
-                </Button>
-              </Section>
-            </Stack.Item>
-          </Stack>
-        </Section>
-      </Stack.Item>
 
-      {tattoosArray.length > 0 && (
-        <Stack.Item>
-          <Section title="Existing Tattoos on this Body Part">
-            <Table>
-              <Table.Row header>
-                <Table.Cell>Design</Table.Cell>
-                <Table.Cell>Artist</Table.Cell>
-                <Table.Cell>Layer</Table.Cell>
-                <Table.Cell>Date</Table.Cell>
-                <Table.Cell collapsing>Actions</Table.Cell>
-              </Table.Row>
-              {tattoosArray.map((tattoo, index) => (
-                <Table.Row key={index} className="candystripe">
-                  <Table.Cell>
+            <Stack.Item grow={1}>
+              <Stack fill vertical>
+                <Stack.Item>
+                  <Section title="Style Options">
+                    <LabeledList>
+                      <LabeledList.Item label="Font">
+                        <Dropdown
+                          selected={selected_font}
+                          options={font_options}
+                          onSelected={(value) => act('set_font', { value })}
+                        />
+                      </LabeledList.Item>
+                      <LabeledList.Item label="Flair">
+                        <Dropdown
+                          selected={selected_flair}
+                          options={flair_options}
+                          onSelected={(value) => act('set_flair', { value })}
+                        />
+                      </LabeledList.Item>
+                      <LabeledList.Item label="Layer">
+                        <Dropdown
+                          selected={selected_layer.toString()}
+                          options={layer_options}
+                          onSelected={(value) => act('set_layer', { value })}
+                        />
+                      </LabeledList.Item>
+                    </LabeledList>
+                  </Section>
+                </Stack.Item>
+
+                <Stack.Item>
+                  <Section title="Preview" textAlign="center">
                     <Box
                       style={{
-                        color: tattoo.color || '#000000',
-                        fontFamily: 'Arial, sans-serif',
+                        border: '2px solid #555',
+                        padding: '1rem',
+                        minHeight: '60px',
+                        color: ink_color,
+                        fontFamily: 'Arial',
+                        backgroundColor: 'rgba(0,0,0,0.1)',
                       }}
                     >
-                      {tattoo.design || 'Unknown design'}
+                      {tattoo_design || 'Enter design text...'}
                     </Box>
-                  </Table.Cell>
-                  <Table.Cell>{tattoo.artist || 'Unknown artist'}</Table.Cell>
-                  <Table.Cell>
-                    {layer_options[tattoo.layer] || 'Normal'}
-                  </Table.Cell>
-                  <Table.Cell>
-                    {tattoo.date_applied || 'Unknown date'}
-                  </Table.Cell>
-                  <Table.Cell collapsing>
-                    <Button
-                      icon="trash"
-                      color="bad"
-                      tooltip="Remove this tattoo"
-                      onClick={() => act('remove_tattoo', { index: index + 1 })}
+                  </Section>
+                </Stack.Item>
+
+                <Stack.Item>
+                  <Section title="Application">
+                    <ProgressBar
+                      value={ink_uses}
+                      minValue={0}
+                      maxValue={max_ink_uses}
+                      color={ink_uses > 0 ? 'good' : 'bad'}
                     >
-                      Remove
+                      Ink: {ink_uses}/{max_ink_uses}
+                    </ProgressBar>
+                    <Button
+                      fluid
+                      mt={1}
+                      icon="check"
+                      color="good"
+                      disabled={
+                        applying ||
+                        !artist_name ||
+                        !tattoo_design ||
+                        ink_uses <= 0
+                      }
+                      onClick={() => act('apply')}
+                    >
+                      {applying ? 'Applying...' : 'Apply Tattoo'}
                     </Button>
-                  </Table.Cell>
+                    <Button
+                      fluid
+                      mt={1}
+                      icon="fill-drip"
+                      onClick={() => act('refill')}
+                    >
+                      Refill Ink
+                    </Button>
+                  </Section>
+                </Stack.Item>
+              </Stack>
+            </Stack.Item>
+          </Stack>
+        ) : (
+          <Section fill scrollable title="Existing Tattoos">
+            {existing_tattoos.length > 0 ? (
+              <Table>
+                <Table.Row header>
+                  <Table.Cell>Design</Table.Cell>
+                  <Table.Cell>Artist</Table.Cell>
+                  <Table.Cell>Layer</Table.Cell>
+                  <Table.Cell>Date</Table.Cell>
+                  <Table.Cell width="80px">Action</Table.Cell>
                 </Table.Row>
-              ))}
-            </Table>
+                {existing_tattoos.map((tattoo, index) => (
+                  <Table.Row key={index} className="candystripe">
+                    <Table.Cell>
+                      <Box style={{ color: tattoo.color }}>{tattoo.design}</Box>
+                    </Table.Cell>
+                    <Table.Cell>{tattoo.artist}</Table.Cell>
+                    <Table.Cell>
+                      {layer_options.find(
+                        (opt) => opt.value === tattoo.layer.toString(),
+                      )?.name || 'Normal'}
+                    </Table.Cell>
+                    <Table.Cell>{tattoo.date}</Table.Cell>
+                    <Table.Cell>
+                      <Button
+                        icon="trash"
+                        color="bad"
+                        onClick={() => act('remove', { index: index + 1 })}
+                      />
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table>
+            ) : (
+              <Box textAlign="center" color="label" py={3}>
+                No tattoos on this body part
+              </Box>
+            )}
           </Section>
-        </Stack.Item>
-      )}
+        )}
+      </Stack.Item>
     </Stack>
   );
 };
 
-export const TattooKit = (props) => {
+export const TattooStudio = (props) => {
   const { data } = useBackend<Data>();
-  const {
-    target_name = 'None',
-    design_mode = false,
-    debug_mode = false,
-  } = data;
+  const { target_name, design_mode } = data;
 
   return (
-    <Window title="Professional Tattoo Kit" width={800} height={700}>
+    <Window title="Tattoo Studio" width={800} height={600} theme="abstract">
       <Window.Content>
         <Stack fill vertical>
           <Stack.Item>
             <Section>
-              <Stack>
-                <Stack.Item grow>
-                  <Box bold fontSize="16px">
-                    Tattoo Kit - Target: {target_name}
-                  </Box>
-                </Stack.Item>
-                <Stack.Item>
-                  {debug_mode && <NoticeBox info>Debug Mode Active</NoticeBox>}
-                </Stack.Item>
-              </Stack>
+              <Box bold>
+                <Icon name="palette" mr={1} />
+                Tattoo Studio - Client: {target_name}
+              </Box>
             </Section>
           </Stack.Item>
 
           <Stack.Item grow>
-            {design_mode ? <TattooDesigner /> : <BodyPartSelector />}
+            {design_mode ? <DesignStudio /> : <BodyPartView />}
           </Stack.Item>
 
           <Stack.Item>
             <Section>
               <Box color="label" textAlign="center">
-                <Icon name="info-circle" mr={1} />
-                Tip: Use %s in artist name to automatically insert your name
-                when applying
+                <Icon name="lightbulb" mr={1} />
+                Pro Tip: Use %s in artist name to auto-insert your name
               </Box>
             </Section>
           </Stack.Item>
