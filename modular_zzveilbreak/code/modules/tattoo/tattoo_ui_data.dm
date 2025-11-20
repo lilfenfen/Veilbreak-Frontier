@@ -1,6 +1,4 @@
 // modular_zzveilbreak/code/modules/tattoo/tattoo_ui_data.dm
-// Fix the data structure for dropdowns
-
 /datum/custom_tattoo_ui_data
 	var/zone = ""
 	var/artist_name = ""
@@ -12,33 +10,33 @@
 	var/design_mode = FALSE
 	var/debug_mode = FALSE
 
-	// Static options for TGUI - fixed format
+	// Static options for TGUI - array of objects format
 	var/static/list/font_options = list(
-		"Pen" = "PEN_FONT",
-		"Fountain Pen" = "FOUNTAIN_PEN_FONT",
-		"Printer" = "PRINTER_FONT",
-		"Charcoal" = "CHARCOAL_FONT",
-		"Crayon" = "CRAYON_FONT"
+		list("name" = "Pen", "value" = "PEN_FONT"),
+		list("name" = "Fountain Pen", "value" = "FOUNTAIN_PEN_FONT"),
+		list("name" = "Printer", "value" = "PRINTER_FONT"),
+		list("name" = "Charcoal", "value" = "CHARCOAL_FONT"),
+		list("name" = "Crayon", "value" = "CRAYON_FONT")
 	)
 
 	var/static/list/flair_options = list(
-		"No Flair" = "null",
-		"Pink Flair" = "flair_1",
-		"Love Flair" = "flair_2",
-		"Brown Flair" = "flair_3",
-		"Cyan Flair" = "flair_4",
-		"Orange Flair" = "flair_5",
-		"Yellow Flair" = "flair_6",
-		"Subtle Flair" = "flair_7",
-		"Velvet Flair" = "flair_8",
-		"Velvet Notice" = "flair_9",
-		"Glossy Flair" = "flair_10"
+		list("name" = "No Flair", "value" = "null"),
+		list("name" = "Pink Flair", "value" = "flair_1"),
+		list("name" = "Love Flair", "value" = "flair_2"),
+		list("name" = "Brown Flair", "value" = "flair_3"),
+		list("name" = "Cyan Flair", "value" = "flair_4"),
+		list("name" = "Orange Flair", "value" = "flair_5"),
+		list("name" = "Yellow Flair", "value" = "flair_6"),
+		list("name" = "Subtle Flair", "value" = "flair_7"),
+		list("name" = "Velvet Flair", "value" = "flair_8"),
+		list("name" = "Velvet Notice", "value" = "flair_9"),
+		list("name" = "Glossy Flair", "value" = "flair_10")
 	)
 
 	var/static/list/layer_options = list(
-		"Under (Bottom)" = "1",
-		"Normal (Middle)" = "2",
-		"Over (Top)" = "3"
+		list("name" = "Under (Bottom)", "value" = "1"),
+		list("name" = "Normal (Middle)", "value" = "2"),
+		list("name" = "Over (Top)", "value" = "3")
 	)
 
 	New(new_zone = "")
@@ -56,7 +54,13 @@
 	proc/is_ready_for_application()
 		return zone && design_mode && artist_name && tattoo_design
 
-// TGUI Interface - Fixed data structure
+/obj/item/custom_tattoo_kit/ui_interact(mob/user, datum/tgui/ui)
+	ui = SStgui.try_update_ui(user, src, ui)
+	if(!ui)
+		ui = new(user, src, "TattooKit")
+		ui.set_autoupdate(FALSE)
+		ui.open()
+
 /obj/item/custom_tattoo_kit/ui_data(mob/user)
 	var/list/data = list()
 
@@ -64,7 +68,7 @@
 	data["target_name"] = current_target ? current_target.name : "No Target"
 	data["ink_uses"] = ink_uses
 	data["max_ink_uses"] = max_ink_uses
-	data["applying"] = world.time < next_use
+	data["applying"] = (world.time < next_use)
 
 	// Get or create UI data
 	var/datum/custom_tattoo_ui_data/ui_data = current_target?.get_tattoo_ui_data("global")
@@ -73,22 +77,22 @@
 		current_target.set_tattoo_ui_data("global", ui_data)
 
 	if(ui_data)
-		data["artist_name"] = ui_data.artist_name || ""
-		data["tattoo_design"] = ui_data.tattoo_design || ""
-		data["selected_zone"] = ui_data.zone || ""
+		data["artist_name"] = ui_data.artist_name
+		data["tattoo_design"] = ui_data.tattoo_design
+		data["selected_zone"] = ui_data.zone
 		data["selected_layer"] = ui_data.selected_layer
-		data["selected_font"] = ui_data.selected_font || "PEN_FONT"
-		data["selected_flair"] = ui_data.selected_flair || "null"
-		data["ink_color"] = ui_data.ink_color || "#000000"
+		data["selected_font"] = ui_data.selected_font
+		data["selected_flair"] = ui_data.selected_flair
+		data["ink_color"] = ui_data.ink_color
 		data["design_mode"] = ui_data.design_mode
 		data["debug_mode"] = ui_data.debug_mode
 
-	// Options - use simple key-value pairs
+	// Options
 	data["font_options"] = ui_data.font_options
 	data["flair_options"] = ui_data.flair_options
 	data["layer_options"] = ui_data.layer_options
 
-	// Body parts
+	// Body parts - ensure proper structure
 	data["body_parts"] = list()
 	if(current_target)
 		var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
