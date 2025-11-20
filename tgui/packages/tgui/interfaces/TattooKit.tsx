@@ -19,29 +19,9 @@ import {
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
 
-type BodyPart = {
-  zone: string;
-  name: string;
-  covered: boolean;
-  current_tattoos: number;
-  max_tattoos: number;
-};
-
-type Tattoo = {
-  artist: string;
-  design: string;
-  color: string;
-  layer: number;
-  is_signature: boolean;
-  font: string;
-  flair: string;
-  date_applied: string;
-};
-
 type Data = {
   // Target info
   target_name: string;
-  target_ref: string;
 
   // Kit status
   ink_uses: number;
@@ -60,21 +40,17 @@ type Data = {
   debug_mode: boolean;
 
   // Options
-  font_options: Record<string, string>;
-  flair_options: Record<string, string>;
-  layer_options: Record<string, string>;
+  font_options: any;
+  flair_options: any;
+  layer_options: any;
 
-  // Data
-  body_parts: BodyPart[];
-  existing_tattoos: Tattoo[];
+  // Data - treat as any to avoid type issues
+  body_parts: any;
+  existing_tattoos: any;
 };
 
-const TattooPreview = (props: {
-  design: string;
-  color: string;
-  flair: string;
-}) => {
-  const { design, color, flair } = props;
+const TattooPreview = (props: { design: string; color: string }) => {
+  const { design, color } = props;
 
   if (!design) {
     return (
@@ -109,15 +85,26 @@ const TattooPreview = (props: {
 
 const BodyPartSelector = (props) => {
   const { act, data } = useBackend<Data>();
-  const { body_parts = [] } = data;
+  const { body_parts } = data;
 
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredParts = Array.isArray(body_parts)
-    ? body_parts.filter((part) =>
-        part.name.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    : [];
+  // Safely handle body_parts data
+  let bodyPartsArray = [];
+  if (body_parts && typeof body_parts === 'object') {
+    if (Array.isArray(body_parts)) {
+      bodyPartsArray = body_parts;
+    } else {
+      // Convert object to array if needed
+      bodyPartsArray = Object.values(body_parts);
+    }
+  }
+
+  const filteredParts = bodyPartsArray.filter((part) => {
+    if (!part || typeof part !== 'object') return false;
+    const name = part.name || '';
+    return name.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   return (
     <Section
@@ -139,11 +126,11 @@ const BodyPartSelector = (props) => {
           <Table.Cell collapsing>Action</Table.Cell>
         </Table.Row>
         {filteredParts.length > 0 ? (
-          filteredParts.map((part) => (
-            <Table.Row key={part.zone} className="candystripe">
-              <Table.Cell bold>{part.name}</Table.Cell>
+          filteredParts.map((part, index) => (
+            <Table.Row key={part.zone || index} className="candystripe">
+              <Table.Cell bold>{part.name || 'Unknown'}</Table.Cell>
               <Table.Cell collapsing>
-                {part.current_tattoos}/{part.max_tattoos}
+                {part.current_tattoos || 0}/{part.max_tattoos || 3}
               </Table.Cell>
               <Table.Cell collapsing>
                 <Box color={part.covered ? 'average' : 'good'}>
@@ -155,12 +142,13 @@ const BodyPartSelector = (props) => {
                 <Button
                   icon="paint-brush"
                   disabled={
-                    part.covered || part.current_tattoos >= part.max_tattoos
+                    part.covered ||
+                    (part.current_tattoos || 0) >= (part.max_tattoos || 3)
                   }
                   tooltip={
                     part.covered
                       ? 'Body part is covered by clothing'
-                      : part.current_tattoos >= part.max_tattoos
+                      : (part.current_tattoos || 0) >= (part.max_tattoos || 3)
                         ? 'Maximum tattoos reached for this part'
                         : 'Design tattoo for this body part'
                   }
@@ -174,7 +162,7 @@ const BodyPartSelector = (props) => {
         ) : (
           <Table.Row>
             <Table.Cell colSpan={4} textAlign="center" color="label">
-              No body parts available or data not loaded
+              No body parts available
             </Table.Cell>
           </Table.Row>
         )}
@@ -200,19 +188,23 @@ const TattooDesigner = (props) => {
     flair_options = {},
     layer_options = {},
     existing_tattoos = [],
-    body_parts = [],
   } = data;
 
-  // Safely find the current part
-  const currentPart = Array.isArray(body_parts)
-    ? body_parts.find((part) => part.zone === selected_zone)
-    : null;
+  // Safely handle existing tattoos
+  let tattoosArray = [];
+  if (existing_tattoos && typeof existing_tattoos === 'object') {
+    if (Array.isArray(existing_tattoos)) {
+      tattoosArray = existing_tattoos;
+    } else {
+      tattoosArray = Object.values(existing_tattoos);
+    }
+  }
 
   return (
     <Stack fill vertical>
       <Stack.Item>
         <Section
-          title={`Designing for: ${currentPart?.name || 'Unknown'}`}
+          title={`Designing for: ${selected_zone || 'Unknown'}`}
           buttons={
             <Button icon="arrow-left" onClick={() => act('back_to_parts')}>
               Back to Body Parts
@@ -265,11 +257,7 @@ const TattooDesigner = (props) => {
               </LabeledList>
             </Stack.Item>
             <Stack.Item width="200px">
-              <TattooPreview
-                design={tattoo_design}
-                color={ink_color}
-                flair={selected_flair}
-              />
+              <TattooPreview design={tattoo_design} color={ink_color} />
             </Stack.Item>
           </Stack>
         </Section>
@@ -356,7 +344,7 @@ const TattooDesigner = (props) => {
         </Section>
       </Stack.Item>
 
-      {Array.isArray(existing_tattoos) && existing_tattoos.length > 0 && (
+      {tattoosArray.length > 0 && (
         <Stack.Item>
           <Section title="Existing Tattoos on this Body Part">
             <Table>
@@ -367,7 +355,7 @@ const TattooDesigner = (props) => {
                 <Table.Cell>Date</Table.Cell>
                 <Table.Cell collapsing>Actions</Table.Cell>
               </Table.Row>
-              {existing_tattoos.map((tattoo, index) => (
+              {tattoosArray.map((tattoo, index) => (
                 <Table.Row key={index} className="candystripe">
                   <Table.Cell>
                     <Box
@@ -381,7 +369,7 @@ const TattooDesigner = (props) => {
                   </Table.Cell>
                   <Table.Cell>{tattoo.artist || 'Unknown artist'}</Table.Cell>
                   <Table.Cell>
-                    {layer_options[tattoo.layer?.toString()] || 'Normal'}
+                    {layer_options[tattoo.layer] || 'Normal'}
                   </Table.Cell>
                   <Table.Cell>
                     {tattoo.date_applied || 'Unknown date'}
@@ -415,12 +403,7 @@ export const TattooKit = (props) => {
   } = data;
 
   return (
-    <Window
-      title="Professional Tattoo Kit"
-      width={800}
-      height={700}
-      theme="abstract"
-    >
+    <Window title="Professional Tattoo Kit" width={800} height={700}>
       <Window.Content>
         <Stack fill vertical>
           <Stack.Item>
