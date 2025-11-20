@@ -56,152 +56,6 @@
 		ui = new(user, src, "TattooKit")
 		ui.open()
 
-/obj/item/custom_tattoo_kit/ui_data(mob/user)
-	var/list/data = list()
-
-	// Target information
-	data["target_name"] = current_target ? current_target.name : null
-	data["target_ref"] = current_target ? REF(current_target) : null
-
-	// Kit status
-	data["ink_uses"] = ink_uses
-	data["max_ink_uses"] = max_ink_uses
-	data["applying"] = (world.time < next_use)
-
-	// Get current design data from target's UI data
-	var/datum/custom_tattoo_ui_data/ui_data = current_target?.get_tattoo_ui_data("global")
-	if(!ui_data)
-		ui_data = new()
-		if(current_target)
-			current_target.set_tattoo_ui_data("global", ui_data)
-
-	// Current design
-	data["artist_name"] = ui_data.artist_name
-	data["tattoo_design"] = ui_data.tattoo_design
-	data["selected_zone"] = ui_data.zone
-	data["selected_layer"] = ui_data.selected_layer
-	data["selected_font"] = ui_data.selected_font
-	data["selected_flair"] = ui_data.selected_flair
-	data["ink_color"] = ui_data.ink_color
-	data["design_mode"] = ui_data.design_mode
-	data["debug_mode"] = ui_data.debug_mode
-
-	// Available options
-	data["font_options"] = ui_data.font_options
-	data["flair_options"] = ui_data.flair_options
-
-	// Layer options with display names
-	data["layer_options"] = list(
-		"1" = "Under (Bottom)",
-		"2" = "Normal (Middle)",
-		"3" = "Over (Top)"
-	)
-
-	// Body parts data
-	data["body_parts"] = list()
-	if(current_target)
-		var/list/available_parts = get_all_custom_tattoo_body_parts(current_target)
-		for(var/zone_key in available_parts)
-			var/list/part_info = available_parts[zone_key]
-			data["body_parts"] += list(list(
-				"zone" = zone_key,
-				"name" = part_info["name"],
-				"covered" = part_info["covered"],
-				"current_tattoos" = part_info["current_tattoos"],
-				"max_tattoos" = part_info["max_tattoos"]
-			))
-
-	// Existing tattoos for current zone
-	data["existing_tattoos"] = list()
-	if(current_target && ui_data.zone)
-		var/list/tattoos = current_target.get_custom_tattoos(ui_data.zone)
-		for(var/datum/custom_tattoo/T as anything in tattoos)
-			if(QDELETED(T)) continue
-			data["existing_tattoos"] += list(list(
-				"artist" = T.artist,
-				"design" = T.design,
-				"color" = T.color,
-				"layer" = T.layer,
-				"is_signature" = T.is_signature,
-				"font" = T.font,
-				"flair" = T.flair,
-				"date_applied" = T.date_applied
-			))
-
-	return data
-
-/obj/item/custom_tattoo_kit/ui_act(action, params, datum/tgui/ui, datum/ui_state/state)
-	. = ..()
-	if(.)
-		return
-
-	var/mob/user = ui.user
-	var/datum/custom_tattoo_ui_data/ui_data = current_target?.get_tattoo_ui_data("global")
-	if(!ui_data)
-		ui_data = new()
-		if(current_target)
-			current_target.set_tattoo_ui_data("global", ui_data)
-
-	switch(action)
-		if("toggle_debug")
-			ui_data.debug_mode = !ui_data.debug_mode
-			. = TRUE
-
-		if("select_zone")
-			var/zone = params["zone"]
-			if(current_target && is_custom_tattoo_bodypart_existing(current_target, zone))
-				ui_data.zone = zone
-				ui_data.design_mode = TRUE
-				. = TRUE
-
-		if("back_to_parts")
-			ui_data.design_mode = FALSE
-			. = TRUE
-
-		if("set_artist")
-			ui_data.artist_name = params["artist"]
-			. = TRUE
-
-		if("set_design")
-			ui_data.tattoo_design = params["design"]
-			. = TRUE
-
-		if("set_font")
-			var/font = params["font"]
-			if(font in ui_data.font_options)
-				ui_data.selected_font = font
-				. = TRUE
-
-		if("set_flair")
-			var/flair = params["flair"]
-			ui_data.selected_flair = (flair == "null") ? null : flair
-			. = TRUE
-
-		if("set_layer")
-			var/layer = text2num(params["layer"])
-			if(layer in list(1, 2, 3))
-				ui_data.selected_layer = layer
-				. = TRUE
-
-		if("set_color")
-			ui_data.ink_color = params["color"]
-			. = TRUE
-
-		if("pick_color")
-			var/new_color = input(user, "Choose ink color:", "Tattoo Kit", ui_data.ink_color) as color|null
-			if(new_color)
-				ui_data.ink_color = new_color
-				. = TRUE
-
-		if("apply_tattoo")
-			if(can_apply_tattoo(user))
-				apply_tattoo(user)
-				. = TRUE
-
-	// Save UI data back to target
-	if(. && current_target)
-		current_target.set_tattoo_ui_data("global", ui_data)
-
 /obj/item/custom_tattoo_kit/proc/can_apply_tattoo(mob/user)
 	if(!current_target)
 		to_chat(user, span_warning("No target selected."))
@@ -212,16 +66,9 @@
 		to_chat(user, span_warning("UI data not found."))
 		return FALSE
 
-	if(!ui_data.zone || !ui_data.design_mode)
-		to_chat(user, span_warning("No body part selected or not in design mode."))
-		return FALSE
-
-	// Check if fields have content
-	if(!ui_data.artist_name || length(ui_data.artist_name) == 0)
-		to_chat(user, span_warning("Artist name is required."))
-		return FALSE
-	if(!ui_data.tattoo_design || length(ui_data.tattoo_design) == 0)
-		to_chat(user, span_warning("Tattoo design is required."))
+	// Use the UI data validation method
+	if(!ui_data.is_ready_for_application())
+		to_chat(user, span_warning("Design not complete or no body part selected."))
 		return FALSE
 
 	if(ink_uses <= 0)
@@ -249,7 +96,7 @@
 
 	to_chat(user, span_notice("You begin carefully applying the tattoo..."))
 
-	if(!do_after(user, 8 SECONDS, target = current_target))
+	if(!do_after(user, CUSTOM_TATTOO_APPLICATION_TIME, target = current_target))
 		to_chat(user, span_warning("Tattoo application interrupted!"))
 		return FALSE
 
@@ -264,7 +111,7 @@
 	if(is_signature_format)
 		final_artist = replacetext(final_artist, "%s", user.name)
 
-	// Create tattoo with current UI data (including flair)
+	// Create tattoo using the ui_data parameters
 	var/datum/custom_tattoo/new_tattoo = new(
 		final_artist,
 		ui_data.tattoo_design,
